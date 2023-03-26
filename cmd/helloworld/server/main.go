@@ -71,7 +71,9 @@ func main() {
 
 	streamServerInterceptorBuilder.Use(grpc_ctxtags.StreamServerInterceptor())
 	streamServerInterceptorBuilder.Use(grpc_recovery.StreamServerInterceptor(optsRecovery...))
+
 	s := grpc.NewServer(
+
 		grpc.ChainUnaryInterceptor(
 			unaryServerInterceptorBuilder.GetUnaryServerInterceptors()...,
 		),
