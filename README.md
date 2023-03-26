@@ -1,4 +1,4 @@
-# fluffy-core
+# fluffycore
 
 ## Build the proto
 
