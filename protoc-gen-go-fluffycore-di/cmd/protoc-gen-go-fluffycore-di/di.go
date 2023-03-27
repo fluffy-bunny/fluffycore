@@ -8,13 +8,15 @@ import (
 )
 
 const (
-	contextPackage    = protogen.GoImportPath("context")
-	errorsPackage     = protogen.GoImportPath("errors")
-	grpcPackage       = protogen.GoImportPath("google.golang.org/grpc")
-	grpcStatusPackage = protogen.GoImportPath("google.golang.org/grpc/status")
-	grpcCodesPackage  = protogen.GoImportPath("google.golang.org/grpc/codes")
-	diPackage         = protogen.GoImportPath("github.com/dozm/di")
-	diContextPackage  = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/middleware/dicontext")
+	contextPackage           = protogen.GoImportPath("context")
+	errorsPackage            = protogen.GoImportPath("errors")
+	grpcPackage              = protogen.GoImportPath("google.golang.org/grpc")
+	grpcStatusPackage        = protogen.GoImportPath("google.golang.org/grpc/status")
+	grpcCodesPackage         = protogen.GoImportPath("google.golang.org/grpc/codes")
+	diPackage                = protogen.GoImportPath("github.com/dozm/di")
+	reflectxPackage          = protogen.GoImportPath("github.com/dozm/di/reflectx")
+	diContextPackage         = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/middleware/dicontext")
+	contractsEndpointPackage = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/contracts/endpoint")
 )
 
 type genFileContext struct {
@@ -147,28 +149,41 @@ func (s *serviceGenContext) genService() {
 	service := s.service
 
 	// IServiceEndpointRegistration
-	interfaceServerName := fmt.Sprintf("I%vServer", service.GoName)
-	internalServierName := fmt.Sprintf("%vServer", strings.ToLower(service.GoName))
+	interfaceGRPCServerName := fmt.Sprintf("%vServer", service.GoName)
+	interfaceServerName := fmt.Sprintf("I%s", interfaceGRPCServerName)
+	internalServerName := fmt.Sprintf("%vServer", strings.ToLower(service.GoName))
 
 	g.P("// ", interfaceServerName, " defines the grpc server")
 	g.P("type ", interfaceServerName, " interface {")
 	g.P("  	", service.GoName, "Server")
-
 	g.P("}")
 	g.P()
 
 	// Define the ServiceEndpointRegistration implementation
 	//----------------------------------------------------------------------------------------------
-	g.P("// ", internalServierName, " defines the grpc server truct")
-	g.P("type ", internalServierName, " struct {")
+	g.P("// ", internalServerName, " defines the grpc server truct")
+	g.P("type ", internalServerName, " struct {")
 	g.P("  	", "Unimplemented", service.GoName, "Server")
 	g.P("}")
 	g.P()
 
-	g.P("// RegisterFluffyCore", service.GoName, "Server", " registers the fluffycore aware grpc server")
-	g.P("func RegisterFluffyCore", service.GoName, "Server", "(s *", grpcPackage.Ident("Server"), ")", " {")
-	g.P("   ", "Register", service.GoName, "Server(s,", "&", internalServierName, "{}", ")")
+	g.P("// Register the server with grpc")
+	g.P("func (srv *", internalServerName, ") Register(s *", grpcPackage.Ident("Server"), ") {")
+	g.P("   ", "Register", interfaceGRPCServerName, "(s,srv)")
 	g.P("}")
+
+	g.P("// Add", service.GoName, "Server", " adds the fluffycore aware grpc server")
+	g.P("func Add", service.GoName, "Server[T any](cb ", diPackage.Ident("ContainerBuilder"), ", ctor any) {")
+	g.P("   tt := ", reflectxPackage.Ident("TypeOf"), "[T]()")
+	g.P("	if tt != ", reflectxPackage.Ident("TypeOf"), "[", interfaceServerName, "]() {")
+	g.P("		panic(\"T must be of type ", interfaceServerName, "\")")
+	g.P("	}")
+	g.P("   ", diPackage.Ident("AddSingleton"), "[", contractsEndpointPackage.Ident("IEndpointRegistration"), "](cb, func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " {")
+	g.P("        return &", internalServerName, "{}")
+	g.P("   ", "})")
+	g.P("   ", diPackage.Ident("AddScoped"), "[", interfaceServerName, "](cb,ctor)")
+	g.P("}")
+
 	for _, method := range service.Methods {
 		serverType := method.Parent.GoName
 		key := "/" + *proto.Package + "." + serverType + "/" + method.GoName

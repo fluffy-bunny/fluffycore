@@ -8,7 +8,9 @@ import (
 	"net"
 
 	"github.com/dozm/di"
+	fluffycore_contracts_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
+
 	fluffycore_middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_middleware_logging "github.com/fluffy-bunny/fluffycore/middleware/logging"
 	proto_helloworld "github.com/fluffy-bunny/fluffycore/proto/helloworld"
@@ -44,7 +46,11 @@ func main() {
 		log.Fatal().Msgf("failed to listen: %v", err)
 	}
 	b := di.Builder()
-	di.AddScoped[proto_helloworld.IGreeterServer](b, func() proto_helloworld.IGreeterServer {
+	b.ConfigureOptions(func(o *di.Options) {
+		o.ValidateScopes = true
+		o.ValidateOnBuild = true
+	})
+	proto_helloworld.AddGreeterServer[proto_helloworld.IGreeterServer](b, func() proto_helloworld.IGreeterServer {
 		return &GreeterService{}
 	})
 	rootContainer = b.Build()
@@ -81,7 +87,10 @@ func main() {
 			streamServerInterceptorBuilder.GetStreamServerInterceptors()...,
 		),
 	)
-	proto_helloworld.RegisterFluffyCoreGreeterServer(s)
+	endpointRegistrations := di.Get[[]fluffycore_contracts_endpoint.IEndpointRegistration](rootContainer)
+	for _, endpointRegistration := range endpointRegistrations {
+		endpointRegistration.Register(s)
+	}
 
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
