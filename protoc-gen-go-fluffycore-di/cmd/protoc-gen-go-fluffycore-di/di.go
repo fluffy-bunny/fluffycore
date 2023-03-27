@@ -173,11 +173,7 @@ func (s *serviceGenContext) genService() {
 	g.P("}")
 
 	g.P("// Add", service.GoName, "Server", " adds the fluffycore aware grpc server")
-	g.P("func Add", service.GoName, "Server[T any](cb ", diPackage.Ident("ContainerBuilder"), ", ctor any) {")
-	g.P("   tt := ", reflectxPackage.Ident("TypeOf"), "[T]()")
-	g.P("	if tt != ", reflectxPackage.Ident("TypeOf"), "[", interfaceServerName, "]() {")
-	g.P("		panic(\"T must be of type ", interfaceServerName, "\")")
-	g.P("	}")
+	g.P("func Add", service.GoName, "Server[T ", interfaceServerName, "](cb ", diPackage.Ident("ContainerBuilder"), ", ctor any) {")
 	g.P("   ", diPackage.Ident("AddSingleton"), "[", contractsEndpointPackage.Ident("IEndpointRegistration"), "](cb, func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " {")
 	g.P("        return &", internalServerName, "{}")
 	g.P("   ", "})")

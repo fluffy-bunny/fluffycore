@@ -5,7 +5,6 @@ package helloworld
 import (
 	context "context"
 	di "github.com/dozm/di"
-	reflectx "github.com/dozm/di/reflectx"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	grpc "google.golang.org/grpc"
@@ -27,11 +26,7 @@ func (srv *greeterServer) Register(s *grpc.Server) {
 }
 
 // AddGreeterServer adds the fluffycore aware grpc server
-func AddGreeterServer[T any](cb di.ContainerBuilder, ctor any) {
-	tt := reflectx.TypeOf[T]()
-	if tt != reflectx.TypeOf[IGreeterServer]() {
-		panic("T must be of type IGreeterServer")
-	}
+func AddGreeterServer[T IGreeterServer](cb di.ContainerBuilder, ctor any) {
 	di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
 		return &greeterServer{}
 	})
@@ -61,11 +56,7 @@ func (srv *greeter2Server) Register(s *grpc.Server) {
 }
 
 // AddGreeter2Server adds the fluffycore aware grpc server
-func AddGreeter2Server[T any](cb di.ContainerBuilder, ctor any) {
-	tt := reflectx.TypeOf[T]()
-	if tt != reflectx.TypeOf[IGreeter2Server]() {
-		panic("T must be of type IGreeter2Server")
-	}
+func AddGreeter2Server[T IGreeter2Server](cb di.ContainerBuilder, ctor any) {
 	di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
 		return &greeter2Server{}
 	})

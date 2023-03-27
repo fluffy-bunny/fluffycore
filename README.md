@@ -2,6 +2,8 @@
 
 ## Build the proto
 
+[grpc.io](https://grpc.io/docs/languages/go/basics/)  
+
 ```powershell
 go mod tidy
 cd proto
