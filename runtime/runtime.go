@@ -16,7 +16,12 @@ import (
 	"github.com/dozm/di"
 	"github.com/fatih/structs"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
+	"github.com/fluffy-bunny/fluffycore/cmd/server/services/health"
+	fluffycore_contract_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
+	fluffycore_contracts_health "github.com/fluffy-bunny/fluffycore/contracts/health"
 	fluffycore_contract_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
+	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
+
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	"github.com/fluffy-bunny/viperEx"
 	"github.com/reugn/async"
@@ -151,6 +156,9 @@ func (s *Runtime) StartWithListenterAndPlugins(lis net.Listener, startup fluffyc
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
 	}
 	builder := di.Builder()
+	// default health service
+	health.AddHealthService(builder)
+
 	configOptions := startup.GetConfigOptions()
 	err = LoadConfig(configOptions)
 	if err != nil {
@@ -164,18 +172,53 @@ func (s *Runtime) StartWithListenterAndPlugins(lis net.Listener, startup fluffyc
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
 	startup.Configure(unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
-	server := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			unaryServerInterceptorBuilder.GetUnaryServerInterceptors()...,
-		),
-		grpc.ChainStreamInterceptor(
-			streamServerInterceptorBuilder.GetStreamServerInterceptors()...,
-		),
+	var serverOpts []grpc.ServerOption
+	unaryInterceptors := unaryServerInterceptorBuilder.GetUnaryServerInterceptors()
+	if len(unaryInterceptors) != 0 {
+		serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(unaryInterceptors...))
+	}
+	streamInterceptors := streamServerInterceptorBuilder.GetStreamServerInterceptors()
+	if len(streamInterceptors) != 0 {
+		serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(streamInterceptors...))
+	}
+	grpcServer := grpc.NewServer(
+		serverOpts...,
 	)
-	if server == nil {
+	if grpcServer == nil {
 		panic("server is nil")
 	}
+	endpoints := di.Get[[]fluffycore_contract_endpoint.IEndpointRegistration](si.RootContainer)
+	for _, endpoint := range endpoints {
+		endpoint.Register(grpcServer)
+	}
+	healthServer := di.Get[fluffycore_contracts_health.IHealthServer](si.RootContainer)
+	grpc_health.RegisterHealthServer(grpcServer, healthServer)
 
+	err = startup.OnPreServerStartup()
+	if err != nil {
+		log.Error().Err(err).
+			Interface("startupManifest", si.StartupManifest).Msgf("OnPreServerStartup failed")
+		panic(err)
+	}
+	if lis == nil {
+		if si.StartupManifest.Port == 0 {
+			panic("port is not set")
+
+		}
+		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", si.StartupManifest.Port))
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	future := asyncServeGRPC(grpcServer, lis)
+	si.Server = grpcServer
+	si.Future = future
+	s.Wait()
+	log.Info().Msg("Interupt triggered")
+	si.Server.Stop()
+	startup.OnPostServerShutdown()
+	si.Future.Join()
 }
 func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error {
 	v := viper.NewWithOptions(viper.KeyDelimiter("__"))
