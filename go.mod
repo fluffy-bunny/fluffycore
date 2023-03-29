@@ -2,6 +2,8 @@ module github.com/fluffy-bunny/fluffycore
 
 go 1.20
 
+replace github.com/dozm/di => github.com/fluffy-bunny/dozm-di v0.3.0
+
 require (
 	github.com/dozm/di v0.3.0
 	github.com/fatih/structs v1.1.0
