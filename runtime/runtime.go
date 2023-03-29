@@ -20,9 +20,8 @@ import (
 	fluffycore_contract_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	fluffycore_contracts_health "github.com/fluffy-bunny/fluffycore/contracts/health"
 	fluffycore_contract_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
-	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
-
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
+	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	"github.com/fluffy-bunny/viperEx"
 	"github.com/reugn/async"
 	"github.com/rs/zerolog"
@@ -30,6 +29,7 @@ import (
 	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
+	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const bufSize = 1024 * 1024
@@ -158,6 +158,7 @@ func (s *Runtime) StartWithListenterAndPlugins(lis net.Listener, startup fluffyc
 	builder := di.Builder()
 	// default health service
 	health.AddHealthService(builder)
+	fluffycore_services_common.AddCommonServices(builder)
 
 	configOptions := startup.GetConfigOptions()
 	err = LoadConfig(configOptions)
