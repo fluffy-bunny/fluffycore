@@ -5,6 +5,21 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "example app",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/example/server",
+            "env": {
+                "APPLICATION_NAME": "example",
+                "APPLICATION_ENVIRONMENT":"Development",
+                "LOG_LEVEL": "debug",     
+                "PRETTY_LOG":"true",
+                "GRPC_CONFIG__PORT": "50051",
+            },
+            "args": [ "serve" ]        
+        },
+        {
             "name": "Server",
             "type": "go",
             "request": "launch",

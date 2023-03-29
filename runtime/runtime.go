@@ -69,7 +69,7 @@ func (s *Runtime) Wait() {
 	)
 	<-s.waitChannel
 }
-func (s *Runtime) StartWithListenterAndPlugins(lis net.Listener, startup fluffycore_contract_runtime.IStartup) {
+func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contract_runtime.IStartup) {
 	var err error
 	// start the pprof web server
 	pProfServer := NewPProfServer()
@@ -156,6 +156,10 @@ func (s *Runtime) StartWithListenterAndPlugins(lis net.Listener, startup fluffyc
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
 	}
 	builder := di.Builder()
+	builder.ConfigureOptions(func(o *di.Options) {
+		o.ValidateScopes = true
+		o.ValidateOnBuild = true
+	})
 	// default health service
 	health.AddHealthService(builder)
 	fluffycore_services_common.AddCommonServices(builder)
