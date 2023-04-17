@@ -177,6 +177,13 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	fluffycore_services_common.AddCommonServices(builder)
 
 	configOptions := startup.GetConfigOptions()
+	if configOptions == nil {
+		panic("configOptions is nil")
+	}
+	if configOptions.Destination == nil {
+		log.Info().Msg("configOptions.Destination is nil, use default")
+		configOptions.Destination = &fluffycore_contracts_config.CoreConfig{}
+	}
 	err = LoadConfig(configOptions)
 	if err != nil {
 		panic(err)
@@ -191,7 +198,6 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	if err != nil {
 		panic(err)
 	}
-	//	coreConfig := configOptions.Destination.(*fluffycore_contracts_config.CoreConfig)
 	di.AddSingleton[*fluffycore_contracts_config.CoreConfig](builder, func() *fluffycore_contracts_config.CoreConfig {
 		return coreConfig
 	})
@@ -199,7 +205,6 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	si.StartupManifest = startup.GetApplicationManifest()
 	startup.ConfigureServices(builder)
 	si.RootContainer = builder.Build()
-
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
 	startup.Configure(si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
