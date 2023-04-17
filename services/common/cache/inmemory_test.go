@@ -29,10 +29,11 @@ func TestSameTypeAsScopedTransientSingleton(t *testing.T) {
 	scope := scopeFactory.CreateScope()
 	scopedContainer := scope.Container()
 
-	meCacheScoped := di.Get[fluffycore_contracts_common.IScopedMemoryCache](scopedContainer)
+	meCacheScoped := di.Get[fluffycore_contracts_common.IMemoryCache](scopedContainer)
 	require.NotNil(t, meCacheScoped)
 
 	require.NotNil(t, meCache)
+	require.NotSame(t, meCache, meCacheScoped)
 
 	val, err := meCache.Get("test")
 	require.Error(t, err)

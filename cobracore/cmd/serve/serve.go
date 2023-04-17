@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
-	fluffycore__runtime "github.com/fluffy-bunny/fluffycore/runtime"
+	fluffycore_runtime "github.com/fluffy-bunny/fluffycore/runtime"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -104,7 +104,10 @@ var command = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Info().Msg("Starting Server")
-		runtime := fluffycore__runtime.NewRuntime()
+
+		runtime := fluffycore_runtime.NewRuntime(&fluffycore_contracts_runtime.ApplicationManifest{
+			Version: Startup.GetApplicationManifest().Version,
+		})
 		runtime.StartWithListenter(nil, Startup)
 
 	},

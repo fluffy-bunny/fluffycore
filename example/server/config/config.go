@@ -1,15 +1,11 @@
 package config
 
-// GRPCConfig ...
-type GRPCConfig struct {
-	Port int `json:"port" mapstructure:"PORT"`
-}
+import (
+	fluffycore_contracts_config "github.com/fluffy-bunny/fluffycore/contracts/config"
+)
+
 type Config struct {
-	ApplicationName        string     `json:"applicationName" mapstructure:"APPLICATION_NAME"`
-	ApplicationEnvironment string     `json:"applicationEnvironment" mapstructure:"APPLICATION_ENVIRONMENT"`
-	PrettyLog              bool       `json:"prettyLog" mapstructure:"PRETTY_LOG"`
-	LogLevel               string     `json:"logLevel" mapstructure:"LOG_LEVEL"`
-	GRPCConfig             GRPCConfig `json:"grpcConfig" mapstructure:"GRPC_CONFIG"`
+	fluffycore_contracts_config.CoreConfig `mapstructure:",squash"`
 }
 
 // ConfigDefaultJSON default json
@@ -19,8 +15,6 @@ var ConfigDefaultJSON = []byte(`
 	"APPLICATION_ENVIRONMENT": "in-environment",
 	"PRETTY_LOG": false,
 	"LOG_LEVEL": "info",
-	"GRPC_CONFIG": {
-	  "PORT": 1111
-	}
+	"PORT": 1111
   }
 `)

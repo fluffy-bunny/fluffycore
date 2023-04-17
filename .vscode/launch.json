@@ -15,7 +15,7 @@
                 "APPLICATION_ENVIRONMENT":"Development",
                 "LOG_LEVEL": "debug",     
                 "PRETTY_LOG":"true",
-                "GRPC_CONFIG__PORT": "50051",
+                "PORT": "50051",
             },
             "args": [ "serve" ]        
         },

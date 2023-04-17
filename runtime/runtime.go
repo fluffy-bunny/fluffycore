@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -11,18 +12,20 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/dozm/di"
 	"github.com/fatih/structs"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
 	"github.com/fluffy-bunny/fluffycore/cmd/server/services/health"
+	fluffycore_contracts_config "github.com/fluffy-bunny/fluffycore/contracts/config"
 	fluffycore_contract_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	fluffycore_contracts_health "github.com/fluffy-bunny/fluffycore/contracts/health"
 	fluffycore_contract_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
-	"github.com/fluffy-bunny/viperEx"
+	viperEx "github.com/fluffy-bunny/viperEx"
 	"github.com/reugn/async"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -35,11 +38,12 @@ import (
 const bufSize = 1024 * 1024
 
 type ServerInstance struct {
-	StartupManifest fluffycore_contract_runtime.StartupManifest
+	StartupManifest fluffycore_contract_runtime.ApplicationManifest
 	Server          *grpc.Server
 	Future          async.Future[interface{}]
 	Endpoints       []interface{}
 	RootContainer   di.Container
+	logSetupOnce    sync.Once
 }
 type Runtime struct {
 	ServerInstances *ServerInstance
@@ -47,9 +51,12 @@ type Runtime struct {
 }
 
 // NewRuntime returns an instance of a new Runtime
-func NewRuntime() *Runtime {
+func NewRuntime(startupManifest *fluffycore_contract_runtime.ApplicationManifest) *Runtime {
 	return &Runtime{
 		waitChannel: make(chan os.Signal),
+		ServerInstances: &ServerInstance{
+			StartupManifest: *startupManifest,
+		},
 	}
 }
 
@@ -135,26 +142,31 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 	log.Logger = log.Output(target)
 
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	// do once
+	// race condition here with zerolog under test
+	s.ServerInstances.logSetupOnce.Do(func() {
+		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	switch strings.ToLower(logLevel) {
-	case "debug":
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	case "info":
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case "warn":
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	case "error":
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-	case "fatal":
-		zerolog.SetGlobalLevel(zerolog.FatalLevel)
-	case "panic":
-		zerolog.SetGlobalLevel(zerolog.PanicLevel)
-	case "trace":
-		zerolog.SetGlobalLevel(zerolog.TraceLevel)
-	}
+		switch strings.ToLower(logLevel) {
+		case "debug":
+			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		case "info":
+			zerolog.SetGlobalLevel(zerolog.InfoLevel)
+		case "warn":
+			zerolog.SetGlobalLevel(zerolog.WarnLevel)
+		case "error":
+			zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+		case "fatal":
+			zerolog.SetGlobalLevel(zerolog.FatalLevel)
+		case "panic":
+			zerolog.SetGlobalLevel(zerolog.PanicLevel)
+		case "trace":
+			zerolog.SetGlobalLevel(zerolog.TraceLevel)
+		}
+
+	})
 	builder := di.Builder()
 	builder.ConfigureOptions(func(o *di.Options) {
 		o.ValidateScopes = true
@@ -169,14 +181,28 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	if err != nil {
 		panic(err)
 	}
+	// configOptions.Destination contains *fluffycore_contracts_config.CoreConfig
+	configBytes, err := json.Marshal(configOptions.Destination)
+	if err != nil {
+		panic(err)
+	}
+	var coreConfig *fluffycore_contracts_config.CoreConfig
+	err = json.Unmarshal(configBytes, &coreConfig)
+	if err != nil {
+		panic(err)
+	}
+	//	coreConfig := configOptions.Destination.(*fluffycore_contracts_config.CoreConfig)
+	di.AddSingleton[*fluffycore_contracts_config.CoreConfig](builder, func() *fluffycore_contracts_config.CoreConfig {
+		return coreConfig
+	})
 	si := &ServerInstance{}
-	si.StartupManifest = startup.GetStartupManifest()
+	si.StartupManifest = startup.GetApplicationManifest()
 	startup.ConfigureServices(builder)
 	si.RootContainer = builder.Build()
 
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
-	startup.Configure(unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
+	startup.Configure(si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 	var serverOpts []grpc.ServerOption
 	unaryInterceptors := unaryServerInterceptorBuilder.GetUnaryServerInterceptors()
 	if len(unaryInterceptors) != 0 {
@@ -206,11 +232,10 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		panic(err)
 	}
 	if lis == nil {
-		if si.StartupManifest.Port == 0 {
+		if coreConfig.PORT == 0 {
 			panic("port is not set")
-
 		}
-		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", si.StartupManifest.Port))
+		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", coreConfig.PORT))
 		if err != nil {
 			panic(err)
 		}

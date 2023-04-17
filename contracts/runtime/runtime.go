@@ -6,19 +6,14 @@ import (
 )
 
 type (
-	// StartupManifest information
-	StartupManifest struct {
-		Name    string
+	// ApplicationManifest information
+	ApplicationManifest struct {
 		Version string
-		Port    int
 	}
 	ConfigOptions struct {
-		Destination            interface{}
-		RootConfig             []byte
-		ConfigPath             string
-		ApplicationEnvironment string `json:"applicationEnvironment" mapstructure:"APPLICATION_ENVIRONMENT"`
-		PrettyLog              bool   `json:"prettyLog" mapstructure:"PRETTY_LOG"`
-		LogLevel               string `json:"logLevel" mapstructure:"LOG_LEVEL"`
+		Destination interface{}
+		RootConfig  []byte
+		ConfigPath  string
 	}
 
 	UnimplementedStartup struct {
@@ -41,10 +36,12 @@ func (u UnimplementedStartup) GetPort() int {
 // IStartup contract
 type IStartup interface {
 	mustEmbedUnimplementedStartup()
-	GetStartupManifest() StartupManifest
+	GetApplicationManifest() ApplicationManifest
 	GetConfigOptions() *ConfigOptions
 	ConfigureServices(builder di.ContainerBuilder)
-	Configure(unaryServerInterceptorBuilder fluffycore_contract_middleware.IUnaryServerInterceptorBuilder, streamServerInterceptorBuilder fluffycore_contract_middleware.IStreamServerInterceptorBuilder)
+	Configure(rootContainer di.Container,
+		unaryServerInterceptorBuilder fluffycore_contract_middleware.IUnaryServerInterceptorBuilder,
+		streamServerInterceptorBuilder fluffycore_contract_middleware.IStreamServerInterceptorBuilder)
 	OnPreServerStartup() error
 	OnPostServerShutdown()
 }

@@ -11,6 +11,7 @@ func UnaryServerInterceptor(rootContainer di.Container) grpc.UnaryServerIntercep
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		scopeFactory := di.Get[di.ScopeFactory](rootContainer)
 		scope := scopeFactory.CreateScope()
+		defer scope.Dispose()
 		requestContainer := scope.Container()
 		ctx = SetRequestContainer(ctx, requestContainer)
 		return handler(ctx, req)
