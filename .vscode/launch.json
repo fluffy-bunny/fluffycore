@@ -58,7 +58,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/helloworld/client",
+            "program": "${workspaceFolder}/example/client",
         }
     ]
 }

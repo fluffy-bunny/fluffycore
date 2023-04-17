@@ -198,10 +198,13 @@ var Greeter2_ServiceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type EdgeControlServiceClient interface {
-	// Write a property to one or more known subtended device(s)
+	// RequestPoints
 	// Request: Unary
 	// Response: Streaming
-	WriteProps(ctx context.Context, in *WritePropsRequest, opts ...grpc.CallOption) (EdgeControlService_WritePropsClient, error)
+	RequestPoints(ctx context.Context, in *PointsRequest, opts ...grpc.CallOption) (EdgeControlService_RequestPointsClient, error)
+	// Accepts a stream of Points on a route being traversed, returning a
+	// RouteSummary when traversal is completed.
+	StreamPoints(ctx context.Context, opts ...grpc.CallOption) (EdgeControlService_StreamPointsClient, error)
 }
 
 type edgeControlServiceClient struct {
@@ -212,12 +215,12 @@ func NewEdgeControlServiceClient(cc grpc.ClientConnInterface) EdgeControlService
 	return &edgeControlServiceClient{cc}
 }
 
-func (c *edgeControlServiceClient) WriteProps(ctx context.Context, in *WritePropsRequest, opts ...grpc.CallOption) (EdgeControlService_WritePropsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &EdgeControlService_ServiceDesc.Streams[0], "/helloworld.EdgeControlService/WriteProps", opts...)
+func (c *edgeControlServiceClient) RequestPoints(ctx context.Context, in *PointsRequest, opts ...grpc.CallOption) (EdgeControlService_RequestPointsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &EdgeControlService_ServiceDesc.Streams[0], "/helloworld.EdgeControlService/RequestPoints", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &edgeControlServiceWritePropsClient{stream}
+	x := &edgeControlServiceRequestPointsClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -227,17 +230,51 @@ func (c *edgeControlServiceClient) WriteProps(ctx context.Context, in *WriteProp
 	return x, nil
 }
 
-type EdgeControlService_WritePropsClient interface {
-	Recv() (*WritePropsResponse, error)
+type EdgeControlService_RequestPointsClient interface {
+	Recv() (*Point, error)
 	grpc.ClientStream
 }
 
-type edgeControlServiceWritePropsClient struct {
+type edgeControlServiceRequestPointsClient struct {
 	grpc.ClientStream
 }
 
-func (x *edgeControlServiceWritePropsClient) Recv() (*WritePropsResponse, error) {
-	m := new(WritePropsResponse)
+func (x *edgeControlServiceRequestPointsClient) Recv() (*Point, error) {
+	m := new(Point)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *edgeControlServiceClient) StreamPoints(ctx context.Context, opts ...grpc.CallOption) (EdgeControlService_StreamPointsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &EdgeControlService_ServiceDesc.Streams[1], "/helloworld.EdgeControlService/StreamPoints", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &edgeControlServiceStreamPointsClient{stream}
+	return x, nil
+}
+
+type EdgeControlService_StreamPointsClient interface {
+	Send(*Point) error
+	CloseAndRecv() (*RouteSummary, error)
+	grpc.ClientStream
+}
+
+type edgeControlServiceStreamPointsClient struct {
+	grpc.ClientStream
+}
+
+func (x *edgeControlServiceStreamPointsClient) Send(m *Point) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *edgeControlServiceStreamPointsClient) CloseAndRecv() (*RouteSummary, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(RouteSummary)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -248,10 +285,13 @@ func (x *edgeControlServiceWritePropsClient) Recv() (*WritePropsResponse, error)
 // All implementations must embed UnimplementedEdgeControlServiceServer
 // for forward compatibility
 type EdgeControlServiceServer interface {
-	// Write a property to one or more known subtended device(s)
+	// RequestPoints
 	// Request: Unary
 	// Response: Streaming
-	WriteProps(*WritePropsRequest, EdgeControlService_WritePropsServer) error
+	RequestPoints(*PointsRequest, EdgeControlService_RequestPointsServer) error
+	// Accepts a stream of Points on a route being traversed, returning a
+	// RouteSummary when traversal is completed.
+	StreamPoints(EdgeControlService_StreamPointsServer) error
 	mustEmbedUnimplementedEdgeControlServiceServer()
 }
 
@@ -259,8 +299,11 @@ type EdgeControlServiceServer interface {
 type UnimplementedEdgeControlServiceServer struct {
 }
 
-func (UnimplementedEdgeControlServiceServer) WriteProps(*WritePropsRequest, EdgeControlService_WritePropsServer) error {
-	return status.Errorf(codes.Unimplemented, "method WriteProps not implemented")
+func (UnimplementedEdgeControlServiceServer) RequestPoints(*PointsRequest, EdgeControlService_RequestPointsServer) error {
+	return status.Errorf(codes.Unimplemented, "method RequestPoints not implemented")
+}
+func (UnimplementedEdgeControlServiceServer) StreamPoints(EdgeControlService_StreamPointsServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamPoints not implemented")
 }
 func (UnimplementedEdgeControlServiceServer) mustEmbedUnimplementedEdgeControlServiceServer() {}
 
@@ -275,25 +318,51 @@ func RegisterEdgeControlServiceServer(s grpc.ServiceRegistrar, srv EdgeControlSe
 	s.RegisterService(&EdgeControlService_ServiceDesc, srv)
 }
 
-func _EdgeControlService_WriteProps_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(WritePropsRequest)
+func _EdgeControlService_RequestPoints_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(PointsRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(EdgeControlServiceServer).WriteProps(m, &edgeControlServiceWritePropsServer{stream})
+	return srv.(EdgeControlServiceServer).RequestPoints(m, &edgeControlServiceRequestPointsServer{stream})
 }
 
-type EdgeControlService_WritePropsServer interface {
-	Send(*WritePropsResponse) error
+type EdgeControlService_RequestPointsServer interface {
+	Send(*Point) error
 	grpc.ServerStream
 }
 
-type edgeControlServiceWritePropsServer struct {
+type edgeControlServiceRequestPointsServer struct {
 	grpc.ServerStream
 }
 
-func (x *edgeControlServiceWritePropsServer) Send(m *WritePropsResponse) error {
+func (x *edgeControlServiceRequestPointsServer) Send(m *Point) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func _EdgeControlService_StreamPoints_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(EdgeControlServiceServer).StreamPoints(&edgeControlServiceStreamPointsServer{stream})
+}
+
+type EdgeControlService_StreamPointsServer interface {
+	SendAndClose(*RouteSummary) error
+	Recv() (*Point, error)
+	grpc.ServerStream
+}
+
+type edgeControlServiceStreamPointsServer struct {
+	grpc.ServerStream
+}
+
+func (x *edgeControlServiceStreamPointsServer) SendAndClose(m *RouteSummary) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *edgeControlServiceStreamPointsServer) Recv() (*Point, error) {
+	m := new(Point)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // EdgeControlService_ServiceDesc is the grpc.ServiceDesc for EdgeControlService service.
@@ -305,9 +374,14 @@ var EdgeControlService_ServiceDesc = grpc.ServiceDesc{
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "WriteProps",
-			Handler:       _EdgeControlService_WriteProps_Handler,
+			StreamName:    "RequestPoints",
+			Handler:       _EdgeControlService_RequestPoints_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "StreamPoints",
+			Handler:       _EdgeControlService_StreamPoints_Handler,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "proto/helloworld/helloworld.proto",

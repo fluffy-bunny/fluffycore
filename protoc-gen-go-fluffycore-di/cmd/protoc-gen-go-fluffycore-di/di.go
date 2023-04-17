@@ -200,12 +200,12 @@ func (s *methodGenContext) genServerMethodShim() {
 	method := s.ProtogenMethod
 
 	interfaceServerName := fmt.Sprintf("I%vServer", method.Parent.GoName)
-
-	if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
-		// Explicitly no current support for streaming methods
-		panic("Does not currently support streaming methods")
-	}
-
+	/*
+		if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
+			// Explicitly no current support for streaming methods
+			panic("Does not currently support streaming methods")
+		}
+	*/
 	// Unary method
 	serverType := method.Parent.GoName
 
