@@ -4,19 +4,21 @@ import (
 	di "github.com/dozm/di"
 	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
-	config "github.com/fluffy-bunny/fluffycore/example/server/config"
+	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
 	services_greeter "github.com/fluffy-bunny/fluffycore/example/server/services/greeter"
 	services_health "github.com/fluffy-bunny/fluffycore/example/server/services/health"
 	version "github.com/fluffy-bunny/fluffycore/example/server/version"
 	fluffycore_middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_middleware_logging "github.com/fluffy-bunny/fluffycore/middleware/logging"
+	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
+	log "github.com/rs/zerolog/log"
 )
 
 type (
 	startup struct {
 		fluffycore_contracts_runtime.UnimplementedStartup
 		configOptions *fluffycore_contracts_runtime.ConfigOptions
-		config        *config.Config
+		config        *contracts_config.Config
 	}
 )
 
@@ -30,16 +32,22 @@ func (s *startup) GetApplicationManifest() fluffycore_contracts_runtime.Applicat
 	}
 }
 func (s *startup) GetConfigOptions() *fluffycore_contracts_runtime.ConfigOptions {
-	s.config = &config.Config{}
+	s.config = &contracts_config.Config{}
 	s.configOptions = &fluffycore_contracts_runtime.ConfigOptions{
 		Destination: s.config,
-		RootConfig:  config.ConfigDefaultJSON,
+		RootConfig:  contracts_config.ConfigDefaultJSON,
 	}
 	return s.configOptions
 }
 func (s *startup) ConfigureServices(builder di.ContainerBuilder) {
-	di.AddSingleton[*config.Config](builder, func() *config.Config {
-		return s.configOptions.Destination.(*config.Config)
+
+	dst, err := fluffycore_utils_redact.CloneAndRedact(s.configOptions.Destination)
+	if err != nil {
+		panic(err)
+	}
+	log.Info().Interface("config", dst).Msg("config")
+	di.AddSingleton[*contracts_config.Config](builder, func() *contracts_config.Config {
+		return s.configOptions.Destination.(*contracts_config.Config)
 	})
 	services_health.AddHealthService(builder)
 	services_greeter.AddGreeterService(builder)

@@ -16,6 +16,8 @@
                 "LOG_LEVEL": "debug",     
                 "PRETTY_LOG":"true",
                 "PORT": "50051",
+                "CUSTOM_STRING": "In Flames",
+                "SOME_SECRET": "1234567890",
             },
             "args": [ "serve" ]        
         },
