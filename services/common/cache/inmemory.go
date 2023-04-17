@@ -16,10 +16,10 @@ type (
 
 // AddMemoryCache adds service to the DI container
 func AddMemoryCache(b di.ContainerBuilder) {
-	di.AddSingleton[fluffycore_contracts_common.IMemoryCache](b, func() fluffycore_contracts_common.IMemoryCache {
+	di.AddSingleton[fluffycore_contracts_common.ISingletonMemoryCache](b, func() fluffycore_contracts_common.ISingletonMemoryCache {
 		return NewMemoryCache()
 	})
-	di.AddScoped[fluffycore_contracts_common.IMemoryCache](b, func() fluffycore_contracts_common.IMemoryCache {
+	di.AddScoped[fluffycore_contracts_common.IScopedMemoryCache](b, func() fluffycore_contracts_common.IScopedMemoryCache {
 		return NewMemoryCache()
 	})
 }

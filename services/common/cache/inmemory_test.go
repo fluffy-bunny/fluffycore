@@ -21,7 +21,7 @@ func TestSameTypeAsScopedTransientSingleton(t *testing.T) {
 	AddMemoryCache(b)
 	container := b.Build()
 
-	meCache := di.Get[fluffycore_contracts_common.IMemoryCache](container)
+	meCache := di.Get[fluffycore_contracts_common.ISingletonMemoryCache](container)
 	require.Panics(t, func() {
 		di.Get[fluffycore_contracts_common.IScopedMemoryCache](container)
 	})
@@ -29,7 +29,7 @@ func TestSameTypeAsScopedTransientSingleton(t *testing.T) {
 	scope := scopeFactory.CreateScope()
 	scopedContainer := scope.Container()
 
-	meCacheScoped := di.Get[fluffycore_contracts_common.IMemoryCache](scopedContainer)
+	meCacheScoped := di.Get[fluffycore_contracts_common.IScopedMemoryCache](scopedContainer)
 	require.NotNil(t, meCacheScoped)
 
 	require.NotNil(t, meCache)

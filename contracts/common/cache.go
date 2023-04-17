@@ -12,8 +12,8 @@ type (
 		ttlcache.SimpleCache
 		GetOrInsert(k string, adder func() (interface{}, time.Duration, error)) interface{}
 	}
-	// IMemoryCache interface
-	IMemoryCache interface {
+	// ISingletonMemoryCache interface
+	ISingletonMemoryCache interface {
 		ICache
 	}
 	// IScopedMemoryCache interface
