@@ -1,12 +1,12 @@
-package main
+package runtime
 
 import (
 	di "github.com/dozm/di"
 	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
-	services_greeter "github.com/fluffy-bunny/fluffycore/example/server/services/greeter"
-	services_health "github.com/fluffy-bunny/fluffycore/example/server/services/health"
+	services_greeter "github.com/fluffy-bunny/fluffycore/example/internal/services/greeter"
+	services_health "github.com/fluffy-bunny/fluffycore/example/internal/services/health"
 	fluffycore_middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_middleware_logging "github.com/fluffy-bunny/fluffycore/middleware/logging"
 	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
