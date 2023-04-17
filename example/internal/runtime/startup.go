@@ -7,6 +7,7 @@ import (
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
 	services_greeter "github.com/fluffy-bunny/fluffycore/example/internal/services/greeter"
 	services_health "github.com/fluffy-bunny/fluffycore/example/internal/services/health"
+	services_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/services/somedisposable"
 	fluffycore_middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_middleware_logging "github.com/fluffy-bunny/fluffycore/middleware/logging"
 	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
@@ -45,6 +46,7 @@ func (s *startup) ConfigureServices(builder di.ContainerBuilder) {
 	})
 	services_health.AddHealthService(builder)
 	services_greeter.AddGreeterService(builder)
+	services_somedisposable.AddScopedSomeDisposable(builder)
 }
 func (s *startup) Configure(rootContainer di.Container, unaryServerInterceptorBuilder fluffycore_contracts_middleware.IUnaryServerInterceptorBuilder, streamServerInterceptorBuilder fluffycore_contracts_middleware.IStreamServerInterceptorBuilder) {
 

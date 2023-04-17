@@ -3,9 +3,8 @@ package health
 import (
 	"context"
 
+	di "github.com/dozm/di"
 	fluffycore_contracts_health "github.com/fluffy-bunny/fluffycore/contracts/health"
-
-	"github.com/dozm/di"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
 )
 
