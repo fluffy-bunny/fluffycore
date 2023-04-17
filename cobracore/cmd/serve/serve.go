@@ -105,9 +105,7 @@ var command = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Info().Msg("Starting Server")
 
-		runtime := fluffycore_runtime.NewRuntime(&fluffycore_contracts_runtime.ApplicationManifest{
-			Version: Startup.GetApplicationManifest().Version,
-		})
+		runtime := fluffycore_runtime.NewRuntime()
 		runtime.StartWithListenter(nil, Startup)
 
 	},

@@ -7,7 +7,6 @@ import (
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
 	services_greeter "github.com/fluffy-bunny/fluffycore/example/server/services/greeter"
 	services_health "github.com/fluffy-bunny/fluffycore/example/server/services/health"
-	version "github.com/fluffy-bunny/fluffycore/example/server/version"
 	fluffycore_middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_middleware_logging "github.com/fluffy-bunny/fluffycore/middleware/logging"
 	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
@@ -26,11 +25,6 @@ func NewStartup() fluffycore_contracts_runtime.IStartup {
 	return &startup{}
 }
 
-func (s *startup) GetApplicationManifest() fluffycore_contracts_runtime.ApplicationManifest {
-	return fluffycore_contracts_runtime.ApplicationManifest{
-		Version: version.Version(),
-	}
-}
 func (s *startup) GetConfigOptions() *fluffycore_contracts_runtime.ConfigOptions {
 	s.config = &contracts_config.Config{}
 	s.configOptions = &fluffycore_contracts_runtime.ConfigOptions{

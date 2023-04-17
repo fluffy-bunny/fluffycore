@@ -36,7 +36,6 @@ func (u UnimplementedStartup) GetPort() int {
 // IStartup contract
 type IStartup interface {
 	mustEmbedUnimplementedStartup()
-	GetApplicationManifest() ApplicationManifest
 	GetConfigOptions() *ConfigOptions
 	ConfigureServices(builder di.ContainerBuilder)
 	Configure(rootContainer di.Container,

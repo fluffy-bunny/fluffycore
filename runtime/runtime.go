@@ -38,12 +38,11 @@ import (
 const bufSize = 1024 * 1024
 
 type ServerInstance struct {
-	StartupManifest fluffycore_contract_runtime.ApplicationManifest
-	Server          *grpc.Server
-	Future          async.Future[interface{}]
-	Endpoints       []interface{}
-	RootContainer   di.Container
-	logSetupOnce    sync.Once
+	Server        *grpc.Server
+	Future        async.Future[interface{}]
+	Endpoints     []interface{}
+	RootContainer di.Container
+	logSetupOnce  sync.Once
 }
 type Runtime struct {
 	ServerInstances *ServerInstance
@@ -51,12 +50,10 @@ type Runtime struct {
 }
 
 // NewRuntime returns an instance of a new Runtime
-func NewRuntime(startupManifest *fluffycore_contract_runtime.ApplicationManifest) *Runtime {
+func NewRuntime() *Runtime {
 	return &Runtime{
-		waitChannel: make(chan os.Signal),
-		ServerInstances: &ServerInstance{
-			StartupManifest: *startupManifest,
-		},
+		waitChannel:     make(chan os.Signal),
+		ServerInstances: &ServerInstance{},
 	}
 }
 
@@ -202,7 +199,6 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		return coreConfig
 	})
 	si := &ServerInstance{}
-	si.StartupManifest = startup.GetApplicationManifest()
 	startup.ConfigureServices(builder)
 	si.RootContainer = builder.Build()
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
@@ -232,8 +228,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 	err = startup.OnPreServerStartup()
 	if err != nil {
-		log.Error().Err(err).
-			Interface("startupManifest", si.StartupManifest).Msgf("OnPreServerStartup failed")
+		log.Error().Err(err).Msgf("OnPreServerStartup failed")
 		panic(err)
 	}
 	if lis == nil {
