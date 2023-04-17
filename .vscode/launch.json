@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "example app",
+            "name": "example app - serve",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -20,6 +20,23 @@
                 "SOME_SECRET": "1234567890",
             },
             "args": [ "serve" ]        
+        },
+        {
+            "name": "example app - version",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/example/server",
+            "env": {
+                "APPLICATION_NAME": "example",
+                "APPLICATION_ENVIRONMENT":"Development",
+                "LOG_LEVEL": "debug",     
+                "PRETTY_LOG":"true",
+                "PORT": "50051",
+                "CUSTOM_STRING": "In Flames",
+                "SOME_SECRET": "1234567890",
+            },
+            "args": [ "version" ]        
         },
         {
             "name": "Server",

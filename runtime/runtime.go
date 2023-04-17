@@ -18,11 +18,11 @@ import (
 	"github.com/dozm/di"
 	"github.com/fatih/structs"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
-	"github.com/fluffy-bunny/fluffycore/cmd/server/services/health"
 	fluffycore_contracts_config "github.com/fluffy-bunny/fluffycore/contracts/config"
 	fluffycore_contract_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	fluffycore_contracts_health "github.com/fluffy-bunny/fluffycore/contracts/health"
 	fluffycore_contract_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
+	services_health "github.com/fluffy-bunny/fluffycore/internal/services/health"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	viperEx "github.com/fluffy-bunny/viperEx"
@@ -170,7 +170,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		o.ValidateOnBuild = true
 	})
 	// default health service
-	health.AddHealthService(builder)
+	services_health.AddHealthService(builder)
 	fluffycore_services_common.AddCommonServices(builder)
 
 	configOptions := startup.GetConfigOptions()
