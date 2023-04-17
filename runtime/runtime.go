@@ -195,9 +195,8 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	if err != nil {
 		panic(err)
 	}
-	di.AddSingleton[*fluffycore_contracts_config.CoreConfig](builder, func() *fluffycore_contracts_config.CoreConfig {
-		return coreConfig
-	})
+	di.AddInstance[*fluffycore_contracts_config.CoreConfig](builder, coreConfig)
+
 	si := &ServerInstance{}
 	startup.ConfigureServices(builder)
 	si.RootContainer = builder.Build()
