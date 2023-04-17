@@ -200,6 +200,10 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	si := &ServerInstance{}
 	startup.ConfigureServices(builder)
 	si.RootContainer = builder.Build()
+	defer func() {
+		// Dispose root
+		si.RootContainer.(di.Disposable).Dispose()
+	}()
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
 	startup.Configure(si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
