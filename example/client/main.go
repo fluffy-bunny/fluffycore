@@ -4,6 +4,7 @@ import (
 	context "context"
 	"flag"
 	"fmt"
+	"io"
 	"math/rand"
 	"time"
 
@@ -30,6 +31,30 @@ func main() {
 	streamer := proto_helloworld.NewEdgeControlServiceClient(conn)
 	callUnarySayHello(rgc, "hello world")
 	runRecordRoute(streamer)
+	printPoints(streamer, &proto_helloworld.PointsRequest{
+		Points: []string{"hello", "world"},
+	})
+}
+
+func printPoints(client proto_helloworld.EdgeControlServiceClient, request *proto_helloworld.PointsRequest) {
+	log.Info().Interface("request", request).Msgf("Looking for features within %v", request)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := client.RequestPoints(ctx, request)
+	if err != nil {
+		log.Fatal().Msgf("client.ListFeatures failed: %v", err)
+	}
+	for {
+		point, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal().Msgf("client.ListFeatures failed: %v", err)
+		}
+		log.Info().Interface("point", point).Msg("point")
+
+	}
 }
 
 func callUnarySayHello(client proto_helloworld.GreeterClient, message string) {
