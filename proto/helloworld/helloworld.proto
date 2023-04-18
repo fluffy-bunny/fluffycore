@@ -45,8 +45,8 @@ message HelloReply2 {
   
 }
 
-// di:ignore
-service EdgeControlService {
+ 
+service MyStreamService {
     // RequestPoints
     // Request: Unary
     // Response: Streaming

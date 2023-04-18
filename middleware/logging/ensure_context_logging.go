@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 
+	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
@@ -13,6 +14,16 @@ func EnsureContextLoggingUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		logger := log.With().Caller().Logger()
 		newCtx := logger.WithContext(ctx)
 		return handler(newCtx, req)
+	}
+}
+func EnsureContextLoggingStreamServerInterceptor() grpc.StreamServerInterceptor {
+	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		logger := log.With().Caller().Logger()
+		ctx := ss.Context()
+		newCtx := logger.WithContext(ctx)
+		sw := fluffycore_middleware.NewStreamContextWrapper(ss)
+		sw.SetContext(newCtx)
+		return handler(srv, sw)
 	}
 }
 

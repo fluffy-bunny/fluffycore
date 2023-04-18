@@ -69,3 +69,42 @@ func (s *greeter2Server) SayHello(ctx context.Context, request *HelloRequest) (*
 	downstreamService := di.Get[IGreeter2Server](requestContainer)
 	return downstreamService.SayHello(ctx, request)
 }
+
+// IMyStreamServiceServer defines the grpc server
+type IMyStreamServiceServer interface {
+	MyStreamServiceServer
+}
+
+// mystreamserviceServer defines the grpc server truct
+type mystreamserviceServer struct {
+	UnimplementedMyStreamServiceServer
+}
+
+// Register the server with grpc
+func (srv *mystreamserviceServer) Register(s *grpc.Server) {
+	RegisterMyStreamServiceServer(s, srv)
+}
+
+// AddMyStreamServiceServer adds the fluffycore aware grpc server
+func AddMyStreamServiceServer[T IMyStreamServiceServer](cb di.ContainerBuilder, ctor any) {
+	di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
+		return &mystreamserviceServer{}
+	})
+	di.AddScoped[IMyStreamServiceServer](cb, ctor)
+}
+
+// RequestPoints...
+func (s *mystreamserviceServer) RequestPoints(request *PointsRequest, stream MyStreamService_RequestPointsServer) error {
+	ctx := stream.Context()
+	requestContainer := dicontext.GetRequestContainer(ctx)
+	downstreamService := di.Get[IMyStreamServiceServer](requestContainer)
+	return downstreamService.RequestPoints(request, stream)
+}
+
+// StreamPoints...
+func (s *mystreamserviceServer) StreamPoints(stream MyStreamService_StreamPointsServer) error {
+	ctx := stream.Context()
+	requestContainer := dicontext.GetRequestContainer(ctx)
+	downstreamService := di.Get[IMyStreamServiceServer](requestContainer)
+	return downstreamService.StreamPoints(stream)
+}

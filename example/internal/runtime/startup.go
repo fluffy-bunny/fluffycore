@@ -5,9 +5,9 @@ import (
 	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
-	services_edge "github.com/fluffy-bunny/fluffycore/example/internal/services/edge"
 	services_greeter "github.com/fluffy-bunny/fluffycore/example/internal/services/greeter"
 	services_health "github.com/fluffy-bunny/fluffycore/example/internal/services/health"
+	services_mystream "github.com/fluffy-bunny/fluffycore/example/internal/services/mystream"
 	services_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/services/somedisposable"
 	fluffycore_middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_middleware_logging "github.com/fluffy-bunny/fluffycore/middleware/logging"
@@ -48,14 +48,16 @@ func (s *startup) ConfigureServices(builder di.ContainerBuilder) {
 	services_health.AddHealthService(builder)
 	services_greeter.AddGreeterService(builder)
 	services_somedisposable.AddScopedSomeDisposable(builder)
-	services_edge.AddEdgeServer(builder)
+	services_mystream.AddMyStreamService(builder)
 }
 func (s *startup) Configure(rootContainer di.Container, unaryServerInterceptorBuilder fluffycore_contracts_middleware.IUnaryServerInterceptorBuilder, streamServerInterceptorBuilder fluffycore_contracts_middleware.IStreamServerInterceptorBuilder) {
 
 	// puts a zerlog logger into the request context
 	unaryServerInterceptorBuilder.Use(fluffycore_middleware_logging.EnsureContextLoggingUnaryServerInterceptor())
+	streamServerInterceptorBuilder.Use(fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor())
 
 	// dicontext is responsible of create a scoped context for each request.
 	unaryServerInterceptorBuilder.Use(fluffycore_middleware_dicontext.UnaryServerInterceptor(rootContainer))
+	streamServerInterceptorBuilder.Use(fluffycore_middleware_dicontext.StreamServerInterceptor(rootContainer))
 
 }

@@ -195,61 +195,56 @@ func (s *serviceGenContext) genService() {
 	}
 }
 func (s *methodGenContext) genServerMethodShim() {
-	service := s.service
-	g := s.g
+
 	method := s.ProtogenMethod
 
-	interfaceServerName := fmt.Sprintf("I%vServer", method.Parent.GoName)
-	/*
-		if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
-			// Explicitly no current support for streaming methods
-			panic("Does not currently support streaming methods")
-		}
-	*/
-	// Unary method
-	serverType := method.Parent.GoName
-
 	if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
-		s.MethodInfo.NewResponseFunc = fmt.Sprintf(
-			`func() interface{} {
-				ret := &%v{}
-				return ret 
-			}`, g.QualifiedGoIdent(method.Output.GoIdent))
-
-		s.MethodInfo.NewResponseWithErrorFunc = fmt.Sprintf(
-			`func() interface{} {
-				ret := &%v{}
-				setNewField_%v(ret, "Error")
-				return ret 
-			}`, g.QualifiedGoIdent(method.Output.GoIdent), s.uniqueRunID)
-
-		s.MethodInfo.ExecuteFunc = fmt.Sprintf(
-			`func(service I%vServer, ctx context.Context, request interface{}) (interface{}, error) {
-				req := request.(*%v)
-				return service.%v(ctx, req)
-			}`, service.GoName, g.QualifiedGoIdent(method.Input.GoIdent),
-			method.GoName,
-		)
+		s.generateUnaryServerMethodShim()
+	} else {
+		s.generateStreamServerMethodShim()
 	}
-	/*
-	   var dd = map[string]func(service *greeter2Server, ctx context.Context, request interface{}) (interface{}, error){
-	   	"/helloworld.Greeter/SayHello": func(service *greeter2Server, ctx context.Context, request interface{}) (interface{}, error) {
-	   		req := request.(*HelloRequest)
-	   		return service.SayHello(ctx, req)
-	   	},
-	   }
-	*/
+
+}
+func (s *methodGenContext) generateUnaryServerMethodShim() {
+	method := s.ProtogenMethod
+	g := s.g
+	serverType := method.Parent.GoName
+	interfaceServerName := fmt.Sprintf("I%vServer", method.Parent.GoName)
 
 	g.P("// ", s.ProtogenMethod.GoName, "...")
-	g.P("func (s *", strings.ToLower(serverType), "Server) ", s.serverSignature(), "{")
+	g.P("func (s *", strings.ToLower(serverType), "Server) ", s.unaryMethodSignature(), "{")
 	g.P("requestContainer := ", diContextPackage.Ident("GetRequestContainer(ctx)"))
 	g.P("downstreamService := ", diPackage.Ident("Get"), "[", interfaceServerName, "](requestContainer)")
 	g.P("return downstreamService.", method.GoName, "(ctx,request)")
 	g.P("}")
 	g.P()
+}
+func (s *methodGenContext) generateStreamServerMethodShim() {
+	method := s.ProtogenMethod
+	g := s.g
+	serverType := method.Parent.GoName
+	interfaceServerName := fmt.Sprintf("I%vServer", method.Parent.GoName)
+
+	sig, argCount := s.streamMethodSignature()
+
+	g.P("// ", s.ProtogenMethod.GoName, "...")
+	g.P("func (s *", strings.ToLower(serverType), "Server) ", sig, "{")
+	g.P("ctx := stream.Context()")
+	g.P("requestContainer := ", diContextPackage.Ident("GetRequestContainer(ctx)"))
+	g.P("downstreamService := ", diPackage.Ident("Get"), "[", interfaceServerName, "](requestContainer)")
+	if argCount == 1 {
+		// stream only
+		g.P("return downstreamService.", method.GoName, "(stream)")
+	} else {
+		// stream and context
+		g.P("return downstreamService.", method.GoName, "(request,stream)")
+	}
+	g.P("}")
+	g.P()
 
 }
-func (s *methodGenContext) serverSignature() string {
+
+func (s *methodGenContext) unaryMethodSignature() string {
 	g := s.g
 	method := s.ProtogenMethod
 	var reqArgs []string
@@ -261,8 +256,20 @@ func (s *methodGenContext) serverSignature() string {
 	if !method.Desc.IsStreamingClient() {
 		reqArgs = append(reqArgs, "request *"+g.QualifiedGoIdent(method.Input.GoIdent))
 	}
-	if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
-		reqArgs = append(reqArgs, method.Parent.GoName+"_"+method.GoName+"Server")
-	}
+
 	return method.GoName + "(" + strings.Join(reqArgs, ", ") + ") " + ret
+}
+func (s *methodGenContext) streamMethodSignature() (string, int) {
+	g := s.g
+	method := s.ProtogenMethod
+	var reqArgs []string
+	ret := "error"
+
+	if !method.Desc.IsStreamingClient() {
+		reqArgs = append(reqArgs, "request *"+g.QualifiedGoIdent(method.Input.GoIdent))
+	}
+	if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
+		reqArgs = append(reqArgs, "stream "+method.Parent.GoName+"_"+method.GoName+"Server")
+	}
+	return method.GoName + "(" + strings.Join(reqArgs, ", ") + ") " + ret, len(reqArgs)
 }

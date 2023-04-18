@@ -28,7 +28,7 @@ func main() {
 
 	// Make a echo client and send an RPC.
 	rgc := proto_helloworld.NewGreeterClient(conn)
-	streamer := proto_helloworld.NewEdgeControlServiceClient(conn)
+	streamer := proto_helloworld.NewMyStreamServiceClient(conn)
 	callUnarySayHello(rgc, "hello world")
 	runRecordRoute(streamer)
 	printPoints(streamer, &proto_helloworld.PointsRequest{
@@ -36,7 +36,7 @@ func main() {
 	})
 }
 
-func printPoints(client proto_helloworld.EdgeControlServiceClient, request *proto_helloworld.PointsRequest) {
+func printPoints(client proto_helloworld.MyStreamServiceClient, request *proto_helloworld.PointsRequest) {
 	log.Info().Interface("request", request).Msgf("Looking for features within %v", request)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -74,7 +74,7 @@ func randomPoint(r *rand.Rand) *proto_helloworld.Point {
 	return &proto_helloworld.Point{Latitude: lat, Longitude: long}
 }
 
-func runRecordRoute(client proto_helloworld.EdgeControlServiceClient) {
+func runRecordRoute(client proto_helloworld.MyStreamServiceClient) {
 	// Create a random number of random points
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	pointCount := int(r.Int31n(100)) + 2 // Traverse at least two points
