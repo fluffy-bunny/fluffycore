@@ -18,6 +18,7 @@
                 "PORT": "50051",
                 "CUSTOM_STRING": "In Flames",
                 "SOME_SECRET": "1234567890",
+                "ENABLE_GRPC_SERVER_REFLECTION": "true",
             },
             "args": [ "serve" ]        
         },

@@ -25,6 +25,7 @@ import (
 	services_health "github.com/fluffy-bunny/fluffycore/internal/services/health"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
+	"github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
 	"github.com/reugn/async"
 	"github.com/rs/zerolog"
@@ -33,6 +34,7 @@ import (
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
+	grpc_reflection "google.golang.org/grpc/reflection"
 )
 
 const bufSize = 1024 * 1024
@@ -225,6 +227,10 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	endpoints := di.Get[[]fluffycore_contract_endpoint.IEndpointRegistration](si.RootContainer)
 	for _, endpoint := range endpoints {
 		endpoint.Register(grpcServer)
+	}
+	enableGRPCReflection := utils.BoolEnv("ENABLE_GRPC_SERVER_REFLECTION", false)
+	if enableGRPCReflection {
+		grpc_reflection.Register(grpcServer)
 	}
 	healthServer := di.Get[fluffycore_contracts_health.IHealthServer](si.RootContainer)
 	grpc_health.RegisterHealthServer(grpcServer, healthServer)
