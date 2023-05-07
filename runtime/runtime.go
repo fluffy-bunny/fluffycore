@@ -221,6 +221,11 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	grpcServer := grpc.NewServer(
 		serverOpts...,
 	)
+	enableGRPCReflection := utils.BoolEnv("ENABLE_GRPC_SERVER_REFLECTION", false)
+	if enableGRPCReflection {
+		log.Info().Msg("Enabling GRPC Server Reflection")
+		grpc_reflection.Register(grpcServer)
+	}
 	if grpcServer == nil {
 		panic("server is nil")
 	}
