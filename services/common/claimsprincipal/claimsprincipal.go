@@ -12,6 +12,14 @@ type claimsPrincipal struct {
 	fastMap map[string]map[string]bool
 }
 
+type ctxClaimsPrincipal struct {
+}
+
+var (
+	// CtxClaimsPrincipal Context keys
+	CtxClaimsPrincipal = &ctxClaimsPrincipal{}
+)
+
 // AddClaimsPrincipal adds a scoped claims principal
 func AddClaimsPrincipal(b di.ContainerBuilder) {
 	di.AddScoped[fluffycore_contracts_common.IClaimsPrincipal](b, func() fluffycore_contracts_common.IClaimsPrincipal {

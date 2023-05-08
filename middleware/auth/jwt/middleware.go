@@ -16,7 +16,6 @@ import (
 	jws "github.com/lestrrat-go/jwx/v2/jws"
 	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/rs/zerolog/log"
-	"go.mapped.dev/gtm/pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -184,7 +183,7 @@ func UnaryServerInterceptor(rootContainer di.Container) grpc.UnaryServerIntercep
 				Value: jwtToken.GetID(),
 			})
 		}
-		newCtx := context.WithValue(ctx, auth.CtxClaimsPrincipal, claimsPrincipal)
+		newCtx := context.WithValue(ctx, fluffycore_services_common_claimsprincipal.CtxClaimsPrincipal, claimsPrincipal)
 
 		return handler(newCtx, req)
 	}
@@ -206,7 +205,7 @@ func StreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterc
 				Value: jwtToken.GetID(),
 			})
 		}
-		newCtx := context.WithValue(ctx, auth.CtxClaimsPrincipal, claimsPrincipal)
+		newCtx := context.WithValue(ctx, fluffycore_services_common_claimsprincipal.CtxClaimsPrincipal, claimsPrincipal)
 		err = handler(srv, &go_grpc_middleware.WrappedServerStream{
 			ServerStream:   ss,
 			WrappedContext: newCtx,
