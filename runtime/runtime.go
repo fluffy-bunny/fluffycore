@@ -233,10 +233,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	for _, endpoint := range endpoints {
 		endpoint.Register(grpcServer)
 	}
-	enableGRPCReflection := utils.BoolEnv("ENABLE_GRPC_SERVER_REFLECTION", false)
-	if enableGRPCReflection {
-		grpc_reflection.Register(grpcServer)
-	}
+
 	healthServer := di.Get[fluffycore_contracts_health.IHealthServer](si.RootContainer)
 	grpc_health.RegisterHealthServer(grpcServer, healthServer)
 
