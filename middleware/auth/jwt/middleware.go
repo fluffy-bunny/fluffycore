@@ -2,16 +2,17 @@ package jwt
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"time"
 
 	di "github.com/dozm/di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
+	"github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_services_common_claimsprincipal "github.com/fluffy-bunny/fluffycore/services/common/claimsprincipal"
 	"github.com/fluffy-bunny/fluffycore/utils"
 	"github.com/gogo/status"
-	go_grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware/v2"
 	jwxk "github.com/lestrrat-go/jwx/v2/jwk"
 	jws "github.com/lestrrat-go/jwx/v2/jws"
 	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
@@ -23,7 +24,8 @@ import (
 
 type (
 	service struct {
-		config *fluffycore_contracts_middleware_auth_jwt.IssuerConfig
+		config       *fluffycore_contracts_middleware_auth_jwt.IssuerConfig
+		nilValidator bool
 	}
 )
 
@@ -49,7 +51,20 @@ func AddValidators(builder di.ContainerBuilder, config *fluffycore_contracts_mid
 	}
 }
 
+func AddNilValidator(builder di.ContainerBuilder) {
+	// we don't want any other validators in here.
+	builder.Remove(reflect.TypeOf((*fluffycore_contracts_middleware_auth_jwt.IValidator)(nil)).Elem())
+	di.AddSingleton[fluffycore_contracts_middleware_auth_jwt.IValidator](builder, func() *service {
+		return &service{
+			nilValidator: true,
+		}
+	})
+}
+
 func (s *service) ValidateAccessToken(ctx context.Context, rawToken *fluffycore_contracts_middleware_auth_jwt.ParsedToken) (bool, error) {
+	if s.nilValidator {
+		return true, nil
+	}
 
 	kid := rawToken.JWSMessage.Signatures()[0].ProtectedHeaders().KeyID()
 	issuer := strings.ToLower(rawToken.Token.Issuer())
@@ -176,16 +191,18 @@ func UnaryServerInterceptor(rootContainer di.Container) grpc.UnaryServerIntercep
 			return nil, err
 		}
 		jwtToken := newJWTToken(rt.Token, rt.AccessToken)
-		claimsPrincipal := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(jwtToken.GetClaims())
+		scopedContainer := dicontext.GetRequestContainer(ctx)
+		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
+		claimsPrincipalScratch := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(jwtToken.GetClaims())
+		// transfer the claims over to the scoped IClaimsPrincipal
+		claimsPrincipal.AddClaim(claimsPrincipalScratch.GetClaims()...)
 		if !utils.IsEmptyOrNil(jwtToken.GetID()) {
 			claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
 				Type:  string("sub"),
 				Value: jwtToken.GetID(),
 			})
 		}
-		newCtx := context.WithValue(ctx, fluffycore_services_common_claimsprincipal.CtxClaimsPrincipal, claimsPrincipal)
-
-		return handler(newCtx, req)
+		return handler(ctx, req)
 	}
 }
 
@@ -197,21 +214,20 @@ func StreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterc
 		if err != nil {
 			return err
 		}
+		scopedContainer := dicontext.GetRequestContainer(ctx)
+		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
 		jwtToken := newJWTToken(rt.Token, rt.AccessToken)
-		claimsPrincipal := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(jwtToken.GetClaims())
+		claimsPrincipalScratch := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(jwtToken.GetClaims())
+		// transfer the claims over to the scoped IClaimsPrincipal
+		claimsPrincipal.AddClaim(claimsPrincipalScratch.GetClaims()...)
+
 		if !utils.IsEmptyOrNil(jwtToken.GetID()) {
 			claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
 				Type:  string("sub"),
 				Value: jwtToken.GetID(),
 			})
 		}
-		newCtx := context.WithValue(ctx, fluffycore_services_common_claimsprincipal.CtxClaimsPrincipal, claimsPrincipal)
-		err = handler(srv, &go_grpc_middleware.WrappedServerStream{
-			ServerStream:   ss,
-			WrappedContext: newCtx,
-		})
-		return err
-
+		return handler(srv, ss)
 	}
 }
 
