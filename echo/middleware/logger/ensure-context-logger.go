@@ -1,10 +1,9 @@
 package logger
 
 import (
-	"github.com/rs/zerolog/log"
-
 	di "github.com/dozm/di"
-	"github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v4"
+	log "github.com/rs/zerolog/log"
 )
 
 // EnsureContextLogger ...

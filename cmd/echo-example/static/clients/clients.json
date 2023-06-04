@@ -1,0 +1,97 @@
+{
+	"clients": [{
+		"enabled": true,
+		"clientId": "arbitrary-resource-owner-client",
+		"clientName": "test-clientName",
+		"description": "test-description",
+		"namespace": "test-namespace",
+		"requireRefreshClientSecret": true,
+		"allowOfflineAccess": true,
+		"updateAccessTokenClaimsOnRefresh": true,
+		"includeJwtId": true,
+		"alwaysSendClientClaims": true,
+		"alwaysIncludeUserClaimsInIdToken": true,
+		"requireClientSecret": true,
+		"accessTokenLifetime": 3600,
+		"absoluteRefreshTokenLifetime": 3600,
+		"slidingRefreshTokenLifetime": 900,
+		"identityTokenLifetime": 2600000,
+		"refreshTokenGraceEnabled":true,
+		"refreshTokenGraceTTL": 60000000000,
+		"refreshTokenGraceMaxAttempts": 10,
+		"refreshTokenUsage": 1,
+		"refreshTokenExpiration": 300,
+		"accessTokenType": 0,
+		"claims": [{
+			"type": "artificer-ns",
+			"value": "private namespace"
+		},{
+			"type": "role",
+			"value": "admin"
+		}, {
+			"type": "role",
+			"value": "dog-owner"
+		}, {
+			"type": "scope",
+			"value": "rock-climber"
+		}],
+		"allowedScopes": ["offline_access","invoices","users.read"],
+		"allowedGrantTypes": [
+			"client_credentials",
+			"refresh_token",
+			"arbitrary_resource_owner",
+			"arbitrary_identity"
+		],
+		"clientSecrets": [{
+			"expiration": 1604102400,
+			"value": "secret"
+		}]
+	},{
+		"enabled": true,
+		"clientId": "b2b-client",
+		"clientName": "test-clientName",
+		"description": "test-description",
+		"namespace": "test-namespace",
+		"requireRefreshClientSecret": true,
+		"allowOfflineAccess": true,
+		"updateAccessTokenClaimsOnRefresh": true,
+		"includeJwtId": true,
+		"alwaysSendClientClaims": true,
+		"alwaysIncludeUserClaimsInIdToken": true,
+		"requireClientSecret": true,
+		"accessTokenLifetime": 3600,
+		"absoluteRefreshTokenLifetime": 3600,
+		"slidingRefreshTokenLifetime": 900,
+		"identityTokenLifetime": 2600000,
+		"refreshTokenGraceEnabled":true,
+		"refreshTokenGraceTTL": 60000000000,
+		"refreshTokenGraceMaxAttempts": 10,
+		"refreshTokenUsage": 1,
+		"refreshTokenExpiration": 300,
+		"accessTokenType": 0,
+		"claims": [{
+			"type": "artificer-ns",
+			"value": "private namespace"
+		},{
+			"type": "role",
+			"value": "admin"
+		}, {
+			"type": "role",
+			"value": "dog-owner"
+		}, {
+			"type": "scope",
+			"value": "rock-climber"
+		}],
+		"allowedScopes": ["offline_access","artificer-ns","a", "b", "c","invoices","users.read"],
+		"allowedGrantTypes": [
+			"client_credentials",
+			"refresh_token",
+			"arbitrary_resource_owner",
+			"arbitrary_identity"
+		],
+		"clientSecrets": [{
+			"expiration": 1604102400,
+			"value": "secret"
+		}]
+	}]
+}

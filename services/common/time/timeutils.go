@@ -16,10 +16,10 @@ type (
 // AddSingletonITimeUtils ...
 func AddSingletonITimeUtils(builder di.ContainerBuilder) {
 	di.AddSingleton[fluffycore_contracts_common.ITimeUtils](builder,
-		func(timeService fluffycore_contracts_common.ITime) fluffycore_contracts_common.ITimeUtils {
+		func(timeService fluffycore_contracts_common.ITime) (fluffycore_contracts_common.ITimeUtils, error) {
 			return &serviceTimeUtils{
 				Time: timeService,
-			}
+			}, nil
 		})
 }
 

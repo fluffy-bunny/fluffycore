@@ -16,6 +16,7 @@ import (
 	di "github.com/dozm/di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
+	contracts_container "github.com/fluffy-bunny/fluffycore/echo/contracts/container"
 	contracts_handler "github.com/fluffy-bunny/fluffycore/echo/contracts/handler"
 	echo_contracts_startup "github.com/fluffy-bunny/fluffycore/echo/contracts/startup"
 	middleware_container "github.com/fluffy-bunny/fluffycore/echo/middleware/container"
@@ -135,6 +136,14 @@ func (s *Runtime) phase2() error {
 		log.Error().Err(err).Msg("Failed to add default services")
 		return err
 	}
+	containerAccessor := func() di.Container {
+		return s.Container
+	}
+	di.AddSingleton[contracts_container.ContainerAccessor](builder,
+		func() contracts_container.ContainerAccessor {
+			return containerAccessor
+		})
+
 	err = s.Startup.ConfigureServices(builder)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to configure services")

@@ -3,7 +3,7 @@ package startup
 import (
 	di "github.com/dozm/di"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
-	"github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v4"
 )
 
 type (
@@ -45,29 +45,4 @@ type (
 		// 6. GetOptions
 		GetOptions() *Options
 	}
-	// CommonStartup ...
-	CommonStartup struct {
-		hooks     []*Hooks
-		container di.Container
-	}
 )
-
-// AddHooks setter
-func (s *CommonStartup) AddHooks(hooks ...*Hooks) {
-	s.hooks = append(s.hooks, hooks...)
-}
-
-// GetHooks getter
-func (s *CommonStartup) GetHooks() []*Hooks {
-	return s.hooks
-}
-
-// SetContainer setter
-func (s *CommonStartup) SetContainer(container di.Container) {
-	s.container = container
-}
-
-// GetContainer setter
-func (s *CommonStartup) GetContainer() di.Container {
-	return s.container
-}

@@ -297,6 +297,8 @@ github.com/tkuchiki/go-timezone v0.2.2 h1:MdHR65KwgVTwWFQrota4SKzc4L5EfuH5SdZZGt
 github.com/tkuchiki/go-timezone v0.2.2/go.mod h1:oFweWxYl35C/s7HMVZXiA19Jr9Y0qJHMaG/J2TES4LY=
 github.com/tkuchiki/parsetime v0.3.0 h1:cvblFQlPeAPJL8g6MgIGCHnnmHSZvluuY+hexoZCNqc=
 github.com/tkuchiki/parsetime v0.3.0/go.mod h1:OJkQmIrf5Ao7R+WYIdITPOfDVj8LmnHGCfQ8DTs3LCA=
+github.com/tufin/asciitree v0.0.0-20210127111056-bf70173ef677 h1:vghg3mystxjNTBaI4jXXrV6Hp2IxKtT2v9rabxQgJQE=
+github.com/tufin/asciitree v0.0.0-20210127111056-bf70173ef677/go.mod h1:WLc/pkQ6J4Kkrhcf8wRRFwGzykcReV/DCKm1pB267Qo=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasttemplate v1.0.1/go.mod h1:UQGH1tvbgY+Nz5t2n7tXsz52dQxojPUpymEIMZ47gx8=

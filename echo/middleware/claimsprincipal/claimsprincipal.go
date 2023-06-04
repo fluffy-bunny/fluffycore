@@ -13,34 +13,6 @@ import (
 	log "github.com/rs/zerolog/log"
 )
 
-func recursiveAddClaim(claimsConfig *middleware_oidc.ClaimsConfig, claimsPrincipal contracts_core_claimsprincipal.IClaimsPrincipal) {
-	for _, claimFact := range claimsConfig.AND {
-		claimsPrincipal.AddClaim(claimFact.Claim)
-	}
-	for _, claimFact := range claimsConfig.OR {
-		claimsPrincipal.AddClaim(claimFact.Claim)
-	}
-	if claimsConfig.Child != nil {
-		recursiveAddClaim(claimsConfig.Child, claimsPrincipal)
-	}
-}
-
-// DevelopmentMiddlewareUsingClaimsMap use this in development if you are making an api only service
-// it literally just adds the claims to the principal that the api demands it has to be authorized.
-func DevelopmentMiddlewareUsingClaimsMap(entrypointClaimsMap map[string]*middleware_oidc.EntryPointConfig) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			scopedContainer := c.Get(wellknown.SCOPED_CONTAINER_KEY).(di.Container)
-			claimsPrincipal := di.Get[contracts_core_claimsprincipal.IClaimsPrincipal](scopedContainer)
-			elem, ok := entrypointClaimsMap[c.Path()]
-			if ok {
-				recursiveAddClaim(elem.ClaimsConfig, claimsPrincipal)
-			}
-			return next(c)
-		}
-	}
-}
-
 // OnUnauthorizedAction ...
 type OnUnauthorizedAction int64
 

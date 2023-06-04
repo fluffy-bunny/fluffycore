@@ -5,6 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "example ECHO - server",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/echo-example",
+            "env": {
+                "APPLICATION_NAME": "example",
+                "APPLICATION_ENVIRONMENT":"Development",
+                "LOG_LEVEL": "debug",     
+                "PRETTY_LOG":"true",
+                "PORT": "9044",
+ 
+            },
+            "args": [   ]        
+        },
+        {
             "name": "example app - serve",
             "type": "go",
             "request": "launch",

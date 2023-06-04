@@ -13,7 +13,7 @@ import (
 
 type (
 	service struct {
-		ContainerAccessor contracts_container.ContainerAccessor `inject:""`
+		ContainerAccessor contracts_container.ContainerAccessor
 	}
 )
 
@@ -24,7 +24,13 @@ func init() {
 // AddSingletonIHandlerFactory registers the *service as a singleton.
 func AddSingletonIHandlerFactory(builder di.ContainerBuilder) {
 	log.Info().Str("DI", "IHandlerFactory").Send()
-	di.AddSingleton[contracts_handler.IHandlerFactory](builder, func() contracts_handler.IHandlerFactory { return &service{} })
+	di.AddSingleton[contracts_handler.IHandlerFactory](builder, func(
+		containerAccessor contracts_container.ContainerAccessor,
+	) contracts_handler.IHandlerFactory {
+		return &service{
+			ContainerAccessor: containerAccessor,
+		}
+	})
 }
 
 func (s *service) RegisterHandlers(app *echo.Group) {

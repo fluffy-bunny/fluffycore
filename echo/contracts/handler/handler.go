@@ -65,7 +65,7 @@ type (
 type BaseHandler struct{}
 
 // AddScopedIHandleWithMetadata ...
-func AddScopedIHandleWithMetadata(builder di.ContainerBuilder,
+func AddScopedIHandleWithMetadata[T any](builder di.ContainerBuilder,
 	ctor any,
 	httpVerbs []HTTPVERB, path string) {
 	httpVerbS := []string{}
@@ -81,7 +81,7 @@ func AddScopedIHandleWithMetadata(builder di.ContainerBuilder,
 		Str("path", path).
 		Str("httpVerbs", strings.Join(httpVerbS, "|")).Send()
 
-	di.AddScopedWithLookupKeys[*BaseHandler](
+	di.AddScopedWithLookupKeys[T](
 		builder,
 		ctor,
 		[]string{path},

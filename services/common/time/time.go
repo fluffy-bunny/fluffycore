@@ -54,7 +54,9 @@ func AddTimeParse(builder di.ContainerBuilder) {
 		}
 		return p.Parse(value)
 	}
-	di.AddSingleton[fluffycore_contracts_common.TimeParse](builder, impl)
+	di.AddSingleton[fluffycore_contracts_common.TimeParse](builder, func() fluffycore_contracts_common.TimeParse {
+		return impl
+	})
 
 }
 
