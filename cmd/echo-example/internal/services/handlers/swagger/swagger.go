@@ -1,16 +1,17 @@
-package healthz
+package swagger
 
 import (
-	"net/http"
-
 	di "github.com/dozm/di"
 	wellknown "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/wellknown"
 	contracts_handler "github.com/fluffy-bunny/fluffycore/echo/contracts/handler"
 	echo "github.com/labstack/echo/v4"
+	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 type (
-	service struct{}
+	service struct {
+		swaggerFunc echo.HandlerFunc
+	}
 )
 
 func init() {
@@ -24,25 +25,19 @@ func AddScopedIHandler(builder di.ContainerBuilder) {
 		[]contracts_handler.HTTPVERB{
 			contracts_handler.GET,
 		},
-		wellknown.HealthzPath,
+		wellknown.SwaggerPath,
 	)
 
 }
 func ctor() (*service, error) {
-	return &service{}, nil
+	return &service{
+		swaggerFunc: echoSwagger.WrapHandler,
+	}, nil
 }
 func (s *service) GetMiddleware() []echo.MiddlewareFunc {
 	return []echo.MiddlewareFunc{}
 }
 
-// HealthCheck godoc
-// @Summary Show the status of server.
-// @Description get the status of server.
-// @Tags root
-// @Accept */*
-// @Produce json
-// @Success 200 {object} string
-// @Router /healthz [get]
 func (s *service) Do(c echo.Context) error {
-	return c.JSON(http.StatusOK, "ok")
+	return s.swaggerFunc(c)
 }

@@ -2,7 +2,7 @@ package wellknown
 
 const (
 	HomePath    = "/"
-	AboutPath   = "/about"
+	SwaggerPath = "/swagger/*"
 	HealthzPath = "/healthz"
 	ReadyPath   = "/ready"
 )

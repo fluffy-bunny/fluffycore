@@ -4,6 +4,7 @@ import (
 	di "github.com/dozm/di"
 	contracts_config "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/contracts/config"
 	services_handlers_healthz "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/services/handlers/healthz"
+	services_handlers_swagger "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/services/handlers/swagger"
 	services_probe_database "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/services/probes/database"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	contracts_startup "github.com/fluffy-bunny/fluffycore/echo/contracts/startup"
@@ -68,4 +69,5 @@ func (s *startup) PreShutdownHook(echo *echo.Echo) error {
 func (s *startup) addAppHandlers(builder di.ContainerBuilder) {
 	// add your handlers here
 	services_handlers_healthz.AddScopedIHandler(builder)
+	services_handlers_swagger.AddScopedIHandler(builder)
 }
