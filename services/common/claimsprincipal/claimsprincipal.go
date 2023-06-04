@@ -3,7 +3,7 @@ package claimsprincipal
 import (
 	"fmt"
 
-	"github.com/dozm/di"
+	di "github.com/dozm/di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 )
 
@@ -14,9 +14,10 @@ type claimsPrincipal struct {
 
 // AddClaimsPrincipal adds a scoped claims principal
 func AddClaimsPrincipal(b di.ContainerBuilder) {
-	di.AddScoped[fluffycore_contracts_common.IClaimsPrincipal](b, func() fluffycore_contracts_common.IClaimsPrincipal {
-		return &claimsPrincipal{}
-	})
+	di.AddScoped[fluffycore_contracts_common.IClaimsPrincipal](b,
+		func() fluffycore_contracts_common.IClaimsPrincipal {
+			return NewIClaimsPrincipal()
+		})
 }
 
 // NewIClaimsPrincipal for outside of the DI

@@ -1,6 +1,15 @@
 package common
 
+const (
+	// ClaimTypeAndValue ...
+	ClaimTypeAndValue ClaimFactDirective = 0
+	// ClaimType ...
+	ClaimType = 1
+)
+
 type (
+	ClaimFactDirective int64
+
 	// Claim ...
 	Claim struct {
 		Type  string `json:"type" mapstructure:"TYPE"`

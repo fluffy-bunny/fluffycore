@@ -1,5 +1,7 @@
 package common
 
+//go:generate mockgen -package=$GOPACKAGE -destination=../../mocks/$GOPACKAGE/mock_$GOFILE   github.com/fluffy-bunny/fluffycore/contracts/common ITimeUtils,ITime
+
 import "time"
 
 type (
@@ -12,6 +14,12 @@ type (
 		//Format(layout string, t time.Time) string
 	}
 
+	// ITime ...
+	ITime interface {
+		Now() time.Time
+	}
 	// TimeNow ...
 	TimeNow func() time.Time
+	// TimeParse ...
+	TimeParse func(value string) (time.Time, error)
 )

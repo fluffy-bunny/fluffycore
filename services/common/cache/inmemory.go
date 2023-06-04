@@ -3,7 +3,7 @@ package cache
 import (
 	"time"
 
-	"github.com/dozm/di"
+	di "github.com/dozm/di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 	ttlcache "github.com/jellydator/ttlcache/v2"
 )

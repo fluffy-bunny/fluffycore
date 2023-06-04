@@ -9,6 +9,9 @@ import (
 
 func AddCommonServices(builder di.ContainerBuilder) {
 	fluffycore_services_common_time.AddTimeNow(builder)
+	fluffycore_services_common_time.AddTimeParse(builder)
+	fluffycore_services_common_time.AddSingletonITime(builder)
+	fluffycore_services_common_time.AddSingletonITimeUtils(builder)
 	fluffycore_services_common_claimsprincipal.AddClaimsPrincipal(builder)
 	fluffycore_services_common_cache.AddMemoryCache(builder)
 }
