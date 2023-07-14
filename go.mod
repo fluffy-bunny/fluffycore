@@ -6,6 +6,7 @@ replace github.com/dozm/di => github.com/fluffy-bunny/dozm-di v0.3.3
 
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.1.0
+	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
 	github.com/dozm/di v0.3.0
 	github.com/fatih/structs v1.1.0
 	github.com/fluffy-bunny/sarulabsdi v0.1.65
