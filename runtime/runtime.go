@@ -2,10 +2,12 @@ package runtime
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path"
@@ -27,12 +29,14 @@ import (
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	"github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
+	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/reugn/async"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
 	grpc_reflection "google.golang.org/grpc/reflection"
 )
@@ -40,8 +44,12 @@ import (
 const bufSize = 1024 * 1024
 
 type ServerInstance struct {
-	Server        *grpc.Server
-	Future        async.Future[interface{}]
+	Server *grpc.Server
+	Future async.Future[interface{}]
+
+	ServerGRPCGatewayMux *http.Server
+	FutureGRPCGatewayMux async.Future[interface{}]
+
 	Endpoints     []interface{}
 	RootContainer di.Container
 	logSetupOnce  sync.Once
@@ -248,18 +256,46 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		}
 		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", coreConfig.PORT))
 		if err != nil {
-			panic(err)
+			log.Fatal().Err(err).Msg("Failed to listen")
 		}
 	}
 
 	future := asyncServeGRPC(grpcServer, lis)
 	si.Server = grpcServer
 	si.Future = future
+
+	if coreConfig.GRPCGateWayEnabled {
+		// Create a client connection to the gRPC server we just started
+		// This is where the gRPC-Gateway proxies the requests
+		conn, err := grpc.DialContext(
+			context.Background(),
+			fmt.Sprintf("0.0.0.0:%d", coreConfig.PORT),
+			grpc.WithBlock(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to dial server")
+		}
+		gwmux := grpc_gateway_runtime.NewServeMux()
+		for _, endpoint := range endpoints {
+			endpoint.RegisterHandler(gwmux, conn)
+		}
+
+		gwServer := &http.Server{
+			Addr:    fmt.Sprintf(":%d", coreConfig.RESTPort),
+			Handler: gwmux,
+		}
+		si.ServerGRPCGatewayMux = gwServer
+		future := asyncServeGRPCGatewayMux(gwServer)
+		si.FutureGRPCGatewayMux = future
+	}
 	s.Wait()
 	log.Info().Msg("Interupt triggered")
 	si.Server.Stop()
+	si.ServerGRPCGatewayMux.Shutdown(context.Background())
 	startup.OnPostServerShutdown()
 	si.Future.Join()
+	si.FutureGRPCGatewayMux.Join()
 }
 func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error {
 	v := viper.NewWithOptions(viper.KeyDelimiter("__"))
@@ -368,5 +404,28 @@ func asyncServeGRPC(grpcServer *grpc.Server, lis net.Listener) async.Future[inte
 			return
 		}
 		log.Info().Msg("grpc Server has shut down....")
+	})
+}
+func asyncServeGRPCGatewayMux(httpServer *http.Server) async.Future[interface{}] {
+	return fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[interface{}]) {
+		var err error
+		log.Info().Msg("gRPC Server Starting up")
+
+		defer func() {
+			promise.Success(&fluffycore_async.AsyncResponse{
+				Message: "End Serve - http Server",
+				Error:   err,
+			})
+			if err != nil {
+				log.Error().Err(err).Msg("gRPC Server exit")
+				os.Exit(1)
+			}
+		}()
+
+		if err = httpServer.ListenAndServe(); err != nil {
+			log.Fatal().Err(err).Msg("Failed to listen")
+			return
+		}
+		log.Info().Msg("GRPCGatewayMux Server has shut down....")
 	})
 }
