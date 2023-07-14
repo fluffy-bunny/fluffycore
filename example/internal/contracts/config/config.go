@@ -19,6 +19,9 @@ var ConfigDefaultJSON = []byte(`
 	"LOG_LEVEL": "info",
 	"PORT": 1111,
 	"CUSTOM_STRING": "some default value",
-	"SOME_SECRET": "password"
+	"SOME_SECRET": "password",
+	"REST_PORT": 50052,
+	"GRPC_GATEWAY_ENABLED": true
+
   }
 `)

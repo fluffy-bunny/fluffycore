@@ -32,6 +32,8 @@
                 "LOG_LEVEL": "debug",     
                 "PRETTY_LOG":"true",
                 "PORT": "50051",
+                "GRPC_GATEWAY_ENABLED": "true",
+                "REST_PORT": "50052",
                 "CUSTOM_STRING": "In Flames",
                 "SOME_SECRET": "1234567890",
                 "ENABLE_GRPC_SERVER_REFLECTION": "true",
