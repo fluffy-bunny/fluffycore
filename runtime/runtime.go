@@ -292,10 +292,14 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	s.Wait()
 	log.Info().Msg("Interupt triggered")
 	si.Server.Stop()
-	si.ServerGRPCGatewayMux.Shutdown(context.Background())
+	if si.ServerGRPCGatewayMux != nil {
+		si.ServerGRPCGatewayMux.Shutdown(context.Background())
+	}
 	startup.OnPostServerShutdown()
 	si.Future.Join()
-	si.FutureGRPCGatewayMux.Join()
+	if si.FutureGRPCGatewayMux != nil {
+		si.FutureGRPCGatewayMux.Join()
+	}
 }
 func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error {
 	v := viper.NewWithOptions(viper.KeyDelimiter("__"))
