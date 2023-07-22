@@ -3,7 +3,7 @@ package claimsprincipal
 import (
 	"fmt"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 )
 

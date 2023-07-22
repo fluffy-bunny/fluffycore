@@ -3,7 +3,7 @@ package dicontext
 import (
 	"context"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 )
 
 type ctxRequestContainerContext struct{}

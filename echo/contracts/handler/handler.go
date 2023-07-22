@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"strings"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	echo "github.com/labstack/echo/v4"
 	log "github.com/rs/zerolog/log"
 )

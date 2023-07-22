@@ -3,7 +3,7 @@ package logger
 import (
 	"context"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	core_utils "github.com/fluffy-bunny/fluffycore/utils"
 	utils "github.com/fluffy-bunny/fluffycore/utils"
 	wellknown "github.com/fluffy-bunny/fluffycore/wellknown"

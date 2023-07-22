@@ -17,8 +17,8 @@ import (
 	"sync"
 	"syscall"
 
-	di "github.com/dozm/di"
 	structs "github.com/fatih/structs"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
 	fluffycore_contracts_config "github.com/fluffy-bunny/fluffycore/contracts/config"
 	fluffycore_contract_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"

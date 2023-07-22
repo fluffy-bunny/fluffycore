@@ -79,8 +79,8 @@ github.com/fatih/structtag v1.2.0 h1:/OdNE99OxoI/PqaW/SuSK9uxxT3f/tcSZgon/ssNSx4
 github.com/fatih/structtag v1.2.0/go.mod h1:mBJUNpUnHmRKrKlQQlmCrh5PuhftFbNv8Ys4/aAZl94=
 github.com/felixge/fgprof v0.9.3 h1:VvyZxILNuCiUCSXtPtYmmtGvb65nqXh2QFWc0Wpf2/g=
 github.com/felixge/fgprof v0.9.3/go.mod h1:RdbpDgzqYVh/T9fPELJyV7EYJuHB55UTEULNun8eiPw=
-github.com/fluffy-bunny/dozm-di v0.3.3 h1:pwSKvfoK9IcC5obIQAvoeouJhRe4VFbZNehBHbvqM80=
-github.com/fluffy-bunny/dozm-di v0.3.3/go.mod h1:xsCtUcCs35CapsTF7ZUcxRgm/z55C41u9TLN0AZZGIc=
+github.com/fluffy-bunny/fluffy-dozm-di v0.0.1 h1:b+F9b4edbSVn9Oio4efo62QJNspVsdmhp1KO3dxVoNQ=
+github.com/fluffy-bunny/fluffy-dozm-di v0.0.1/go.mod h1:4/ZqTQ4Nwzq54c1i42mvEOabnMBJHDruBb2817viqKk=
 github.com/fluffy-bunny/sarulabsdi v0.1.65 h1:okh/ngaB5kM4ZIj2x9sq2vHPkHvouXqk6Pw6cbu6oGE=
 github.com/fluffy-bunny/sarulabsdi v0.1.65/go.mod h1:U/7P2c34Rm6JIubO9mR9jAywhU8l2fMag/rhbcGzRKM=
 github.com/fluffy-bunny/viperEx v0.0.27 h1:wm7cjbvwmXxlOxdAfxeToAmGDK0mt2Qcec+Xr9Tcrx4=
