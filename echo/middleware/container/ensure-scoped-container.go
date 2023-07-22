@@ -3,8 +3,8 @@ package container
 import (
 	di "github.com/dozm/di"
 	contracts_contextaccessor "github.com/fluffy-bunny/fluffycore/echo/contracts/contextaccessor"
-	"github.com/fluffy-bunny/fluffycore/echo/wellknown"
-	"github.com/labstack/echo/v4"
+	wellknown "github.com/fluffy-bunny/fluffycore/echo/wellknown"
+	echo "github.com/labstack/echo/v4"
 )
 
 // EnsureScopedContainer ...

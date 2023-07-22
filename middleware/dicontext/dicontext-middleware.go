@@ -5,7 +5,7 @@ import (
 
 	di "github.com/dozm/di"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
-	"google.golang.org/grpc"
+	grpc "google.golang.org/grpc"
 )
 
 func UnaryServerInterceptor(rootContainer di.Container) grpc.UnaryServerInterceptor {

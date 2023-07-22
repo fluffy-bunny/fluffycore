@@ -3,7 +3,6 @@ package startup
 import (
 	di "github.com/dozm/di"
 	contracts_startup "github.com/fluffy-bunny/fluffycore/echo/contracts/startup"
-
 	echo "github.com/labstack/echo/v4"
 )
 

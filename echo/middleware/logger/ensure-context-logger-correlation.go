@@ -3,13 +3,12 @@ package logger
 import (
 	"context"
 
-	"github.com/rs/zerolog"
-
 	di "github.com/dozm/di"
-	"github.com/fluffy-bunny/fluffycore/utils"
 	core_utils "github.com/fluffy-bunny/fluffycore/utils"
-	"github.com/fluffy-bunny/fluffycore/wellknown"
-	"github.com/labstack/echo/v4"
+	utils "github.com/fluffy-bunny/fluffycore/utils"
+	wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
+	echo "github.com/labstack/echo/v4"
+	zerolog "github.com/rs/zerolog"
 )
 
 // EnsureContextLoggerCorrelation ...

@@ -5,7 +5,7 @@ import (
 
 	di "github.com/dozm/di"
 	fluffycore_contracts_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/contracts/somedisposable"
-	"github.com/rs/zerolog/log"
+	log "github.com/rs/zerolog/log"
 )
 
 type (
