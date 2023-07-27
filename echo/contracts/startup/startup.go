@@ -1,7 +1,7 @@
 package startup
 
 import (
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	echo "github.com/labstack/echo/v4"
 )

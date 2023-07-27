@@ -1,7 +1,7 @@
 package startup
 
 import (
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_config "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/contracts/config"
 	services_handlers_healthz "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/services/handlers/healthz"
 	services_handlers_swagger "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/services/handlers/swagger"

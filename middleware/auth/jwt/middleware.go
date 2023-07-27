@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
 	"github.com/fluffy-bunny/fluffycore/middleware/dicontext"

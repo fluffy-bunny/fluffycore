@@ -5,7 +5,7 @@ import (
 
 	fluffycore_contracts_health "github.com/fluffy-bunny/fluffycore/contracts/health"
 
-	"github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
 )
 

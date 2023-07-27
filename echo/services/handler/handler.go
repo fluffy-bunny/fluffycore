@@ -3,7 +3,7 @@ package handler
 import (
 	"reflect"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_container "github.com/fluffy-bunny/fluffycore/echo/contracts/container"
 	contracts_handler "github.com/fluffy-bunny/fluffycore/echo/contracts/handler"
 	wellknown "github.com/fluffy-bunny/fluffycore/echo/wellknown"

@@ -3,7 +3,7 @@ package contextaccessor
 import (
 	"reflect"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_contextaccessor "github.com/fluffy-bunny/fluffycore/echo/contracts/contextaccessor"
 	echo "github.com/labstack/echo/v4"
 )

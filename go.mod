@@ -2,13 +2,10 @@ module github.com/fluffy-bunny/fluffycore
 
 go 1.20
 
-replace github.com/dozm/di => github.com/fluffy-bunny/dozm-di v0.3.3
-
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.1.0
-	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
-	github.com/dozm/di v0.3.0
 	github.com/fatih/structs v1.1.0
+	github.com/fluffy-bunny/fluffy-dozm-di v0.0.1
 	github.com/fluffy-bunny/sarulabsdi v0.1.65
 	github.com/fluffy-bunny/viperEx v0.0.27
 	github.com/form3tech-oss/jwt-go v3.2.5+incompatible

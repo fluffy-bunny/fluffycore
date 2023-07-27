@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	_ "github.com/dozm/di"
+	_ "github.com/fluffy-bunny/fluffy-dozm-di"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
 )
