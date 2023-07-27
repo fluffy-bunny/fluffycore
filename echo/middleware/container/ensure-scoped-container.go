@@ -1,7 +1,7 @@
 package container
 
 import (
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_contextaccessor "github.com/fluffy-bunny/fluffycore/echo/contracts/contextaccessor"
 	"github.com/fluffy-bunny/fluffycore/echo/wellknown"
 	"github.com/labstack/echo/v4"

@@ -5,7 +5,7 @@ import (
 
 	"github.com/rs/zerolog"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	"github.com/fluffy-bunny/fluffycore/utils"
 	core_utils "github.com/fluffy-bunny/fluffycore/utils"
 	"github.com/fluffy-bunny/fluffycore/wellknown"

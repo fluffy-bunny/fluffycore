@@ -1,7 +1,7 @@
 package container
 
 import (
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 )
 
 type (

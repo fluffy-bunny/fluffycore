@@ -3,7 +3,7 @@ package claimsprincipal
 import (
 	"context"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	claimsprincipalContracts "github.com/fluffy-bunny/fluffycore/contracts/common"
 	middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	middleware_oidc "github.com/fluffy-bunny/fluffycore/middleware/oidc"

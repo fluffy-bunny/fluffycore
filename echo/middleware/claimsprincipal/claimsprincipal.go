@@ -3,7 +3,7 @@ package claimsprincipal
 import (
 	"net/http"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_core_claimsprincipal "github.com/fluffy-bunny/fluffycore/contracts/common"
 	wellknown "github.com/fluffy-bunny/fluffycore/echo/wellknown"
 	middleware_claimsprincipal "github.com/fluffy-bunny/fluffycore/middleware/claimsprincipal"

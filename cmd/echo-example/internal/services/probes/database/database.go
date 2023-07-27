@@ -3,7 +3,7 @@ package database
 import (
 	"context"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_probe "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/contracts/probe"
 	zerolog "github.com/rs/zerolog"
 )

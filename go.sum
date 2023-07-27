@@ -60,8 +60,6 @@ github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDk
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/cncf/udpa/go v0.0.0-20200629203442-efcf912fb354/go.mod h1:WmhPx2Nbnhtbo57+VJT5O0JRkEi1Wbu0z5j0R8u5Hbk=
 github.com/cncf/udpa/go v0.0.0-20201120205902-5459f2c99403/go.mod h1:WmhPx2Nbnhtbo57+VJT5O0JRkEi1Wbu0z5j0R8u5Hbk=
-github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be h1:J5BL2kskAlV9ckgEsNQXscjIaLiOYiZ75d4e94E6dcQ=
-github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be/go.mod h1:mk5IQ+Y0ZeO87b858TlA645sVcEcbiX6YqP98kt+7+w=
 github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
@@ -87,8 +85,8 @@ github.com/fatih/structtag v1.2.0 h1:/OdNE99OxoI/PqaW/SuSK9uxxT3f/tcSZgon/ssNSx4
 github.com/fatih/structtag v1.2.0/go.mod h1:mBJUNpUnHmRKrKlQQlmCrh5PuhftFbNv8Ys4/aAZl94=
 github.com/felixge/fgprof v0.9.3 h1:VvyZxILNuCiUCSXtPtYmmtGvb65nqXh2QFWc0Wpf2/g=
 github.com/felixge/fgprof v0.9.3/go.mod h1:RdbpDgzqYVh/T9fPELJyV7EYJuHB55UTEULNun8eiPw=
-github.com/fluffy-bunny/dozm-di v0.3.3 h1:pwSKvfoK9IcC5obIQAvoeouJhRe4VFbZNehBHbvqM80=
-github.com/fluffy-bunny/dozm-di v0.3.3/go.mod h1:xsCtUcCs35CapsTF7ZUcxRgm/z55C41u9TLN0AZZGIc=
+github.com/fluffy-bunny/fluffy-dozm-di v0.0.1 h1:b+F9b4edbSVn9Oio4efo62QJNspVsdmhp1KO3dxVoNQ=
+github.com/fluffy-bunny/fluffy-dozm-di v0.0.1/go.mod h1:4/ZqTQ4Nwzq54c1i42mvEOabnMBJHDruBb2817viqKk=
 github.com/fluffy-bunny/sarulabsdi v0.1.65 h1:okh/ngaB5kM4ZIj2x9sq2vHPkHvouXqk6Pw6cbu6oGE=
 github.com/fluffy-bunny/sarulabsdi v0.1.65/go.mod h1:U/7P2c34Rm6JIubO9mR9jAywhU8l2fMag/rhbcGzRKM=
 github.com/fluffy-bunny/viperEx v0.0.27 h1:wm7cjbvwmXxlOxdAfxeToAmGDK0mt2Qcec+Xr9Tcrx4=

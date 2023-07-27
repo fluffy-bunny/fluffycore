@@ -3,7 +3,7 @@ package time
 import (
 	"time"
 
-	"github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 	mocks_timeutils "github.com/fluffy-bunny/fluffycore/mocks/common"
 	gomock "github.com/golang/mock/gomock"

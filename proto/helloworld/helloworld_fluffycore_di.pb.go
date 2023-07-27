@@ -5,7 +5,7 @@ package helloworld
 
 import (
 	context "context"
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"

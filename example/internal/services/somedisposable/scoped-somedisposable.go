@@ -3,7 +3,7 @@ package somedisposable
 import (
 	"context"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/contracts/somedisposable"
 	"github.com/rs/zerolog/log"
 )

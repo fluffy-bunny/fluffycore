@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	di "github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	contracts_container "github.com/fluffy-bunny/fluffycore/echo/contracts/container"

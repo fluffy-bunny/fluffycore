@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"github.com/dozm/di"
+	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contract_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 )
 
