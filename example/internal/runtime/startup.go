@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
@@ -83,7 +84,7 @@ func (s *startup) OnPreServerStartup() error {
 			})
 		}()
 		log.Info().Msg("mockOAuth2Server starting up")
-		err = s.mockOAuth2Server.Start(":9899")
+		err = s.mockOAuth2Server.Start(fmt.Sprintf(":%d", s.config.OAuth2Port))
 		if err != nil && http.ErrServerClosed == err {
 			err = nil
 		}
