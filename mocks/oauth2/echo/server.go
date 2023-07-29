@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	mocks_contracts_oauth2 "github.com/fluffy-bunny/fluffycore/mocks/contracts/oauth2"
 	jwt "github.com/golang-jwt/jwt/v4"
 	echo "github.com/labstack/echo/v4"
 	jwk "github.com/lestrrat-go/jwx/v2/jwk"
@@ -116,68 +117,103 @@ func LoadSigningKey() (*SigningKey, error) {
 	return &key, nil
 }
 
-func NewOAuth2TestServer() *echo.Echo {
-	e := echo.New()
-	e.GET("/.well-known/jwks", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, jwksKeys)
-	})
-	e.GET("/.well-known/openid-configuration", func(c echo.Context) error {
-		baseUrl := "http://" + c.Request().Host
-		wellKnownOpenidConfigurationResponse := WellKnownOpenidConfiguration{
-			Issuer:                             baseUrl,
-			JwksURI:                            baseUrl + "/.well-known/jwks",
-			TokenEndpoint:                      baseUrl + "/oauth/token",
-			FrontchannelLogoutSupported:        true,
-			FrontchannelLogoutSessionSupported: true,
-			BackchannelLogoutSupported:         true,
-			BackchannelLogoutSessionSupported:  true,
-			ScopesSupported:                    []string{"offline_access"},
-			ClaimsSupported:                    []string{},
-			GrantTypesSupported: []string{
-				"authorization_code",
-				"client_credentials",
-			},
-			ResponseTypesSupported: []string{
-				"code",
-				"token",
-				"id_token",
-				"id_token token",
-				"code id_token",
-				"code token",
-				"code id_token token",
-			},
-			ResponseModesSupported: []string{
-				"form_post",
-				"query",
-				"fragment",
-			},
-			TokenEndpointAuthMethodsSupported: []string{
-				"client_secret_basic",
-				"client_secret_post",
-			},
-			SubjectTypesSupported:            []string{"public"},
-			IDTokenSigningAlgValuesSupported: []string{"ES256"},
-			CodeChallengeMethodsSupported: []string{"plain",
-				"S256"},
-			RequestParameterSupported: true,
-			RequestObjectSigningAlgValuesSupported: []string{"RS256",
-				"RS384",
-				"RS512",
-				"PS256",
-				"PS384",
-				"PS512",
-				"ES256",
-				"ES384",
-				"ES512",
-				"HS256",
-				"HS384",
-				"HS512"},
-			AuthorizationResponseIssParameterSupported: true,
-		}
-		return c.JSON(http.StatusOK, wellKnownOpenidConfigurationResponse)
-	})
+type MockOAuth2Service struct {
+	*echo.Echo
+	config *mocks_contracts_oauth2.MockOAuth2Config
+}
 
-	return e
+func (s *MockOAuth2Service) GetEcho() *echo.Echo {
+	return s.Echo
+}
+func (s *MockOAuth2Service) GetClient(clientID string, clientSecret string) (bool, *mocks_contracts_oauth2.Client) {
+	for _, client := range s.config.Clients {
+		if client.ClientID == clientID && client.ClientSecret == clientSecret {
+			return true, &client
+		}
+	}
+	return false, nil
+}
+func (s *MockOAuth2Service) tokenHandler(c echo.Context) error {
+	// get basic auth
+	clientID, clientSecret, ok := c.Request().BasicAuth()
+	if !ok {
+		// try form
+		clientID = c.FormValue("client_id")
+		clientSecret = c.FormValue("client_secret")
+	}
+	if clientID == "" || clientSecret == "" {
+		return c.JSON(http.StatusBadRequest, "invalid client_id or client_secret")
+	}
+	// get client
+	ok, client := s.GetClient(clientID, clientSecret)
+	if !ok {
+		return c.JSON(http.StatusBadRequest, "invalid client_id or client_secret")
+	}
+	claims := NewClaims()
+	for k, v := range client.Claims {
+		claims.Set(k, v)
+	}
+	claims.Set("iss", "http://"+c.Request().Host)
+	if client.Issuer != "" {
+		// override the default issuer
+		claims.Set("iss", client.Issuer)
+	}
+	claims.Set("client_id", clientID)
+
+	now := time.Now()
+	claims.Set("iat", now.Unix())
+	claims.Set("exp", now.Add(time.Duration(client.Expiration)*time.Second).Unix())
+	expSeconds := client.Expiration
+	if expSeconds <= 0 {
+		// if we are asked to mint an expired token, push the iat back 2x the expiration
+		claims.Set("iat", now.Add(time.Duration(expSeconds*2)*time.Second).Unix())
+		expSeconds = expSeconds * -1
+	}
+
+	token, err := MintToken(claims)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
+
+	response := ClientCredentialsTokenResponse{
+		AccessToken: token,
+		ExpiresIn:   expSeconds,
+		TokenType:   "Bearer",
+	}
+	return c.JSON(http.StatusOK, response)
+}
+func (s *MockOAuth2Service) jwks(c echo.Context) error {
+	return c.JSON(http.StatusOK, jwksKeys)
+}
+func (s *MockOAuth2Service) discovery(c echo.Context) error {
+	baseUrl := "http://" + c.Request().Host
+	wellKnownOpenidConfigurationResponse := WellKnownOpenidConfiguration{
+		Issuer:          baseUrl,
+		JwksURI:         baseUrl + "/.well-known/jwks",
+		TokenEndpoint:   baseUrl + "/oauth/token",
+		ScopesSupported: []string{"offline_access"},
+		ClaimsSupported: []string{},
+		GrantTypesSupported: []string{
+			"client_credentials",
+		},
+		TokenEndpointAuthMethodsSupported: []string{
+			"client_secret_basic",
+			"client_secret_post",
+		},
+	}
+	return c.JSON(http.StatusOK, wellKnownOpenidConfigurationResponse)
+}
+func NewOAuth2TestServer(config *mocks_contracts_oauth2.MockOAuth2Config) *MockOAuth2Service {
+	mockOAuth2Service := &MockOAuth2Service{
+		Echo:   echo.New(),
+		config: config,
+	}
+
+	mockOAuth2Service.GET("/.well-known/jwks", mockOAuth2Service.jwks)
+	mockOAuth2Service.GET("/.well-known/openid-configuration", mockOAuth2Service.discovery)
+	mockOAuth2Service.POST("/oauth/token", mockOAuth2Service.tokenHandler)
+
+	return mockOAuth2Service
 }
 
 type (
