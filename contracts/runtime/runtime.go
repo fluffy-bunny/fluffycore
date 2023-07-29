@@ -28,6 +28,8 @@ func (u UnimplementedStartup) OnPreServerStartup() error { return nil }
 // OnPostServerShutdown ...
 func (u UnimplementedStartup) OnPostServerShutdown() {}
 
+func (u UnimplementedStartup) OnPreServerShutdown() {}
+
 // GetPort ...
 func (u UnimplementedStartup) GetPort() int {
 	return 0
@@ -43,4 +45,5 @@ type IStartup interface {
 		streamServerInterceptorBuilder fluffycore_contract_middleware.IStreamServerInterceptorBuilder)
 	OnPreServerStartup() error
 	OnPostServerShutdown()
+	OnPreServerShutdown()
 }

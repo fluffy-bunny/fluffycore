@@ -62,7 +62,7 @@ type Runtime struct {
 // NewRuntime returns an instance of a new Runtime
 func NewRuntime() *Runtime {
 	return &Runtime{
-		waitChannel:     make(chan os.Signal),
+		waitChannel:     make(chan os.Signal, 1),
 		ServerInstances: &ServerInstance{},
 	}
 }
@@ -291,15 +291,17 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 	s.Wait()
 	log.Info().Msg("Interupt triggered")
-	si.Server.Stop()
+	startup.OnPreServerShutdown()
 	if si.ServerGRPCGatewayMux != nil {
 		si.ServerGRPCGatewayMux.Shutdown(context.Background())
 	}
+	si.Server.GracefulStop()
 	startup.OnPostServerShutdown()
-	si.Future.Join()
 	if si.FutureGRPCGatewayMux != nil {
 		si.FutureGRPCGatewayMux.Join()
 	}
+	si.Future.Join()
+
 }
 func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error {
 	v := viper.NewWithOptions(viper.KeyDelimiter("__"))
