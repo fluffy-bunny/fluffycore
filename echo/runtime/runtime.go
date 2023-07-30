@@ -54,7 +54,7 @@ func New(startup echo_contracts_startup.IStartup) *Runtime {
 	return &Runtime{
 		Startup:     startup,
 		instanceID:  uuid.New().String(),
-		waitChannel: make(chan os.Signal),
+		waitChannel: make(chan os.Signal, 1),
 	}
 }
 

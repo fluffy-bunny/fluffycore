@@ -33,17 +33,18 @@ var _cache *jwxk.Cache
 var _issuerConfigs map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig
 
 func init() {
-	_cache = jwxk.NewCache(context.Background())
 	var _ fluffycore_contracts_middleware_auth_jwt.IValidator = &service{}
+	_cache = jwxk.NewCache(context.Background())
 	_issuerConfigs = make(map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig)
 }
 
 func AddValidators(builder di.ContainerBuilder, config *fluffycore_contracts_middleware_auth_jwt.IssuerConfigs) {
 	for _, issuerConfig := range config.IssuerConfigs {
-		_issuerConfigs[strings.ToLower(issuerConfig.OAuth2Config.Issuer)] = issuerConfig
+		_issuerConfigs[issuerConfig.OAuth2Config.Issuer] = issuerConfig
 		_cache.Register(issuerConfig.OAuth2Config.JWKSUrl)
-		di.AddSingleton[fluffycore_contracts_middleware_auth_jwt.IValidator](builder, func(config *fluffycore_contracts_middleware_auth_jwt.IssuerConfig) *service {
-			issuerConfig.OAuth2Config.Issuer = strings.ToLower(issuerConfig.OAuth2Config.Issuer)
+		// STOP: we want multiple validators even though it looks like we are adding the same one over and over.
+		// each validator targets a specific issuer.
+		di.AddSingleton[fluffycore_contracts_middleware_auth_jwt.IValidator](builder, func() *service {
 			return &service{
 				config: issuerConfig,
 			}
@@ -69,6 +70,7 @@ func (s *service) ValidateAccessToken(ctx context.Context, rawToken *fluffycore_
 	kid := rawToken.JWSMessage.Signatures()[0].ProtectedHeaders().KeyID()
 	issuer := strings.ToLower(rawToken.Token.Issuer())
 	if issuer != s.config.OAuth2Config.Issuer {
+		// not our issuer, so we aren't handling it and are not returning an error
 		return false, nil
 	}
 	// check if the issuer is in the list of issuers
@@ -98,19 +100,21 @@ func (s *service) ValidateAccessToken(ctx context.Context, rawToken *fluffycore_
 	if err != nil {
 		return true, status.Errorf(codes.Unauthenticated, "token signature not valid")
 	}
-	// check audience
-	matchedAudience := ""
-	for _, aud := range s.config.Audiences {
-		if checkAudienceMatch(trustedToken, aud) {
-			matchedAudience = aud
-			break
+
+	if len(s.config.Audiences) > 0 {
+		// check audience
+		matchedAudience := ""
+		for _, aud := range s.config.Audiences {
+			if checkAudienceMatch(trustedToken, aud) {
+				matchedAudience = aud
+				break
+			}
+		}
+		if matchedAudience == "" {
+			msg := "JWT audience do not match"
+			return true, status.Errorf(codes.Unauthenticated, msg)
 		}
 	}
-	if matchedAudience == "" {
-		msg := "JWT audience do not match"
-		return true, status.Errorf(codes.Unauthenticated, msg)
-	}
-
 	return true, nil
 }
 
@@ -123,7 +127,8 @@ func getTokenFromAuthorizationHeader(ctx context.Context) (*string, error) {
 	// its an Authorization : Bearer {{token}}
 	bear := md.Get("authorization")
 	if len(bear) == 0 {
-		return nil, status.Errorf(codes.Unauthenticated, "no authorization found")
+		// not having anything is ok.
+		return nil, nil
 	}
 	authorization := strings.Split(bear[0], " ")
 	if len(authorization) != 2 {
@@ -143,6 +148,9 @@ func _validate(ctx context.Context) (*fluffycore_contracts_middleware_auth_jwt.P
 	tokenPtr, err := getTokenFromAuthorizationHeader(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "token parse error")
+	}
+	if tokenPtr == nil {
+		return nil, status.Error(codes.NotFound, "no token found")
 	}
 	token := ""
 	if tokenPtr != nil {
@@ -186,13 +194,24 @@ func _loadValidators(rootContainer di.Container) {
 func UnaryServerInterceptor(rootContainer di.Container) grpc.UnaryServerInterceptor {
 	_loadValidators(rootContainer)
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		scopedContainer := dicontext.GetRequestContainer(ctx)
+		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
+
 		rt, err := _validate(ctx)
 		if err != nil {
+			e, ok := status.FromError(err)
+			if ok {
+				if e.Code() == codes.NotFound {
+					claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
+						Type:  string("sub"),
+						Value: "anonymous",
+					})
+					return handler(ctx, req)
+				}
+			}
 			return nil, err
 		}
 		jwtToken := newJWTToken(rt.Token, rt.AccessToken)
-		scopedContainer := dicontext.GetRequestContainer(ctx)
-		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
 		claimsPrincipalScratch := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(jwtToken.GetClaims())
 		// transfer the claims over to the scoped IClaimsPrincipal
 		claimsPrincipal.AddClaim(claimsPrincipalScratch.GetClaims()...)

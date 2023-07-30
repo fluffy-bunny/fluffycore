@@ -106,6 +106,13 @@ var command = &cobra.Command{
 		log.Info().Msg("Starting Server")
 
 		runtime := fluffycore_runtime.NewRuntime()
+		/*
+			for testing
+			go func() {
+				time.Sleep(30 * time.Second)
+				runtime.Stop()
+			}()
+		*/
 		runtime.StartWithListenter(nil, Startup)
 
 	},
