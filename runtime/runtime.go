@@ -62,7 +62,7 @@ type Runtime struct {
 // NewRuntime returns an instance of a new Runtime
 func NewRuntime() *Runtime {
 	return &Runtime{
-		waitChannel:     make(chan os.Signal),
+		waitChannel:     make(chan os.Signal, 1),
 		ServerInstances: &ServerInstance{},
 	}
 }
@@ -84,6 +84,7 @@ func (s *Runtime) Wait() {
 	<-s.waitChannel
 }
 func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contract_runtime.IStartup) {
+	ctx := context.Background()
 	var err error
 	// start the pprof web server
 	pProfServer := NewPProfServer()
@@ -148,6 +149,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		target = zerolog.ConsoleWriter{Out: target}
 	}
 	log.Logger = log.Output(target)
+	ctx = log.Logger.With().Logger().WithContext(ctx)
 
 	// do once
 	// race condition here with zerolog under test
@@ -208,7 +210,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	di.AddInstance[*fluffycore_contracts_config.CoreConfig](builder, coreConfig)
 
 	si := &ServerInstance{}
-	startup.ConfigureServices(builder)
+	startup.ConfigureServices(ctx, builder)
 	si.RootContainer = builder.Build()
 	defer func() {
 		// Dispose root
@@ -216,7 +218,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}()
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
-	startup.Configure(si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
+	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 	var serverOpts []grpc.ServerOption
 	unaryInterceptors := unaryServerInterceptorBuilder.GetUnaryServerInterceptors()
 	if len(unaryInterceptors) != 0 {
@@ -245,7 +247,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	healthServer := di.Get[fluffycore_contracts_health.IHealthServer](si.RootContainer)
 	grpc_health.RegisterHealthServer(grpcServer, healthServer)
 
-	err = startup.OnPreServerStartup()
+	err = startup.OnPreServerStartup(ctx)
 	if err != nil {
 		log.Error().Err(err).Msgf("OnPreServerStartup failed")
 		panic(err)
@@ -291,15 +293,17 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 	s.Wait()
 	log.Info().Msg("Interupt triggered")
-	si.Server.Stop()
+	startup.OnPreServerShutdown(ctx)
 	if si.ServerGRPCGatewayMux != nil {
 		si.ServerGRPCGatewayMux.Shutdown(context.Background())
 	}
-	startup.OnPostServerShutdown()
-	si.Future.Join()
+	si.Server.GracefulStop()
+	startup.OnPostServerShutdown(ctx)
 	if si.FutureGRPCGatewayMux != nil {
 		si.FutureGRPCGatewayMux.Join()
 	}
+	si.Future.Join()
+
 }
 func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error {
 	v := viper.NewWithOptions(viper.KeyDelimiter("__"))
