@@ -38,8 +38,9 @@
                 "CUSTOM_STRING": "In Flames",
                 "SOME_SECRET": "1234567890",
                 "ENABLE_GRPC_SERVER_REFLECTION": "true",
-                "JWT_VALIDATORS__ISSUERS": "http://localhost:1113",
-                "JWT_VALIDATORS__JWKS_URLS": "http://localhost:1113/.well-known/jwks",
+                "JWT_VALIDATORS__ISSUERS": "http://localhost:50053,http://host.docker.internal:50053",
+                "JWT_VALIDATORS__JWKS_URLS": "http://localhost:50053/.well-known/jwks,http://host.docker.internal:50053/.well-known/jwks",
+
             },
             "args": [ "serve" ]        
         },
