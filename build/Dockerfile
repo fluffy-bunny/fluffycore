@@ -43,7 +43,7 @@ ENV CGO_ENABLED=0
 
 ENV EXTLDFLAGS="-static"
 ENV LDFLAGS="-X ${location}.date=${date} -X ${location}.version=${version} -X ${location}.commit=${commit} -s -w -extldflags '${EXTLDFLAGS}'"
-RUN --mount=type=ssh go build -a -tags netgo -ldflags "$LDFLAGS" ./cmd/$BINARY
+RUN --mount=type=ssh go build -a -tags netgo -ldflags "$LDFLAGS" ./example/$BINARY
 
 FROM alpine:latest
 
