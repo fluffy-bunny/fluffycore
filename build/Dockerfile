@@ -30,7 +30,7 @@ RUN --mount=type=ssh go mod download
 # Add remaining code
 COPY . .
 
-ARG location=echo-github.com/fluffy-bunny/fluffycore/example/server
+ARG location=github.com/fluffy-bunny/fluffycore/example/server
 ARG commit=AFFE
 ARG version=0.0.0
 ARG date=19700101
