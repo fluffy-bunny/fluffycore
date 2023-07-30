@@ -46,10 +46,16 @@ services:
       ENABLE_GRPC_SERVER_REFLECTION": "true"
       JWT_VALIDATORS__ISSUERS": "${JWT_VALIDATORS__ISSUERS}"
       JWT_VALIDATORS__JWKS_URLS": "${JWT_VALIDATORS__JWKS_URLS}"
+      CONFIG_FILES__CLIENT_PATH: "${EXAMPLE_CONFIG_FILES__CLIENT_PATH}"
+    volumes:
+       - ./config/example:/config        
     networks:
       - fluffycore
     entrypoint: ["/app/server", "serve"]
 
+#====================================================
+# NETWORKS
+#====================================================
 networks:
   fluffycore:
  
