@@ -62,16 +62,15 @@ func (s *startup) ConfigureServices(builder di.ContainerBuilder) {
 	services_greeter.AddGreeterService(builder)
 	services_somedisposable.AddScopedSomeDisposable(builder)
 	services_mystream.AddMyStreamService(builder)
-	// need to come in from the outside via envs
-	issuerConfigs := &fluffycore_contracts_middleware_auth_jwt.IssuerConfigs{
-		IssuerConfigs: []*fluffycore_contracts_middleware_auth_jwt.IssuerConfig{
-			{
+	issuerConfigs := &fluffycore_contracts_middleware_auth_jwt.IssuerConfigs{}
+	for idx := range s.config.JWTValidators.Issuers {
+		issuerConfigs.IssuerConfigs = append(issuerConfigs.IssuerConfigs,
+			&fluffycore_contracts_middleware_auth_jwt.IssuerConfig{
 				OAuth2Config: &fluffycore_contracts_middleware_auth_jwt.OAuth2Config{
-					Issuer:  "http://localhost:1113",
-					JWKSUrl: "http://localhost:1113/.well-known/jwks",
+					Issuer:  s.config.JWTValidators.Issuers[idx],
+					JWKSUrl: s.config.JWTValidators.JWKSURLS[idx],
 				},
-			},
-		},
+			})
 	}
 	fluffycore_middleware_auth_jwt.AddValidators(builder, issuerConfigs)
 }

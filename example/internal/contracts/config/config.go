@@ -4,11 +4,18 @@ import (
 	fluffycore_contracts_config "github.com/fluffy-bunny/fluffycore/contracts/config"
 )
 
+type (
+	JWTValidators struct {
+		Issuers  []string `json:"issuers" mapstructure:"ISSUERS"`
+		JWKSURLS []string `json:"jwksUrls" mapstructure:"JWKS_URLS"`
+	}
+)
 type Config struct {
 	fluffycore_contracts_config.CoreConfig `mapstructure:",squash"`
-	CustomString                           string `json:"CUSTOM_STRING" mapstructure:"CUSTOM_STRING"`
-	SomeSecret                             string `json:"SOME_SECRET" mapstructure:"SOME_SECRET" redact:"true"`
-	OAuth2Port                             int    `json:"oauth2Port"  mapstructure:"OAUTH2_PORT"`
+	CustomString                           string        `json:"CUSTOM_STRING" mapstructure:"CUSTOM_STRING"`
+	SomeSecret                             string        `json:"SOME_SECRET" mapstructure:"SOME_SECRET" redact:"true"`
+	OAuth2Port                             int           `json:"oauth2Port"  mapstructure:"OAUTH2_PORT"`
+	JWTValidators                          JWTValidators `json:"jwtValidators" mapstructure:"JWT_VALIDATORS"`
 }
 
 // ConfigDefaultJSON default json
@@ -23,7 +30,8 @@ var ConfigDefaultJSON = []byte(`
 	"OAUTH2_PORT": 50053,
 	"CUSTOM_STRING": "some default value",
 	"SOME_SECRET": "password",
-	"GRPC_GATEWAY_ENABLED": true
+	"GRPC_GATEWAY_ENABLED": true,
+	"JWT_VALIDATORS": {}
 
   }
 `)

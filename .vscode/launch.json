@@ -38,6 +38,8 @@
                 "CUSTOM_STRING": "In Flames",
                 "SOME_SECRET": "1234567890",
                 "ENABLE_GRPC_SERVER_REFLECTION": "true",
+                "JWT_VALIDATORS__ISSUERS": "http://localhost:1113",
+                "JWT_VALIDATORS__JWKS_URLS": "http://localhost:1113/.well-known/jwks",
             },
             "args": [ "serve" ]        
         },
@@ -58,6 +60,7 @@
                 "GRPCPort": "50051",
                 "CUSTOM_STRING": "In Flames",
                 "SOME_SECRET": "1234567890",
+
             },
             "args": [ "version" ]        
         },
