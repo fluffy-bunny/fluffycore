@@ -34,7 +34,7 @@
                 "PORT": "50051",
                 "GRPC_GATEWAY_ENABLED": "true",
                 "REST_PORT": "50052",
-                "OAUTH2_PORT":"1113",
+                "OAUTH2_PORT":"50053",
                 "CUSTOM_STRING": "In Flames",
                 "SOME_SECRET": "1234567890",
                 "ENABLE_GRPC_SERVER_REFLECTION": "true",

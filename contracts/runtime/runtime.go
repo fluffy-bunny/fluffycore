@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"context"
+
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contract_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 )
@@ -23,12 +25,12 @@ type (
 func (UnimplementedStartup) mustEmbedUnimplementedStartup() {}
 
 // OnPreServerStartup ...
-func (u UnimplementedStartup) OnPreServerStartup() error { return nil }
+func (u UnimplementedStartup) OnPreServerStartup(ctx context.Context) error { return nil }
 
 // OnPostServerShutdown ...
-func (u UnimplementedStartup) OnPostServerShutdown() {}
+func (u UnimplementedStartup) OnPostServerShutdown(ctx context.Context) {}
 
-func (u UnimplementedStartup) OnPreServerShutdown() {}
+func (u UnimplementedStartup) OnPreServerShutdown(ctx context.Context) {}
 
 // GetPort ...
 func (u UnimplementedStartup) GetPort() int {
@@ -39,11 +41,11 @@ func (u UnimplementedStartup) GetPort() int {
 type IStartup interface {
 	mustEmbedUnimplementedStartup()
 	GetConfigOptions() *ConfigOptions
-	ConfigureServices(builder di.ContainerBuilder)
-	Configure(rootContainer di.Container,
+	ConfigureServices(ctx context.Context, builder di.ContainerBuilder)
+	Configure(ctx context.Context, rootContainer di.Container,
 		unaryServerInterceptorBuilder fluffycore_contract_middleware.IUnaryServerInterceptorBuilder,
 		streamServerInterceptorBuilder fluffycore_contract_middleware.IStreamServerInterceptorBuilder)
-	OnPreServerStartup() error
-	OnPostServerShutdown()
-	OnPreServerShutdown()
+	OnPreServerStartup(ctx context.Context) error
+	OnPostServerShutdown(ctx context.Context)
+	OnPreServerShutdown(ctx context.Context)
 }

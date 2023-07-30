@@ -2,8 +2,10 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
@@ -22,7 +24,7 @@ import (
 	mocks_oauth2_echo "github.com/fluffy-bunny/fluffycore/mocks/oauth2/echo"
 	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
 	async "github.com/reugn/async"
-	log "github.com/rs/zerolog/log"
+	zerolog "github.com/rs/zerolog"
 )
 
 type (
@@ -48,8 +50,8 @@ func (s *startup) GetConfigOptions() *fluffycore_contracts_runtime.ConfigOptions
 	}
 	return s.configOptions
 }
-func (s *startup) ConfigureServices(builder di.ContainerBuilder) {
-
+func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBuilder) {
+	log := zerolog.Ctx(ctx).With().Str("method", "Configure").Logger()
 	dst, err := fluffycore_utils_redact.CloneAndRedact(s.configOptions.Destination)
 	if err != nil {
 		panic(err)
@@ -74,63 +76,44 @@ func (s *startup) ConfigureServices(builder di.ContainerBuilder) {
 	}
 	fluffycore_middleware_auth_jwt.AddValidators(builder, issuerConfigs)
 }
-func (s *startup) Configure(rootContainer di.Container, unaryServerInterceptorBuilder fluffycore_contracts_middleware.IUnaryServerInterceptorBuilder, streamServerInterceptorBuilder fluffycore_contracts_middleware.IStreamServerInterceptorBuilder) {
+func (s *startup) Configure(ctx context.Context, rootContainer di.Container, unaryServerInterceptorBuilder fluffycore_contracts_middleware.IUnaryServerInterceptorBuilder, streamServerInterceptorBuilder fluffycore_contracts_middleware.IStreamServerInterceptorBuilder) {
+	log := zerolog.Ctx(ctx).With().Str("method", "Configure").Logger()
 
 	// puts a zerlog logger into the request context
+	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_logging.EnsureContextLoggingUnaryServerInterceptor")
 	unaryServerInterceptorBuilder.Use(fluffycore_middleware_logging.EnsureContextLoggingUnaryServerInterceptor())
+	log.Info().Msg("adding streamServerInterceptorBuilder: fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor")
 	streamServerInterceptorBuilder.Use(fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor())
 
 	// dicontext is responsible of create a scoped context for each request.
+	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_dicontext.UnaryServerInterceptor")
 	unaryServerInterceptorBuilder.Use(fluffycore_middleware_dicontext.UnaryServerInterceptor(rootContainer))
+	log.Info().Msg("adding streamServerInterceptorBuilder: fluffycore_middleware_dicontext.StreamServerInterceptor")
 	streamServerInterceptorBuilder.Use(fluffycore_middleware_dicontext.StreamServerInterceptor(rootContainer))
 
 	// auth
+	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_auth_jwt.UnaryServerInterceptor")
 	unaryServerInterceptorBuilder.Use(fluffycore_middleware_auth_jwt.UnaryServerInterceptor(rootContainer))
 
 }
 
 // OnPreServerStartup ...
-func (s *startup) OnPreServerStartup() error {
+func (s *startup) OnPreServerStartup(ctx context.Context) error {
+	log := zerolog.Ctx(ctx).With().Str("method", "OnPreServerStartup").Logger()
+
+	clientsJSON, err := os.ReadFile(s.config.ConfigFiles.ClientPath)
+	var clients []mocks_contracts_oauth2.Client
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(clientsJSON, &clients)
+	if err != nil {
+		return err
+	}
+
+	log.Info().Interface("clients", clients).Msg("clients")
 	s.mockOAuth2Server = mocks_oauth2_echo.NewOAuth2TestServer(&mocks_contracts_oauth2.MockOAuth2Config{
-		Clients: []mocks_contracts_oauth2.Client{
-			{
-				ClientID:     "client1",
-				ClientSecret: "secret",
-				Expiration:   3600,
-				Claims: map[string]interface{}{
-					"sub": "client1",
-					"permissions": []string{
-						"read",
-						"write",
-					},
-				},
-			},
-			{
-				ClientID:     "client2",
-				ClientSecret: "secret",
-				Expiration:   -1800,
-				Claims: map[string]interface{}{
-					"sub": "client1",
-					"permissions": []string{
-						"read",
-						"write",
-					},
-				},
-			},
-			{
-				ClientID:     "alien",
-				ClientSecret: "secret",
-				Issuer:       "http://alien",
-				Expiration:   3600,
-				Claims: map[string]interface{}{
-					"sub": "client1",
-					"permissions": []string{
-						"read",
-						"write",
-					},
-				},
-			},
-		},
+		Clients: clients,
 	})
 	s.mockOAuth2ServerFuture = fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[interface{}]) {
 		var err error
@@ -154,8 +137,8 @@ func (s *startup) OnPreServerStartup() error {
 }
 
 // OnPreServerShutdown ...
-func (s *startup) OnPreServerShutdown() {
-	ctx := context.Background()
+func (s *startup) OnPreServerShutdown(ctx context.Context) {
+	log := zerolog.Ctx(ctx).With().Str("method", "OnPreServerShutdown").Logger()
 	log.Info().Msg("mockOAuth2Server shutting down")
 	s.mockOAuth2Server.Shutdown(ctx)
 	log.Info().Msg("mockOAuth2Server shutdown complete")

@@ -9,8 +9,12 @@ type (
 		Issuers  []string `json:"issuers" mapstructure:"ISSUERS"`
 		JWKSURLS []string `json:"jwksUrls" mapstructure:"JWKS_URLS"`
 	}
+	ConfigFiles struct {
+		ClientPath string `json:"clientPath" mapstructure:"CLIENT_PATH"`
+	}
 )
 type Config struct {
+	ConfigFiles                            ConfigFiles `json:"configFiles" mapstructure:"CONFIG_FILES"`
 	fluffycore_contracts_config.CoreConfig `mapstructure:",squash"`
 	CustomString                           string        `json:"CUSTOM_STRING" mapstructure:"CUSTOM_STRING"`
 	SomeSecret                             string        `json:"SOME_SECRET" mapstructure:"SOME_SECRET" redact:"true"`
@@ -31,7 +35,10 @@ var ConfigDefaultJSON = []byte(`
 	"CUSTOM_STRING": "some default value",
 	"SOME_SECRET": "password",
 	"GRPC_GATEWAY_ENABLED": true,
-	"JWT_VALIDATORS": {}
+	"JWT_VALIDATORS": {},
+	"CONFIG_FILES": {
+		"CLIENT_PATH": "./config/clients.json"
+	}
 
   }
 `)
