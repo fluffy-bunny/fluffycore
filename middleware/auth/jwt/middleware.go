@@ -13,6 +13,7 @@ import (
 	fluffycore_services_common_claimsprincipal "github.com/fluffy-bunny/fluffycore/services/common/claimsprincipal"
 	"github.com/fluffy-bunny/fluffycore/utils"
 	"github.com/gogo/status"
+	"github.com/jinzhu/copier"
 	jwxk "github.com/lestrrat-go/jwx/v2/jwk"
 	jws "github.com/lestrrat-go/jwx/v2/jws"
 	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
@@ -40,13 +41,19 @@ func init() {
 
 func AddValidators(builder di.ContainerBuilder, config *fluffycore_contracts_middleware_auth_jwt.IssuerConfigs) {
 	for _, issuerConfig := range config.IssuerConfigs {
-		_issuerConfigs[issuerConfig.OAuth2Config.Issuer] = issuerConfig
+		dst := &fluffycore_contracts_middleware_auth_jwt.IssuerConfig{}
+		err := copier.Copy(dst, issuerConfig)
+		if err != nil {
+			panic(err)
+		}
+
+		_issuerConfigs[issuerConfig.OAuth2Config.Issuer] = dst
 		_cache.Register(issuerConfig.OAuth2Config.JWKSUrl)
 		// STOP: we want multiple validators even though it looks like we are adding the same one over and over.
 		// each validator targets a specific issuer.
 		di.AddSingleton[fluffycore_contracts_middleware_auth_jwt.IValidator](builder, func() *service {
 			return &service{
-				config: issuerConfig,
+				config: dst,
 			}
 		})
 	}
