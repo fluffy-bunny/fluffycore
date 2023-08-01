@@ -262,7 +262,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		}
 	}
 
-	future := asyncServeGRPC(grpcServer, lis)
+	future := asyncServeGRPC(ctx, grpcServer, lis)
 	si.Server = grpcServer
 	si.Future = future
 
@@ -392,7 +392,8 @@ func fixPath(fpath string) string {
 
 	return fpath
 }
-func asyncServeGRPC(grpcServer *grpc.Server, lis net.Listener) async.Future[interface{}] {
+func asyncServeGRPC(ctx context.Context, grpcServer *grpc.Server, lis net.Listener) async.Future[interface{}] {
+	log := zerolog.Ctx(ctx).With().Logger()
 	return fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[interface{}]) {
 		var err error
 		log.Info().Msg("gRPC Server Starting up")
