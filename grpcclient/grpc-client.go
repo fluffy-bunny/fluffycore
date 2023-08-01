@@ -1,0 +1,333 @@
+package grpcclient
+
+import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"strings"
+	"time"
+
+	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
+	"github.com/rs/zerolog/log"
+	"golang.org/x/oauth2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/oauth"
+	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
+)
+
+// Example Usage:
+// ```
+/*
+func Test() error {
+	// Create the GRPC Client
+	grpcCli, err := grpcclient.NewGrpcClient(
+		grpcclient.WithHost("1.2.3.4"),
+		grpcclient.WithPort(50051),
+
+		// Option 1. Using user token
+		grpcclient.WithToken(token.GetToken()), // Get token from runtime: token, err := runtime.GetSingleton().GetAuthTokenAct(ctx)
+
+		// Option 2. Using microservice credentials
+		grpcclient.WithTokenSource(tokenSource), // Provider must be initialized on microservice startup and shared among all clients.
+	)
+
+	if err != nil {
+		log.Error().Err(err).Msg("Creating gRPC client")
+		return err
+	}
+
+	defer grpcCli.Close()
+
+	// Create the gRPC client
+	cli := api.NewAppServiceClient(grpcCli.GetConnection())
+
+	// Make the function call
+	ctx, cancel := grpcclient.ContextWithTimeout(ctx)
+	defer cancel()
+	reqOutput, err := cli.GetAvailable(ctx, input)
+	if err != nil {
+		log.Fatal().Err(err).Msg("GetAvailable call failed")
+	}
+}
+*/
+// ```
+
+var defaultGrpcCallTimeoutInSeconds *int
+
+// GrpcClient object
+type GrpcClient struct {
+	conn           *grpc.ClientConn
+	target         string
+	authority      string
+	host           string
+	port           int
+	authToken      string
+	insecure       bool
+	sidecarSecured bool
+	tracingMode    bool
+	certBundleFile string
+	clientCerts    []tls.Certificate
+	ctx            context.Context
+	tokenSource    oauth2.TokenSource
+}
+
+// ClientOption is used for option pattern calling
+type GrpcClientOption func(*GrpcClient) error
+
+// Create a client to access other microservices that expose grpc
+// Do not use this client to call external systems since it create insecure channel. Envoy provides security for internal networking.
+func NewGrpcClient(opts ...GrpcClientOption) (*GrpcClient, error) {
+	// Create a client
+	c := &GrpcClient{
+		insecure:       true, // By default Envoy cares about security
+		sidecarSecured: true, // TODO: sidecarSecured/insecure should be set based on a cmdline/env option
+		tracingMode:    true,
+	}
+
+	// Process options
+	for _, opt := range opts {
+		err := opt(c)
+		if err != nil {
+			log.Error().Err(err).Msg("ClientOption error")
+			return nil, err
+		}
+	}
+
+	dialOpts := []grpc.DialOption{
+		grpc.WithReturnConnectionError(),
+		grpc.WithDisableRetry(),
+		grpc.FailOnNonTempDialError(true),
+		grpc.WithConnectParams(grpc.ConnectParams{MinConnectTimeout: time.Second, Backoff: backoff.DefaultConfig}),
+	}
+	if !fluffycore_utils.IsEmptyOrNil(c.authority) {
+		dialOpts = append(dialOpts, grpc.WithAuthority(c.authority))
+	}
+	if c.tracingMode {
+		// Create DataDog interceptors to enabled distributed tracing
+		streamTraceInterceptor := grpctrace.StreamClientInterceptor()
+		unaryTraceInterceptor := grpctrace.UnaryClientInterceptor()
+
+		dialOpts = append(dialOpts,
+			grpc.WithStreamInterceptor(streamTraceInterceptor),
+			grpc.WithUnaryInterceptor(unaryTraceInterceptor))
+	}
+
+	// Let user choose whether to put full address or to put host & port separately
+	url := c.target
+	if url == "" {
+		url = fmt.Sprintf("%s:%d", c.host, c.port)
+	}
+
+	authToken := c.authToken
+
+	// Do we need to use a custom server root cert bundle?
+	if !c.insecure {
+		var serverNameOverride string
+		hostParts := strings.Split(url, ":")
+		if len(hostParts) == 2 && hostParts[0] != "" && !strings.Contains(hostParts[0], ".") {
+			serverNameOverride = hostParts[0]
+		}
+
+		if len(c.certBundleFile) > 0 {
+			trnCreds, err := credentials.NewClientTLSFromFile(c.certBundleFile, serverNameOverride)
+			if err != nil {
+				log.Error().Err(err).Str("url", url).Msg("Failed to connect")
+				return nil, err
+			}
+
+			dialOpts = append(dialOpts, grpc.WithTransportCredentials(trnCreds))
+		} else {
+			certPool := x509.NewCertPool()
+			tlsConfig := &tls.Config{
+				ServerName: serverNameOverride,
+				RootCAs:    certPool,
+			}
+
+			// Do we have client certs for mTLS?
+			if len(c.clientCerts) > 0 {
+				tlsConfig.Certificates = c.clientCerts
+			}
+
+			trnCreds := credentials.NewTLS(tlsConfig)
+
+			dialOpts = append(dialOpts, grpc.WithTransportCredentials(trnCreds))
+		}
+
+		// Do we have auth to pass?
+		if !fluffycore_utils.IsEmptyOrNil(authToken) || !fluffycore_utils.IsEmptyOrNil(c.tokenSource) {
+			var rpcCreds credentials.PerRPCCredentials
+			if !fluffycore_utils.IsEmptyOrNil(c.tokenSource) {
+				// this wins
+				rpcCreds = oauth.TokenSource{TokenSource: c.tokenSource}
+			} else {
+				rpcCreds = oauth.NewOauthAccess(&oauth2.Token{AccessToken: authToken})
+			}
+			dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(rpcCreds))
+		}
+
+	} else {
+		dialOpts = append(dialOpts, grpc.WithInsecure())
+
+		if !fluffycore_utils.IsEmptyOrNil(authToken) || !fluffycore_utils.IsEmptyOrNil(c.tokenSource) {
+			var rpcCreds credentials.PerRPCCredentials
+			// Do we have auth to pass?
+			// NOTE: We have a separate version here since golang's oauth requires TLS
+			if !fluffycore_utils.IsEmptyOrNil(c.tokenSource) {
+				// this wins
+				rpcCreds = NewOauthAccessFromTokenSource(c.tokenSource, c.sidecarSecured)
+			} else {
+				rpcCreds = NewOauthAccess(&oauth2.Token{AccessToken: authToken}, c.sidecarSecured)
+			}
+
+			dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(rpcCreds))
+		}
+	}
+
+	// Set up a connection to the server.
+	var err error
+	if fluffycore_utils.IsNil(c.ctx) {
+		c.conn, err = grpc.Dial(url, dialOpts...)
+	} else {
+		c.conn, err = grpc.DialContext(c.ctx, c.target, dialOpts...)
+	}
+	if err != nil {
+		log.Error().Err(err).Str("url", url).Msg("Failed to connect")
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// Close tears down the Client and all underlying connections.
+func (c *GrpcClient) Close() error {
+	return c.conn.Close()
+}
+
+// GetConnection returns the underlying grpc connection
+func (c *GrpcClient) GetConnection() *grpc.ClientConn {
+	return c.conn
+}
+
+//
+// Options
+//
+
+// Sets full url to gRPC endpoint. Do not this method with WithHost or WithPort.
+func WithTarget(target string) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.target = target
+		return nil
+	}
+}
+
+func WithAuthority(authority string) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.authority = authority
+		return nil
+	}
+}
+
+// Sets host. Use with WithPort
+func WithHost(host string) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.host = host
+		return nil
+	}
+}
+
+// Sets port. Use with WithHost method
+func WithPort(port int) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.port = port
+		return nil
+	}
+}
+
+// WithTokenSource sets the token source to use for authentication.
+func WithTokenSource(tokenSource oauth2.TokenSource) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.tokenSource = tokenSource
+		return nil
+	}
+}
+
+func WithAuthToken(authToken string) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.authToken = authToken
+		return nil
+	}
+}
+
+func WithCertBundle(certBundleFile string) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.certBundleFile = certBundleFile
+		return nil
+	}
+}
+
+func WithClientCert(clientCert tls.Certificate) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.clientCerts = append(c.clientCerts, clientCert)
+		return nil
+	}
+}
+
+func WithInsecure(insecure bool) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.insecure = insecure
+		return nil
+	}
+}
+
+func WithSidecarSecured(sidecarSecured bool) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.insecure = sidecarSecured
+		c.sidecarSecured = sidecarSecured
+		return nil
+	}
+}
+
+// Do not pass Datadog trace headers
+func WithNoTracing() GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.tracingMode = false
+		return nil
+	}
+}
+
+// WithContext will use DialContext instead of Dial
+func WithContext(ctx context.Context) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.ctx = ctx
+		return nil
+	}
+}
+
+//
+// Global settings
+//
+
+func SetDefaultGrpcCallTimeout(timeoutInSeconds int) {
+	defaultGrpcCallTimeoutInSeconds = &timeoutInSeconds
+}
+
+//
+// Helpers
+//
+
+// Creates context with timeout. If duration is not specified - it uses default duration from common GTM config
+func ContextWithTimeout(ctx context.Context, duration ...time.Duration) (context.Context, context.CancelFunc) {
+	if len(duration) == 0 && defaultGrpcCallTimeoutInSeconds == nil {
+		panic("GRPC client: Default grpc call timeout was not set")
+	}
+
+	timeoutDuration := time.Second * time.Duration(*defaultGrpcCallTimeoutInSeconds)
+	if len(duration) > 0 {
+		timeoutDuration = duration[0]
+	}
+
+	return context.WithTimeout(ctx, timeoutDuration)
+}
