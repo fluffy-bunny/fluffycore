@@ -149,7 +149,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		target = zerolog.ConsoleWriter{Out: target}
 	}
 	log.Logger = log.Output(target)
-	ctx = log.Logger.With().Logger().WithContext(ctx)
+	ctx = log.Logger.With().Caller().Logger().WithContext(ctx)
 
 	// do once
 	// race condition here with zerolog under test

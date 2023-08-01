@@ -127,7 +127,7 @@ func FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOptionV2(grpcEntrypoi
 			Logger()
 		requestContainer := middleware_dicontext.GetRequestContainer(ctx)
 
-		subLogger = subLogger.With().Caller().Logger()
+		subLogger = subLogger.With().Logger()
 
 		if requestContainer != nil {
 			claimsPrincipal := di.Get[claimsprincipalContracts.IClaimsPrincipal](requestContainer)
