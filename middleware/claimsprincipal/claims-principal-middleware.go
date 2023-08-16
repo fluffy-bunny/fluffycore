@@ -80,36 +80,6 @@ func validateOR(claimsConfig *middleware_oidc.ClaimsConfig,
 	return false
 }
 
-// FinalAuthVerificationMiddleware evaluates the claims principal
-func FinalAuthVerificationMiddleware(container di.Container) grpc.UnaryServerInterceptor {
-	getEntryPointConfigs := di.Get[claimsprincipalContracts.GetEntryPointConfigs](container)
-	dd := getEntryPointConfigs()
-
-	return FinalAuthVerificationMiddlewareUsingClaimsMap(dd)
-}
-
-// FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOption evaluates the claims principal
-func FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOption(grpcEntrypointClaimsMap map[string]claimsprincipalContracts.IEntryPointConfig, enableZeroTrust bool) grpc.UnaryServerInterceptor {
-	log.Info().Interface("entryPointConfig", grpcEntrypointClaimsMap).Send()
-	for i := 0; i < 10; i++ {
-		log.Warn().Str("middleware", "FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOption").Msg("[FATAL] convert to using FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOptionV2")
-	}
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		// major flaw where we need to let everyone in and force them to to to V2
-		return handler(ctx, req)
-	}
-}
-
-// FinalAuthVerificationMiddlewareUsingClaimsMap evaluates the claims principal
-func FinalAuthVerificationMiddlewareUsingClaimsMap(grpcEntrypointClaimsMap map[string]claimsprincipalContracts.IEntryPointConfig) grpc.UnaryServerInterceptor {
-	return FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOption(grpcEntrypointClaimsMap, false)
-}
-
-// FinalAuthVerificationMiddlewareUsingClaimsMapWithZeroTrust evaluates the claims principal
-func FinalAuthVerificationMiddlewareUsingClaimsMapWithZeroTrust(grpcEntrypointClaimsMap map[string]claimsprincipalContracts.IEntryPointConfig) grpc.UnaryServerInterceptor {
-	return FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOption(grpcEntrypointClaimsMap, true)
-}
-
 // FinalAuthVerificationMiddlewareUsingClaimsMapWithZeroTrustV2 evaluates the claims principal
 func FinalAuthVerificationMiddlewareUsingClaimsMapWithZeroTrustV2(grpcEntrypointClaimsMap map[string]claimsprincipalContracts.IEntryPointConfig) grpc.UnaryServerInterceptor {
 	return FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOptionV2(grpcEntrypointClaimsMap, true)

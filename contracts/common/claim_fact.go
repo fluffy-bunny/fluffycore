@@ -7,6 +7,7 @@ type (
 		Expression() string
 	}
 	IClaimsAST interface {
+		AppendClaimsFact(claimFact ...IClaimFact)
 		GetClaimsFact() []IClaimFact
 		GetAndClaimsValidator() []IClaimsValidator
 		GetNotClaimsValidator() []IClaimsValidator
@@ -17,6 +18,7 @@ type (
 	IEntryPointConfig interface {
 		GetFullMethodName() string
 		GetClaimsAST() IClaimsAST
+		GetExpression() string
 	}
 	GetEntryPointConfigs func() map[string]IEntryPointConfig
 )

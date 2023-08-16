@@ -3,22 +3,22 @@ package claimsprincipal
 import (
 	"fmt"
 
-	contracts_claimfact "github.com/fluffy-bunny/fluffycore/contracts/common"
-	"github.com/fluffy-bunny/fluffycore/utils"
+	contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
+	utils "github.com/fluffy-bunny/fluffycore/utils"
 )
 
 // EntryPointClaimsBuilder struct
 type EntryPointClaimsBuilder struct {
-	EntrypointClaimsMap map[string]*EntryPointConfig
+	EntrypointClaimsMap map[string]contracts_common.IEntryPointConfig
 }
 
 // NewEntryPointClaimsBuilder ...
 func NewEntryPointClaimsBuilder() *EntryPointClaimsBuilder {
 	return &EntryPointClaimsBuilder{
-		EntrypointClaimsMap: make(map[string]*EntryPointConfig),
+		EntrypointClaimsMap: make(map[string]contracts_common.IEntryPointConfig),
 	}
 }
-func (s *EntryPointClaimsBuilder) GetEntryPointClaimsMap() map[string]*EntryPointConfig {
+func (s *EntryPointClaimsBuilder) GetEntryPointClaimsMap() map[string]contracts_common.IEntryPointConfig {
 	return s.EntrypointClaimsMap
 }
 
@@ -29,19 +29,19 @@ func (s *EntryPointClaimsBuilder) WithGrpcEntrypointPermissionsClaimsMapOpen(ful
 }
 
 // WithGrpcEntrypointClams helper to add a single entrypoint config
-func (s *EntryPointClaimsBuilder) WithGrpcEntrypointClams(fullMethodName string, claims ...contracts_claimfact.IClaimFact) *EntryPointClaimsBuilder {
+func (s *EntryPointClaimsBuilder) WithGrpcEntrypointClams(fullMethodName string, claims ...contracts_common.IClaimFact) *EntryPointClaimsBuilder {
 	ast := s.GetClaimsAST(fullMethodName)
-	ast.ClaimFacts = append(ast.ClaimFacts, claims...)
+	ast.AppendClaimsFact(claims...)
 	return s
 }
 
 // GetClaimsAST ...
-func (s *EntryPointClaimsBuilder) GetClaimsAST(fullMethodName string) *ClaimsAST {
+func (s *EntryPointClaimsBuilder) GetClaimsAST(fullMethodName string) contracts_common.IClaimsAST {
 	result := s.ensureEntry(fullMethodName)
-	return result.ClaimsAST
+	return result.GetClaimsAST()
 }
 
-func (s *EntryPointClaimsBuilder) ensureEntry(fullMethodName string) *EntryPointConfig {
+func (s *EntryPointClaimsBuilder) ensureEntry(fullMethodName string) contracts_common.IEntryPointConfig {
 	result, ok := s.EntrypointClaimsMap[fullMethodName]
 	if !ok {
 		result = &EntryPointConfig{
@@ -69,8 +69,8 @@ func (s *EntryPointClaimsBuilder) DumpExpressions() {
 	fmt.Println("==================================================================")
 	for _, entry := range s.EntrypointClaimsMap {
 		fullE.EntryPoints = append(fullE.EntryPoints, entrypoint{
-			FullMethodName: entry.FullMethodName,
-			Expression:     entry.ClaimsAST.String(),
+			FullMethodName: entry.GetFullMethodName(),
+			Expression:     entry.GetExpression(),
 		})
 	}
 	fmt.Println(utils.PrettyJSON(fullE))

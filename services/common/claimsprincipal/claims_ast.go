@@ -51,6 +51,14 @@ type ClaimsAST struct {
 	Not []fluffycore_contracts_common.IClaimsValidator
 }
 
+func init() {
+	var _ fluffycore_contracts_common.IClaimsAST = (*ClaimsAST)(nil)
+}
+
+func (p *ClaimsAST) AppendClaimsFact(claimFact ...fluffycore_contracts_common.IClaimFact) {
+	p.ClaimFacts = append(p.ClaimFacts, claimFact...)
+}
+
 func (p *ClaimsAST) GetClaimsFact() []fluffycore_contracts_common.IClaimFact {
 	return p.ClaimFacts
 }

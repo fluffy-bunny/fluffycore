@@ -14,6 +14,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
+	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.2
 	github.com/jedib0t/go-pretty/v6 v6.4.6
 	github.com/jellydator/ttlcache/v2 v2.11.1
