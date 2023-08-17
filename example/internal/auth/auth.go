@@ -10,13 +10,6 @@ var writeEndpoints = []string{
 	proto_helloworld.Greeter_SayHello_FullMethodName,
 }
 
-type (
-	EntryPointConfig struct {
-		FullMethodName string                                     `mapstructure:"FULL_METHOD_NAME"`
-		ClaimsAST      *services_common_claimsprincipal.ClaimsAST `mapstructure:"CLAIMS_CONFIG"`
-	}
-)
-
 func BuildGrpcEntrypointPermissionsClaimsMap() map[string]contracts_common.IEntryPointConfig {
 	entryPointClaimsBuilder := services_common_claimsprincipal.NewEntryPointClaimsBuilder()
 	for _, endpoint := range writeEndpoints {
