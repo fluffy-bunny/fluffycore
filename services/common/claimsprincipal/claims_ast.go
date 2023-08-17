@@ -14,7 +14,7 @@ const (
 )
 
 // ClaimsAST is a light-weight AST that allows for logical collections of claims to
-// be defined and tested by GTM based services. Grouping is implicit in the tree's structure
+// be defined and tested by go grpc based services. Grouping is implicit in the tree's structure
 // such that the root arrays form grouped AND operations, and branches are processed by
 // their placement in the parent. For example:
 // ```
