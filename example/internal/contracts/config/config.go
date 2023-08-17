@@ -2,6 +2,7 @@ package config
 
 import (
 	fluffycore_contracts_config "github.com/fluffy-bunny/fluffycore/contracts/config"
+	fluffycore_contracts_ddprofiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
 )
 
 type (
@@ -16,10 +17,11 @@ type (
 type Config struct {
 	ConfigFiles                            ConfigFiles `json:"configFiles" mapstructure:"CONFIG_FILES"`
 	fluffycore_contracts_config.CoreConfig `mapstructure:",squash"`
-	CustomString                           string        `json:"CUSTOM_STRING" mapstructure:"CUSTOM_STRING"`
-	SomeSecret                             string        `json:"SOME_SECRET" mapstructure:"SOME_SECRET" redact:"true"`
-	OAuth2Port                             int           `json:"oauth2Port"  mapstructure:"OAUTH2_PORT"`
-	JWTValidators                          JWTValidators `json:"jwtValidators" mapstructure:"JWT_VALIDATORS"`
+	CustomString                           string                                  `json:"CUSTOM_STRING" mapstructure:"CUSTOM_STRING"`
+	SomeSecret                             string                                  `json:"SOME_SECRET" mapstructure:"SOME_SECRET" redact:"true"`
+	OAuth2Port                             int                                     `json:"oauth2Port"  mapstructure:"OAUTH2_PORT"`
+	JWTValidators                          JWTValidators                           `json:"jwtValidators" mapstructure:"JWT_VALIDATORS"`
+	DDProfilerConfig                       *fluffycore_contracts_ddprofiler.Config `json:"ddProfilerConfig" mapstructure:"DD_PROFILER_CONFIG"`
 }
 
 // ConfigDefaultJSON default json
@@ -38,6 +40,12 @@ var ConfigDefaultJSON = []byte(`
 	"JWT_VALIDATORS": {},
 	"CONFIG_FILES": {
 		"CLIENT_PATH": "./config/clients.json"
+	},
+	"DD_PROFILER_CONFIG": {
+		"ENABLED": false,
+		"SERVICE_NAME": "in-environment",
+		"APPLICATION_ENVIRONMENT": "in-environment",
+		"VERSION": "1.0.0"
 	}
 
   }

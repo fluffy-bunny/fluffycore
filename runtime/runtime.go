@@ -203,6 +203,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}()
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
+	startup.SetRootContainer(si.RootContainer)
 	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 	var serverOpts []grpc.ServerOption
 	unaryInterceptors := unaryServerInterceptorBuilder.GetUnaryServerInterceptors()
