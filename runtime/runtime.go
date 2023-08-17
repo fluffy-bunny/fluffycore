@@ -12,7 +12,6 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -105,14 +104,9 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	defer func() {
 		control.Stop()
 	}()
-	logFormat := os.Getenv("LOG_FORMAT")
-	if len(logFormat) == 0 {
-		logFormat = "json"
-	}
-	logFileName := os.Getenv("LOG_FILE")
-	if len(logFileName) == 0 {
-		logFileName = "stderr"
-	}
+	logFormat := utils.StringEnv("LOG_FORMAT", "json")
+	logFileName := utils.StringEnv("LOG_FILE", "stderr")
+
 	var logFile *os.File
 	// validate log destination
 	var target io.Writer
@@ -133,18 +127,9 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		target = logFile
 	}
 
-	logLevel := os.Getenv("LOG_LEVEL")
-	if len(logLevel) == 0 {
-		logLevel = "info"
-	}
-	prettyLog := false
-	prettyLogValue := os.Getenv("PRETTY_LOG")
-	if len(prettyLogValue) != 0 {
-		b, err := strconv.ParseBool(prettyLogValue)
-		if err == nil {
-			prettyLog = b
-		}
-	}
+	logLevel := utils.StringEnv("LOG_LEVEL", "info")
+	prettyLog := utils.BoolEnv("PRETTY_LOG", false)
+
 	if prettyLog || logFormat == "pretty" {
 		target = zerolog.ConsoleWriter{Out: target}
 	}
@@ -218,6 +203,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}()
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
+	startup.SetRootContainer(si.RootContainer)
 	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 	var serverOpts []grpc.ServerOption
 	unaryInterceptors := unaryServerInterceptorBuilder.GetUnaryServerInterceptors()

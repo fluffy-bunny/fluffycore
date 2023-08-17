@@ -42,6 +42,7 @@ type IStartup interface {
 	mustEmbedUnimplementedStartup()
 	GetConfigOptions() *ConfigOptions
 	ConfigureServices(ctx context.Context, builder di.ContainerBuilder)
+	SetRootContainer(container di.Container)
 	Configure(ctx context.Context, rootContainer di.Container,
 		unaryServerInterceptorBuilder fluffycore_contract_middleware.IUnaryServerInterceptorBuilder,
 		streamServerInterceptorBuilder fluffycore_contract_middleware.IStreamServerInterceptorBuilder)

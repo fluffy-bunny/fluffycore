@@ -9,6 +9,7 @@ import (
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
+	fluffycore_contracts_ddprofiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
 	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
@@ -18,35 +19,43 @@ import (
 	services_health "github.com/fluffy-bunny/fluffycore/example/internal/services/health"
 	services_mystream "github.com/fluffy-bunny/fluffycore/example/internal/services/mystream"
 	services_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/services/somedisposable"
+	internal_version "github.com/fluffy-bunny/fluffycore/example/internal/version"
 	fluffycore_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/middleware/auth/jwt"
 	fluffycore_middleware_claimsprincipal "github.com/fluffy-bunny/fluffycore/middleware/claimsprincipal"
+	fluffycore_middleware_correlation "github.com/fluffy-bunny/fluffycore/middleware/correlation"
 	fluffycore_middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_middleware_logging "github.com/fluffy-bunny/fluffycore/middleware/logging"
 	mocks_contracts_oauth2 "github.com/fluffy-bunny/fluffycore/mocks/contracts/oauth2"
 	mocks_oauth2_echo "github.com/fluffy-bunny/fluffycore/mocks/oauth2/echo"
+	fluffycore_services_ddprofiler "github.com/fluffy-bunny/fluffycore/services/ddprofiler"
 	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
-	"github.com/gogo/status"
+	status "github.com/gogo/status"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	async "github.com/reugn/async"
 	zerolog "github.com/rs/zerolog"
-	"google.golang.org/grpc/codes"
+	codes "google.golang.org/grpc/codes"
 )
 
 type (
 	startup struct {
 		fluffycore_contracts_runtime.UnimplementedStartup
+		RootContainer di.Container
+
 		configOptions *fluffycore_contracts_runtime.ConfigOptions
 		config        *contracts_config.Config
 
 		mockOAuth2Server       *mocks_oauth2_echo.MockOAuth2Service
 		mockOAuth2ServerFuture async.Future[interface{}]
+		ddProfiler             fluffycore_contracts_ddprofiler.IDataDogProfiler
 	}
 )
 
 func NewStartup() fluffycore_contracts_runtime.IStartup {
 	return &startup{}
 }
-
+func (s *startup) SetRootContainer(container di.Container) {
+	s.RootContainer = container
+}
 func (s *startup) GetConfigOptions() *fluffycore_contracts_runtime.ConfigOptions {
 	s.config = &contracts_config.Config{}
 	s.configOptions = &fluffycore_contracts_runtime.ConfigOptions{
@@ -62,9 +71,14 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 		panic(err)
 	}
 	log.Info().Interface("config", dst).Msg("config")
-	di.AddSingleton[*contracts_config.Config](builder, func() *contracts_config.Config {
-		return s.configOptions.Destination.(*contracts_config.Config)
-	})
+	config := s.configOptions.Destination.(*contracts_config.Config)
+	config.DDProfilerConfig.ApplicationEnvironment = config.ApplicationEnvironment
+	config.DDProfilerConfig.ServiceName = config.ApplicationName
+	config.DDProfilerConfig.Version = internal_version.Version()
+	di.AddInstance[*fluffycore_contracts_ddprofiler.Config](builder, config.DDProfilerConfig)
+	di.AddInstance[*contracts_config.Config](builder, config)
+
+	fluffycore_services_ddprofiler.AddSingletonIProfiler(builder)
 	services_health.AddHealthService(builder)
 	services_greeter.AddGreeterService(builder)
 	services_somedisposable.AddScopedSomeDisposable(builder)
@@ -90,6 +104,8 @@ func (s *startup) Configure(ctx context.Context, rootContainer di.Container, una
 	log.Info().Msg("adding streamServerInterceptorBuilder: fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor")
 	streamServerInterceptorBuilder.Use(fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor())
 
+	// log correlation and spans
+	unaryServerInterceptorBuilder.Use(fluffycore_middleware_correlation.EnsureCorrelationIDUnaryServerInterceptor())
 	// dicontext is responsible of create a scoped context for each request.
 	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_dicontext.UnaryServerInterceptor")
 	unaryServerInterceptorBuilder.Use(fluffycore_middleware_dicontext.UnaryServerInterceptor(rootContainer))
@@ -153,6 +169,8 @@ func (s *startup) OnPreServerStartup(ctx context.Context) error {
 		}
 	})
 
+	s.ddProfiler = di.Get[fluffycore_contracts_ddprofiler.IDataDogProfiler](s.RootContainer)
+	s.ddProfiler.Start(ctx)
 	return nil
 }
 
@@ -161,7 +179,9 @@ func (s *startup) OnPreServerShutdown(ctx context.Context) {
 	log := zerolog.Ctx(ctx).With().Str("method", "OnPreServerShutdown").Logger()
 	log.Info().Msg("mockOAuth2Server shutting down")
 	s.mockOAuth2Server.Shutdown(ctx)
-	log.Info().Msg("mockOAuth2Server shutdown complete")
 	s.mockOAuth2ServerFuture.Join()
 	log.Info().Msg("mockOAuth2Server shutdown complete")
+	log.Info().Msg("Stopping Datadog Tracer and Profiler")
+	s.ddProfiler.Stop(ctx)
+	log.Info().Msg("Datadog Tracer and Profiler stopped")
 }
