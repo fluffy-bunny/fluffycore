@@ -15,6 +15,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// StringEnv returns the value of an environment variable, or def otherwise.
+func StringEnv(key, def string) string {
+	v, ok := os.LookupEnv(key)
+	if !ok {
+		return def
+	}
+	if IsEmptyOrNil(v) {
+		return def
+	}
+	return v
+}
+
 // BoolEnv returns the parsed boolean value of an environment variable, or
 // def otherwise.
 func BoolEnv(key string, def bool) bool {
