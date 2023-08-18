@@ -8,6 +8,7 @@
 
 ```bash
 go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 ```
@@ -32,12 +33,25 @@ protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=p
 
 ### grpc and gateway
 
-```powershell
+Note: I had to run bash on windows so I could pass ```./api/proto/**/*.proto```  
+
+```bash
 go mod tidy
 go build .\protoc-gen-go-fluffycore-di\cmd\protoc-gen-go-fluffycore-di\
 
 protoc --go_out=. --go_opt paths=source_relative --grpc-gateway_out . --grpc-gateway_opt paths=source_relative --go-grpc_out . --go-grpc_opt paths=source_relative --go-fluffycore-di_out .  --go-fluffycore-di_opt paths=source_relative,grpc_gateway=true  ./proto/helloworld/helloworld.proto  
 
+protoc  --go_out=. --go_opt paths=source_relative --grpc-gateway_out . --grpc-gateway_opt logtostderr=true --grpc-gateway_opt paths=source_relative --openapiv2_out=allow_merge=true,merge_file_name=myawesomeapi:./proto/swagger --go-grpc_out . --go-grpc_opt paths=source_relative --go-fluffycore-di_out .  --go-fluffycore-di_opt paths=source_relative,grpc_gateway=true  ./proto/**/*.proto
+
+     
+ 
+protoc -I./api/proto \
+	-I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
+	-I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway \
+	--grpc-gateway_out=logtostderr=true:./pkg \
+	--swagger_out=allow_merge=true,merge_file_name=myawesomeapi:./api/swagger \
+	--go_out=plugins=grpc:pkg ./api/proto/**/*.proto
+    
 ```
 
 ## Why the custome protoc plugin?
@@ -62,3 +76,9 @@ Streaming services are basically the same as a unary service.  The scoped contex
 Why do people stream anyway?
 
 Because making a gazillion unary requests are wasteful.  
+
+## GRPC Gateway
+[customizing_openapi_output](https://grpc-ecosystem.github.io/grpc-gateway/docs/mapping/customizing_openapi_output/)
+
+
+[7-tips-when-working-with-grpc-gateways-swagger-support](https://medium.com/golang-diary/7-tips-when-working-with-grpc-gateways-swagger-support-afa0c2d671d8)  

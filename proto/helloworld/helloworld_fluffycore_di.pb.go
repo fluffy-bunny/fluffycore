@@ -5,7 +5,7 @@ package helloworld
 
 import (
 	context "context"
-	di "github.com/fluffy-bunny/fluffy-dozm-di"
+	fluffy_dozm_di "github.com/fluffy-bunny/fluffy-dozm-di"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -40,17 +40,17 @@ func (srv *greeterServer) Register(s *grpc.Server) {
 }
 
 // AddGreeterServer adds the fluffycore aware grpc server
-func AddGreeterServer[T IGreeterServer](cb di.ContainerBuilder, ctor any) {
-	di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
+func AddGreeterServer[T IGreeterServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
 		return &greeterServer{}
 	})
-	di.AddScoped[IGreeterServer](cb, ctor)
+	fluffy_dozm_di.AddScoped[IGreeterServer](cb, ctor)
 }
 
 // SayHello...
 func (s *greeterServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
-	downstreamService := di.Get[IGreeterServer](requestContainer)
+	downstreamService := fluffy_dozm_di.Get[IGreeterServer](requestContainer)
 	return downstreamService.SayHello(ctx, request)
 }
 
@@ -82,17 +82,17 @@ func (srv *greeter2Server) Register(s *grpc.Server) {
 }
 
 // AddGreeter2Server adds the fluffycore aware grpc server
-func AddGreeter2Server[T IGreeter2Server](cb di.ContainerBuilder, ctor any) {
-	di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
+func AddGreeter2Server[T IGreeter2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
 		return &greeter2Server{}
 	})
-	di.AddScoped[IGreeter2Server](cb, ctor)
+	fluffy_dozm_di.AddScoped[IGreeter2Server](cb, ctor)
 }
 
 // SayHello...
 func (s *greeter2Server) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
-	downstreamService := di.Get[IGreeter2Server](requestContainer)
+	downstreamService := fluffy_dozm_di.Get[IGreeter2Server](requestContainer)
 	return downstreamService.SayHello(ctx, request)
 }
 
@@ -123,18 +123,18 @@ func (srv *mystreamserviceServer) Register(s *grpc.Server) {
 }
 
 // AddMyStreamServiceServer adds the fluffycore aware grpc server
-func AddMyStreamServiceServer[T IMyStreamServiceServer](cb di.ContainerBuilder, ctor any) {
-	di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
+func AddMyStreamServiceServer[T IMyStreamServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
 		return &mystreamserviceServer{}
 	})
-	di.AddScoped[IMyStreamServiceServer](cb, ctor)
+	fluffy_dozm_di.AddScoped[IMyStreamServiceServer](cb, ctor)
 }
 
 // RequestPoints...
 func (s *mystreamserviceServer) RequestPoints(request *PointsRequest, stream MyStreamService_RequestPointsServer) error {
 	ctx := stream.Context()
 	requestContainer := dicontext.GetRequestContainer(ctx)
-	downstreamService := di.Get[IMyStreamServiceServer](requestContainer)
+	downstreamService := fluffy_dozm_di.Get[IMyStreamServiceServer](requestContainer)
 	return downstreamService.RequestPoints(request, stream)
 }
 
@@ -142,6 +142,6 @@ func (s *mystreamserviceServer) RequestPoints(request *PointsRequest, stream MyS
 func (s *mystreamserviceServer) StreamPoints(stream MyStreamService_StreamPointsServer) error {
 	ctx := stream.Context()
 	requestContainer := dicontext.GetRequestContainer(ctx)
-	downstreamService := di.Get[IMyStreamServiceServer](requestContainer)
+	downstreamService := fluffy_dozm_di.Get[IMyStreamServiceServer](requestContainer)
 	return downstreamService.StreamPoints(stream)
 }

@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+option go_package = "google.golang.org/grpc/examples/swagger/swagger";
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.swagger";
+option java_outer_classname = "SwaggerProto";
+
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+package swagger;
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+        title: "My Awesome Service"
+        version: "1.0"
+        contact: {
+            name: "Fluffy Bunny"
+            url: ""
+            email: "ghstahl@gmail.com"
+        };
+    };
+    schemes: [HTTP,HTTPS]
+    consumes: "application/json"
+    produces: "application/json"
+    responses: {
+        key: "404"
+        value: {
+            description: "Returned when the resource does not exist."
+            schema: {
+                json_schema: {
+                    type: STRING
+                };
+            };
+        };
+    };
+};
