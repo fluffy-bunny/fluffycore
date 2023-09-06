@@ -34,7 +34,7 @@ import (
 	zerolog "github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
 	pkgerrors "github.com/rs/zerolog/pkgerrors"
-	lecho "github.com/ziflex/lecho"
+	lecho "github.com/ziflex/lecho/v3"
 )
 
 type (
