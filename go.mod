@@ -18,7 +18,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.2
 	github.com/jedib0t/go-pretty/v6 v6.4.6
 	github.com/jellydator/ttlcache/v2 v2.11.1
-	github.com/jinzhu/copier v0.3.5
+	github.com/jinzhu/copier v0.4.0
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/labstack/gommon v0.4.0
 	github.com/lestrrat-go/jwx/v2 v2.0.11
