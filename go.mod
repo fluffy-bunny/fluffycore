@@ -21,7 +21,7 @@ require (
 	github.com/jinzhu/copier v0.3.5
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/labstack/gommon v0.4.0
-	github.com/lestrrat-go/jwx/v2 v2.0.11
+	github.com/lestrrat-go/jwx/v2 v2.0.12
 	github.com/pkg/profile v1.7.0
 	github.com/reugn/async v0.5.1
 	github.com/rs/xid v1.5.0
