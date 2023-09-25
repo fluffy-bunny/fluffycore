@@ -13,15 +13,15 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/golang/mock v1.6.0
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.2
-	github.com/jedib0t/go-pretty/v6 v6.4.6
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.0
+	github.com/jedib0t/go-pretty/v6 v6.4.7
 	github.com/jellydator/ttlcache/v2 v2.11.1
-	github.com/jinzhu/copier v0.3.5
+	github.com/jinzhu/copier v0.4.0
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/labstack/gommon v0.4.0
-	github.com/lestrrat-go/jwx/v2 v2.0.11
+	github.com/lestrrat-go/jwx/v2 v2.0.12
 	github.com/pkg/profile v1.7.0
 	github.com/reugn/async v0.5.1
 	github.com/rs/xid v1.5.0
@@ -30,13 +30,13 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
-	github.com/swaggo/echo-swagger v1.4.0
-	github.com/swaggo/swag v1.16.1
+	github.com/swaggo/echo-swagger v1.4.1
+	github.com/swaggo/swag v1.16.2
 	github.com/tkuchiki/parsetime v0.3.0
 	github.com/tufin/asciitree v0.0.0-20210127111056-bf70173ef677
 	github.com/ziflex/lecho/v3 v3.5.0
 	golang.org/x/oauth2 v0.12.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20230726155614-23370e0ffb3e
+	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d
 	google.golang.org/grpc v1.58.2
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.55.0
@@ -63,6 +63,7 @@ require (
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/felixge/fgprof v0.9.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-openapi/jsonpointer v0.20.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/spec v0.20.9 // indirect
@@ -120,10 +121,11 @@ require (
 	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20230726155614-23370e0ffb3e // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230726155614-23370e0ffb3e // indirect
+	google.golang.org/genproto v0.0.0-20230803162519-f966b187b2e5 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a // indirect
 )
