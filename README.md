@@ -46,11 +46,11 @@ protoc  --go_out=. --go_opt paths=source_relative --grpc-gateway_out . --grpc-ga
      
  
 protoc -I./api/proto \
-	-I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
-	-I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway \
-	--grpc-gateway_out=logtostderr=true:./pkg \
-	--swagger_out=allow_merge=true,merge_file_name=myawesomeapi:./api/swagger \
-	--go_out=plugins=grpc:pkg ./api/proto/**/*.proto
+    -I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
+    -I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway \
+    --grpc-gateway_out=logtostderr=true:./pkg \
+    --swagger_out=allow_merge=true,merge_file_name=myawesomeapi:./api/swagger \
+    --go_out=plugins=grpc:pkg ./api/proto/**/*.proto
     
 ```
 
@@ -78,7 +78,13 @@ Why do people stream anyway?
 Because making a gazillion unary requests are wasteful.  
 
 ## GRPC Gateway
+
 [customizing_openapi_output](https://grpc-ecosystem.github.io/grpc-gateway/docs/mapping/customizing_openapi_output/)
 
-
 [7-tips-when-working-with-grpc-gateways-swagger-support](https://medium.com/golang-diary/7-tips-when-working-with-grpc-gateways-swagger-support-afa0c2d671d8)  
+
+## Docker
+
+```bash
+ docker build --file .\build\Dockerfile . --tag fluffycore.example
+```

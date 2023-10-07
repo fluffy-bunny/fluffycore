@@ -7,7 +7,6 @@ import (
 	contracts_core_claimsprincipal "github.com/fluffy-bunny/fluffycore/contracts/common"
 	services_claimfact "github.com/fluffy-bunny/fluffycore/services/common/claimsprincipal"
 
-	di "github.com/fluffy-bunny/sarulabsdi"
 	"github.com/golang-jwt/jwt"
 	"github.com/sirupsen/logrus"
 )
@@ -108,7 +107,7 @@ type IOIDCConfig interface {
 	GetEntryPoints() map[string]*EntryPointConfig
 }
 
-func assertImplementation() {
+func init() {
 	var _ IOIDCConfig = (*OIDCConfig)(nil)
 }
 
@@ -131,13 +130,6 @@ func (c *OIDCConfig) GetEntryPoints() map[string]*EntryPointConfig {
 type IOIDCConfigAccessor interface {
 	GetOIDCConfig() IOIDCConfig
 }
-
-var (
-	// TypeIOIDCConfig ...
-	TypeIOIDCConfig = di.GetInterfaceReflectType((*IOIDCConfig)(nil))
-	// TypeIOIDCConfigAccessor ...
-	TypeIOIDCConfigAccessor = di.GetInterfaceReflectType((*IOIDCConfigAccessor)(nil))
-)
 
 // JSONWebKeyResponse ...
 type JSONWebKeyResponse struct {
