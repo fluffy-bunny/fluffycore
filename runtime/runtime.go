@@ -255,16 +255,35 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	if coreConfig.GRPCGateWayEnabled {
 		// Create a client connection to the gRPC server we just started
 		// This is where the gRPC-Gateway proxies the requests
+		opts := []grpc.DialOption{
+			grpc.WithBlock(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		}
+
+		// Create a client connection to the gRPC server we just started
+		// This is where the gRPC-Gateway proxies the requests
 		conn, err := grpc.DialContext(
 			context.Background(),
 			fmt.Sprintf("0.0.0.0:%d", coreConfig.PORT),
-			grpc.WithBlock(),
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			opts...,
 		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to dial server")
 		}
-		gwmux := grpc_gateway_runtime.NewServeMux()
+		// the framework already is putting in the metadata like authorization when it forwards the request
+		// the POST request has
+		// --header 'Authorization: Bearer {{token}}
+		// which gets put into a grpc metadata header
+		// https://grpc-ecosystem.github.io/grpc-gateway/docs/mapping/customizing_your_gateway/
+		serveMuxOptions := []grpc_gateway_runtime.ServeMuxOption{
+			//grpc_gateway_runtime.WithIncomingHeaderMatcher(CustomIncomingHeaderMatcher),
+			grpc_gateway_runtime.WithErrorHandler(FluffyGRPCGatewayDefaultHTTPErrorHandler),
+			grpc_gateway_runtime.WithHealthzEndpoint(grpc_health.NewHealthClient(conn)),
+		}
+
+		gwmux := grpc_gateway_runtime.NewServeMux(
+			serveMuxOptions...,
+		)
 		for _, endpoint := range endpoints {
 			endpoint.RegisterHandler(gwmux, conn)
 		}
@@ -290,6 +309,12 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 	si.Future.Join()
 
+}
+func FluffyGRPCGatewayDefaultHTTPErrorHandler(ctx context.Context, mux *grpc_gateway_runtime.ServeMux, marshaler grpc_gateway_runtime.Marshaler, w http.ResponseWriter, r *http.Request, err error) {
+	// we need to set the metadata so we don't get a nonsense log that it doesn't exist
+	var metadata grpc_gateway_runtime.ServerMetadata
+	ctx = grpc_gateway_runtime.NewServerMetadataContext(ctx, metadata)
+	grpc_gateway_runtime.DefaultHTTPErrorHandler(ctx, mux, marshaler, w, r, err)
 }
 func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error {
 	v := viper.NewWithOptions(viper.KeyDelimiter("__"))
