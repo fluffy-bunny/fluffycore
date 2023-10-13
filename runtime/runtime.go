@@ -260,16 +260,31 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		}
 
+		endpoint := fmt.Sprintf("0.0.0.0:%d", coreConfig.PORT)
 		// Create a client connection to the gRPC server we just started
 		// This is where the gRPC-Gateway proxies the requests
 		conn, err := grpc.DialContext(
-			context.Background(),
-			fmt.Sprintf("0.0.0.0:%d", coreConfig.PORT),
+			ctx,
+			endpoint,
 			opts...,
 		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to dial server")
 		}
+		defer func() {
+			if err != nil {
+				if cerr := conn.Close(); cerr != nil {
+					log.Info().Msgf("Failed to close conn to %s: %v", endpoint, cerr)
+				}
+				return
+			}
+			go func() {
+				<-ctx.Done()
+				if cerr := conn.Close(); cerr != nil {
+					log.Info().Msgf("Failed to close conn to %s: %v", endpoint, cerr)
+				}
+			}()
+		}()
 		// the framework already is putting in the metadata like authorization when it forwards the request
 		// the POST request has
 		// --header 'Authorization: Bearer {{token}}
