@@ -49,7 +49,7 @@ jobs:
        echo new_tag: ${{needs.pre_flight.outputs.new_tag}} 
        echo changelog: ${{needs.pre_flight.outputs.changelog}}
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Go
       uses: actions/setup-go@v4
@@ -62,7 +62,7 @@ jobs:
     - name: Test
       run: go test -v ./...
 
-      
+
   # Create and post docker image
   build-docker-push-image:
     runs-on: ubuntu-latest
@@ -74,7 +74,7 @@ jobs:
           echo new_tag: ${{needs.pre_flight.outputs.new_tag}} 
           echo changelog: ${{needs.pre_flight.outputs.changelog}}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -99,7 +99,7 @@ jobs:
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
 
       - name: Login to DockerHub
-        uses: docker/login-action@v2 
+        uses: docker/login-action@v3 
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
@@ -114,7 +114,7 @@ jobs:
 
       - name: Build and push Base
         id: docker_build
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         env:
           version: ${{ steps.vtl.outputs.ver_semVerNoMeta }}
           date: ${{ steps.vtl.outputs.ver_created }}
