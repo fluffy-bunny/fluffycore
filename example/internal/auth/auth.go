@@ -9,9 +9,15 @@ import (
 var writeEndpoints = []string{
 	proto_helloworld.Greeter_SayHello_FullMethodName,
 }
+var noAuthEndpoints = []string{
+	"/grpc.health.v1.Health/Check",
+}
 
 func BuildGrpcEntrypointPermissionsClaimsMap() map[string]contracts_common.IEntryPointConfig {
 	entryPointClaimsBuilder := services_common_claimsprincipal.NewEntryPointClaimsBuilder()
+	for _, endpoint := range noAuthEndpoints {
+		entryPointClaimsBuilder.WithGrpcEntrypointPermissionsClaimsMapOpen(endpoint)
+	}
 	for _, endpoint := range writeEndpoints {
 		entrypointConfig := &services_common_claimsprincipal.EntryPointConfig{
 			FullMethodName: endpoint,
