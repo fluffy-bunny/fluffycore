@@ -115,6 +115,7 @@ type mystreamserviceServer struct {
 
 // Register the server with grpc
 func (srv *mystreamserviceServer) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
+	RegisterMyStreamServiceHandler(context.Background(), gwmux, conn)
 }
 
 // Register the server with grpc
