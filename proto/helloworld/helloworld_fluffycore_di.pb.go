@@ -23,32 +23,25 @@ type UnimplementedGreeterServerEndpointRegistration struct {
 func (UnimplementedGreeterServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
-// greeterServer defines the grpc server truct
-type greeterServer struct {
+// FluffyCoreGreeterServer defines the grpc server truct
+type FluffyCoreGreeterServer struct {
 	UnimplementedGreeterServer
 	UnimplementedGreeterServerEndpointRegistration
 }
 
 // Register the server with grpc
-func (srv *greeterServer) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
-	RegisterGreeterHandler(context.Background(), gwmux, conn)
-}
-
-// Register the server with grpc
-func (srv *greeterServer) Register(s *grpc.Server) {
+func (srv *FluffyCoreGreeterServer) Register(s *grpc.Server) {
 	RegisterGreeterServer(s, srv)
 }
 
 // AddGreeterServer adds the fluffycore aware grpc server
-func AddGreeterServer[T IGreeterServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
-		return &greeterServer{}
-	})
+func AddGreeterServer[T IGreeterServer](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
 	fluffy_dozm_di.AddScoped[IGreeterServer](cb, ctor)
 }
 
 // SayHello...
-func (s *greeterServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+func (s *FluffyCoreGreeterServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IGreeterServer](requestContainer)
 	return downstreamService.SayHello(ctx, request)
@@ -65,32 +58,25 @@ type UnimplementedGreeter2ServerEndpointRegistration struct {
 func (UnimplementedGreeter2ServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
-// greeter2Server defines the grpc server truct
-type greeter2Server struct {
+// FluffyCoreGreeter2Server defines the grpc server truct
+type FluffyCoreGreeter2Server struct {
 	UnimplementedGreeter2Server
 	UnimplementedGreeter2ServerEndpointRegistration
 }
 
 // Register the server with grpc
-func (srv *greeter2Server) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
-	RegisterGreeter2Handler(context.Background(), gwmux, conn)
-}
-
-// Register the server with grpc
-func (srv *greeter2Server) Register(s *grpc.Server) {
+func (srv *FluffyCoreGreeter2Server) Register(s *grpc.Server) {
 	RegisterGreeter2Server(s, srv)
 }
 
 // AddGreeter2Server adds the fluffycore aware grpc server
-func AddGreeter2Server[T IGreeter2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
-		return &greeter2Server{}
-	})
+func AddGreeter2Server[T IGreeter2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
 	fluffy_dozm_di.AddScoped[IGreeter2Server](cb, ctor)
 }
 
 // SayHello...
-func (s *greeter2Server) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
+func (s *FluffyCoreGreeter2Server) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IGreeter2Server](requestContainer)
 	return downstreamService.SayHello(ctx, request)
@@ -107,32 +93,25 @@ type UnimplementedMyStreamServiceServerEndpointRegistration struct {
 func (UnimplementedMyStreamServiceServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
-// mystreamserviceServer defines the grpc server truct
-type mystreamserviceServer struct {
+// FluffyCoreMyStreamServiceServer defines the grpc server truct
+type FluffyCoreMyStreamServiceServer struct {
 	UnimplementedMyStreamServiceServer
 	UnimplementedMyStreamServiceServerEndpointRegistration
 }
 
 // Register the server with grpc
-func (srv *mystreamserviceServer) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
-	RegisterMyStreamServiceHandler(context.Background(), gwmux, conn)
-}
-
-// Register the server with grpc
-func (srv *mystreamserviceServer) Register(s *grpc.Server) {
+func (srv *FluffyCoreMyStreamServiceServer) Register(s *grpc.Server) {
 	RegisterMyStreamServiceServer(s, srv)
 }
 
 // AddMyStreamServiceServer adds the fluffycore aware grpc server
-func AddMyStreamServiceServer[T IMyStreamServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
-		return &mystreamserviceServer{}
-	})
+func AddMyStreamServiceServer[T IMyStreamServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
 	fluffy_dozm_di.AddScoped[IMyStreamServiceServer](cb, ctor)
 }
 
 // RequestPoints...
-func (s *mystreamserviceServer) RequestPoints(request *PointsRequest, stream MyStreamService_RequestPointsServer) error {
+func (s *FluffyCoreMyStreamServiceServer) RequestPoints(request *PointsRequest, stream MyStreamService_RequestPointsServer) error {
 	ctx := stream.Context()
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IMyStreamServiceServer](requestContainer)
@@ -140,7 +119,7 @@ func (s *mystreamserviceServer) RequestPoints(request *PointsRequest, stream MyS
 }
 
 // StreamPoints...
-func (s *mystreamserviceServer) StreamPoints(stream MyStreamService_StreamPointsServer) error {
+func (s *FluffyCoreMyStreamServiceServer) StreamPoints(stream MyStreamService_StreamPointsServer) error {
 	ctx := stream.Context()
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IMyStreamServiceServer](requestContainer)
