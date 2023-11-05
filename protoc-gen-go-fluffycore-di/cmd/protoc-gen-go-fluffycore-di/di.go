@@ -154,10 +154,9 @@ func (s *serviceGenContext) genService() {
 
 	// IServiceEndpointRegistration
 	interfaceGRPCServerName := fmt.Sprintf("%vServer", service.GoName)
-	interfaceGRPCGatewayName := fmt.Sprintf("%vHandler", service.GoName)
 
 	interfaceServerName := fmt.Sprintf("I%s", interfaceGRPCServerName)
-	internalServerName := fmt.Sprintf("%vServer", strings.ToLower(service.GoName))
+	internalServerName := fmt.Sprintf("FluffyCore%vServer", service.GoName)
 
 	g.P("// ", interfaceServerName, " defines the grpc server")
 	g.P("type ", interfaceServerName, " interface {")
@@ -183,33 +182,14 @@ func (s *serviceGenContext) genService() {
 	g.P("}")
 	g.P()
 
-	isStreamingServer := false
-	for _, method := range service.Methods {
-		if method.Desc.IsStreamingServer() {
-			isStreamingServer = true
-			break
-		}
-	}
-
-	if *grpcGatewayEnabled {
-		g.P("// Register the server with grpc")
-		g.P("func (srv *", internalServerName, ") RegisterHandler(gwmux *", grpcGatewayRuntimePackage.Ident("ServeMux"), ",conn *", grpcPackage.Ident("ClientConn"), ") {")
-		if !isStreamingServer {
-			g.P("   ", "Register", interfaceGRPCGatewayName, "(", contextPackage.Ident("Background()"), ", gwmux, conn)")
-		}
-		g.P("}")
-	}
-
 	g.P("// Register the server with grpc")
 	g.P("func (srv *", internalServerName, ") Register(s *", grpcPackage.Ident("Server"), ") {")
 	g.P("   ", "Register", interfaceGRPCServerName, "(s,srv)")
 	g.P("}")
 
 	g.P("// Add", service.GoName, "Server", " adds the fluffycore aware grpc server")
-	g.P("func Add", service.GoName, "Server[T ", interfaceServerName, "](cb ", diPackage.Ident("ContainerBuilder"), ", ctor any) {")
-	g.P("   ", diPackage.Ident("AddSingleton"), "[", contractsEndpointPackage.Ident("IEndpointRegistration"), "](cb, func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " {")
-	g.P("        return &", internalServerName, "{}")
-	g.P("   ", "})")
+	g.P("func Add", service.GoName, "Server[T ", interfaceServerName, "](cb ", diPackage.Ident("ContainerBuilder"), ", ctor any, register func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " ) {")
+	g.P("   ", diPackage.Ident("AddSingleton"), "[", contractsEndpointPackage.Ident("IEndpointRegistration"), "](cb,register)")
 	g.P("   ", diPackage.Ident("AddScoped"), "[", interfaceServerName, "](cb,ctor)")
 	g.P("}")
 
@@ -239,13 +219,15 @@ func (s *methodGenContext) genServerMethodShim() {
 
 }
 func (s *methodGenContext) generateUnaryServerMethodShim() {
+
 	method := s.ProtogenMethod
 	g := s.g
 	serverType := method.Parent.GoName
 	interfaceServerName := fmt.Sprintf("I%vServer", method.Parent.GoName)
+	internalServerName := fmt.Sprintf("FluffyCore%vServer", serverType)
 
 	g.P("// ", s.ProtogenMethod.GoName, "...")
-	g.P("func (s *", strings.ToLower(serverType), "Server) ", s.unaryMethodSignature(), "{")
+	g.P("func (s *", internalServerName, ") ", s.unaryMethodSignature(), "{")
 	g.P("requestContainer := ", diContextPackage.Ident("GetRequestContainer(ctx)"))
 	g.P("downstreamService := ", diPackage.Ident("Get"), "[", interfaceServerName, "](requestContainer)")
 	g.P("return downstreamService.", method.GoName, "(ctx,request)")
@@ -257,11 +239,12 @@ func (s *methodGenContext) generateStreamServerMethodShim() {
 	g := s.g
 	serverType := method.Parent.GoName
 	interfaceServerName := fmt.Sprintf("I%vServer", method.Parent.GoName)
+	internalServerName := fmt.Sprintf("FluffyCore%vServer", serverType)
 
 	sig, argCount := s.streamMethodSignature()
 
 	g.P("// ", s.ProtogenMethod.GoName, "...")
-	g.P("func (s *", strings.ToLower(serverType), "Server) ", sig, "{")
+	g.P("func (s *", internalServerName, ") ", sig, "{")
 	g.P("ctx := stream.Context()")
 	g.P("requestContainer := ", diContextPackage.Ident("GetRequestContainer(ctx)"))
 	g.P("downstreamService := ", diPackage.Ident("Get"), "[", interfaceServerName, "](requestContainer)")

@@ -1,15 +1,19 @@
 package mystream
 
 import (
+	"context"
 	"io"
 	"math/rand"
 	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
+	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
 	fluffycore_contracts_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/contracts/somedisposable"
 	proto_helloworld "github.com/fluffy-bunny/fluffycore/proto/helloworld"
-	"github.com/rs/zerolog/log"
+	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	log "github.com/rs/zerolog/log"
+	grpc "google.golang.org/grpc"
 )
 
 type (
@@ -20,6 +24,16 @@ type (
 	}
 )
 
+type registrationServer struct {
+	proto_helloworld.FluffyCoreMyStreamServiceServer
+}
+
+var _ endpoint.IEndpointRegistration = (*registrationServer)(nil)
+
+func (s *registrationServer) RegisterHandler(gwmux *grpc_gateway_runtime.ServeMux, conn *grpc.ClientConn) {
+	proto_helloworld.RegisterMyStreamServiceHandler(context.Background(), gwmux, conn)
+}
+
 func AddMyStreamService(builder di.ContainerBuilder) {
 	proto_helloworld.AddMyStreamServiceServer[proto_helloworld.IMyStreamServiceServer](builder,
 		func(config *contracts_config.Config, scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable) proto_helloworld.IMyStreamServiceServer {
@@ -27,6 +41,8 @@ func AddMyStreamService(builder di.ContainerBuilder) {
 				config:               config,
 				scopedSomeDisposable: scopedSomeDisposable,
 			}
+		}, func() endpoint.IEndpointRegistration {
+			return &registrationServer{}
 		})
 }
 
