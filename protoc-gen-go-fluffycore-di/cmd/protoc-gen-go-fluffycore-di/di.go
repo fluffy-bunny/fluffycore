@@ -156,7 +156,7 @@ func (s *serviceGenContext) genService() {
 	interfaceGRPCServerName := fmt.Sprintf("%vServer", service.GoName)
 
 	interfaceServerName := fmt.Sprintf("I%s", interfaceGRPCServerName)
-	internalServerName := fmt.Sprintf("FluffyCore%vServer", service.GoName)
+	internalServerName := fmt.Sprintf("%vFluffyCoreServer", service.GoName)
 
 	g.P("// ", interfaceServerName, " defines the grpc server")
 	g.P("type ", interfaceServerName, " interface {")
@@ -187,10 +187,17 @@ func (s *serviceGenContext) genService() {
 	g.P("   ", "Register", interfaceGRPCServerName, "(s,srv)")
 	g.P("}")
 
-	g.P("// Add", service.GoName, "Server", " adds the fluffycore aware grpc server")
-	g.P("func Add", service.GoName, "Server[T ", interfaceServerName, "](cb ", diPackage.Ident("ContainerBuilder"), ", ctor any, register func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " ) {")
+	g.P("// Add", service.GoName, "ServerWithExternalRegistration", " adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway")
+	g.P("func Add", service.GoName, "ServerWithExternalRegistration[T ", interfaceServerName, "](cb ", diPackage.Ident("ContainerBuilder"), ", ctor any, register func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " ) {")
 	g.P("   ", diPackage.Ident("AddSingleton"), "[", contractsEndpointPackage.Ident("IEndpointRegistration"), "](cb,register)")
 	g.P("   ", diPackage.Ident("AddScoped"), "[", interfaceServerName, "](cb,ctor)")
+	g.P("}")
+
+	g.P("// Add", service.GoName, "Server", " adds the fluffycore aware grpc server")
+	g.P("func Add", service.GoName, "Server[T ", interfaceServerName, "](cb ", diPackage.Ident("ContainerBuilder"), ", ctor any) {")
+	g.P("   Add", service.GoName, "ServerWithExternalRegistration[", interfaceServerName, "](cb,ctor,func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " {")
+	g.P("      return &", internalServerName, "{}")
+	g.P("   })")
 	g.P("}")
 
 	for _, method := range service.Methods {
@@ -224,7 +231,7 @@ func (s *methodGenContext) generateUnaryServerMethodShim() {
 	g := s.g
 	serverType := method.Parent.GoName
 	interfaceServerName := fmt.Sprintf("I%vServer", method.Parent.GoName)
-	internalServerName := fmt.Sprintf("FluffyCore%vServer", serverType)
+	internalServerName := fmt.Sprintf("%vFluffyCoreServer", serverType)
 
 	g.P("// ", s.ProtogenMethod.GoName, "...")
 	g.P("func (s *", internalServerName, ") ", s.unaryMethodSignature(), "{")
@@ -239,7 +246,7 @@ func (s *methodGenContext) generateStreamServerMethodShim() {
 	g := s.g
 	serverType := method.Parent.GoName
 	interfaceServerName := fmt.Sprintf("I%vServer", method.Parent.GoName)
-	internalServerName := fmt.Sprintf("FluffyCore%vServer", serverType)
+	internalServerName := fmt.Sprintf("%vFluffyCoreServer", serverType)
 
 	sig, argCount := s.streamMethodSignature()
 

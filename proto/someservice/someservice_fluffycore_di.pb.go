@@ -23,32 +23,32 @@ type UnimplementedSomeServiceServerEndpointRegistration struct {
 func (UnimplementedSomeServiceServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
-// someserviceServer defines the grpc server truct
-type someserviceServer struct {
+// SomeServiceFluffyCoreServer defines the grpc server truct
+type SomeServiceFluffyCoreServer struct {
 	UnimplementedSomeServiceServer
 	UnimplementedSomeServiceServerEndpointRegistration
 }
 
 // Register the server with grpc
-func (srv *someserviceServer) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
-	RegisterSomeServiceHandler(context.Background(), gwmux, conn)
+func (srv *SomeServiceFluffyCoreServer) Register(s *grpc.Server) {
+	RegisterSomeServiceServer(s, srv)
 }
 
-// Register the server with grpc
-func (srv *someserviceServer) Register(s *grpc.Server) {
-	RegisterSomeServiceServer(s, srv)
+// AddSomeServiceServerWithExternalRegistration adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway
+func AddSomeServiceServerWithExternalRegistration[T ISomeServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
+	fluffy_dozm_di.AddScoped[ISomeServiceServer](cb, ctor)
 }
 
 // AddSomeServiceServer adds the fluffycore aware grpc server
 func AddSomeServiceServer[T ISomeServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
-		return &someserviceServer{}
+	AddSomeServiceServerWithExternalRegistration[ISomeServiceServer](cb, ctor, func() endpoint.IEndpointRegistration {
+		return &SomeServiceFluffyCoreServer{}
 	})
-	fluffy_dozm_di.AddScoped[ISomeServiceServer](cb, ctor)
 }
 
 // SayHello...
-func (s *someserviceServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+func (s *SomeServiceFluffyCoreServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[ISomeServiceServer](requestContainer)
 	return downstreamService.SayHello(ctx, request)
@@ -65,32 +65,32 @@ type UnimplementedSomeService2ServerEndpointRegistration struct {
 func (UnimplementedSomeService2ServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
-// someservice2Server defines the grpc server truct
-type someservice2Server struct {
+// SomeService2FluffyCoreServer defines the grpc server truct
+type SomeService2FluffyCoreServer struct {
 	UnimplementedSomeService2Server
 	UnimplementedSomeService2ServerEndpointRegistration
 }
 
 // Register the server with grpc
-func (srv *someservice2Server) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
-	RegisterSomeService2Handler(context.Background(), gwmux, conn)
+func (srv *SomeService2FluffyCoreServer) Register(s *grpc.Server) {
+	RegisterSomeService2Server(s, srv)
 }
 
-// Register the server with grpc
-func (srv *someservice2Server) Register(s *grpc.Server) {
-	RegisterSomeService2Server(s, srv)
+// AddSomeService2ServerWithExternalRegistration adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway
+func AddSomeService2ServerWithExternalRegistration[T ISomeService2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
+	fluffy_dozm_di.AddScoped[ISomeService2Server](cb, ctor)
 }
 
 // AddSomeService2Server adds the fluffycore aware grpc server
 func AddSomeService2Server[T ISomeService2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, func() endpoint.IEndpointRegistration {
-		return &someservice2Server{}
+	AddSomeService2ServerWithExternalRegistration[ISomeService2Server](cb, ctor, func() endpoint.IEndpointRegistration {
+		return &SomeService2FluffyCoreServer{}
 	})
-	fluffy_dozm_di.AddScoped[ISomeService2Server](cb, ctor)
 }
 
 // SayHello...
-func (s *someservice2Server) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
+func (s *SomeService2FluffyCoreServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[ISomeService2Server](requestContainer)
 	return downstreamService.SayHello(ctx, request)

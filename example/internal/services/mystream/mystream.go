@@ -25,7 +25,7 @@ type (
 )
 
 type registrationServer struct {
-	proto_helloworld.FluffyCoreMyStreamServiceServer
+	proto_helloworld.MyStreamServiceFluffyCoreServer
 }
 
 var _ endpoint.IEndpointRegistration = (*registrationServer)(nil)
@@ -35,7 +35,7 @@ func (s *registrationServer) RegisterHandler(gwmux *grpc_gateway_runtime.ServeMu
 }
 
 func AddMyStreamService(builder di.ContainerBuilder) {
-	proto_helloworld.AddMyStreamServiceServer[proto_helloworld.IMyStreamServiceServer](builder,
+	proto_helloworld.AddMyStreamServiceServerWithExternalRegistration[proto_helloworld.IMyStreamServiceServer](builder,
 		func(config *contracts_config.Config, scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable) proto_helloworld.IMyStreamServiceServer {
 			return &service{
 				config:               config,
