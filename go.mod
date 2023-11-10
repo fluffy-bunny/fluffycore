@@ -20,7 +20,7 @@ require (
 	github.com/jinzhu/copier v0.4.0
 	github.com/labstack/echo/v4 v4.11.3
 	github.com/labstack/gommon v0.4.1
-	github.com/lestrrat-go/jwx/v2 v2.0.14
+	github.com/lestrrat-go/jwx/v2 v2.0.16
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
 	github.com/reugn/async v0.6.0
