@@ -44,10 +44,10 @@ const bufSize = 1024 * 1024
 
 type ServerInstance struct {
 	Server *grpc.Server
-	Future async.Future[interface{}]
+	Future async.Future[fluffycore_async.AsyncResponse]
 
 	ServerGRPCGatewayMux *http.Server
-	FutureGRPCGatewayMux async.Future[interface{}]
+	FutureGRPCGatewayMux async.Future[fluffycore_async.AsyncResponse]
 
 	Endpoints     []interface{}
 	RootContainer di.Container
@@ -418,9 +418,9 @@ func fixPath(fpath string) string {
 
 	return fpath
 }
-func asyncServeGRPC(ctx context.Context, grpcServer *grpc.Server, lis net.Listener) async.Future[interface{}] {
+func asyncServeGRPC(ctx context.Context, grpcServer *grpc.Server, lis net.Listener) async.Future[fluffycore_async.AsyncResponse] {
 	log := zerolog.Ctx(ctx).With().Logger()
-	return fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[interface{}]) {
+	return fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[fluffycore_async.AsyncResponse]) {
 		var err error
 		log.Info().Msg("gRPC Server Starting up")
 
@@ -441,8 +441,8 @@ func asyncServeGRPC(ctx context.Context, grpcServer *grpc.Server, lis net.Listen
 		log.Info().Msg("grpc Server has shut down....")
 	})
 }
-func asyncServeGRPCGatewayMux(httpServer *http.Server) async.Future[interface{}] {
-	return fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[interface{}]) {
+func asyncServeGRPCGatewayMux(httpServer *http.Server) async.Future[fluffycore_async.AsyncResponse] {
+	return fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[fluffycore_async.AsyncResponse]) {
 		var err error
 		log.Info().Msg("gRPC Server Starting up")
 

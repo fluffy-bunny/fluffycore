@@ -258,7 +258,7 @@ func (s *Runtime) finalPhase() error {
 			}
 		}
 	}
-	future := fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[interface{}]) {
+	future := fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[fluffycore_async.AsyncResponse]) {
 		var err error
 		defer func() {
 			promise.Success(&fluffycore_async.AsyncResponse{
@@ -293,7 +293,7 @@ func (s *Runtime) finalPhase() error {
 	err := s.echo.Shutdown(ctx)
 
 	response, err := future.Join()
-	asyncResponse := response.(*fluffycore_async.AsyncResponse)
+	asyncResponse := response
 	err = asyncResponse.Error
 	fmt.Println(asyncResponse.Message)
 	if asyncResponse.Error != nil {
