@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/fatih/structs"
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
@@ -37,6 +38,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	grpc_reflection "google.golang.org/grpc/reflection"
 )
 
@@ -206,6 +208,9 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	startup.SetRootContainer(si.RootContainer)
 	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 	var serverOpts []grpc.ServerOption
+	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepalive.ServerParameters{
+		MaxConnectionIdle: 5 * time.Minute, // <--- This fixes it!
+	}))
 	unaryInterceptors := unaryServerInterceptorBuilder.GetUnaryServerInterceptors()
 	if len(unaryInterceptors) != 0 {
 		serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(unaryInterceptors...))
