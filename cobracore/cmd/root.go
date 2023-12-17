@@ -19,12 +19,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fluffy-bunny/fluffycore/cobracore/cmd/serve"
-	"github.com/fluffy-bunny/fluffycore/cobracore/cmd/version"
-
+	migrate "github.com/fluffy-bunny/fluffycore/cobracore/cmd/migrate"
+	serve "github.com/fluffy-bunny/fluffycore/cobracore/cmd/serve"
+	version "github.com/fluffy-bunny/fluffycore/cobracore/cmd/version"
+	fluffycore_contracts_cobracore "github.com/fluffy-bunny/fluffycore/contracts/cobracore"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	cobra "github.com/spf13/cobra"
+	viper "github.com/spf13/viper"
 )
 
 var cfgFile string
@@ -46,8 +47,11 @@ var rootCmd = &cobra.Command{
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute(startup fluffycore_contracts_runtime.IStartup) {
+func Execute(startup fluffycore_contracts_runtime.IStartup, optionalCommands ...fluffycore_contracts_cobracore.ICommandInitializer) {
 	serve.Startup = startup
+	for _, command := range optionalCommands {
+		command.Init(rootCmd)
+	}
 	cobra.CheckErr(rootCmd.Execute())
 }
 
@@ -66,6 +70,7 @@ func init() {
 
 	version.Init(rootCmd)
 	serve.Init(rootCmd)
+	migrate.Init(rootCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
