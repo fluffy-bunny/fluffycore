@@ -344,6 +344,48 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	v.AutomaticEnv()
 
 	// 1. Read in as buffer to set a default baseline.
+	rootConfigMap := make(map[string]interface{})
+	err = json.Unmarshal(configOptions.RootConfig, &rootConfigMap)
+	if err != nil {
+		log.Error().Err(err).Msg("ConfigDefaultJSON did not unmarshal")
+		return err
+	}
+
+	if _, ok := rootConfigMap["APPLICATION_ENVIRONMENT"]; !ok {
+		rootConfigMap["APPLICATION_ENVIRONMENT"] = "in-enviroment"
+	}
+	if _, ok := rootConfigMap["APPLICATION_NAME"]; !ok {
+		rootConfigMap["APPLICATION_NAME"] = "in-enviroment"
+	}
+	if _, ok := rootConfigMap["PORT"]; !ok {
+		rootConfigMap["PORT"] = 0
+	}
+	if _, ok := rootConfigMap["GRPC_GATEWAY_ENABLED"]; !ok {
+		rootConfigMap["GRPC_GATEWAY_ENABLED"] = true
+	}
+	if _, ok := rootConfigMap["REST_PORT"]; !ok {
+		rootConfigMap["REST_PORT"] = 0
+	}
+	if _, ok := rootConfigMap["PRETTY_LOG"]; !ok {
+		rootConfigMap["PRETTY_LOG"] = true
+	}
+	if _, ok := rootConfigMap["LOG_LEVEL"]; !ok {
+		rootConfigMap["LOG_LEVEL"] = "info"
+	}
+	if _, ok := rootConfigMap["DD_PROFILER_CONFIG"]; !ok {
+		rootConfigMap["DD_PROFILER_CONFIG"] = map[string]interface{}{
+			"ENABLED":                 false,
+			"SERVICE_NAME":            "in-enviroment",
+			"APPLICATION_ENVIRONMENT": "in-enviroment",
+			"VERSION":                 "in-enviroment",
+		}
+	}
+	rootConfig, err := json.Marshal(rootConfigMap)
+	if err != nil {
+		log.Error().Err(err).Msg("ConfigDefaultJSON did not marshal")
+		return err
+	}
+	configOptions.RootConfig = rootConfig
 	err = v.ReadConfig(bytes.NewBuffer(configOptions.RootConfig))
 	if err != nil {
 		log.Err(err).Msg("ConfigDefaultYaml did not read in")
