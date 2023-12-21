@@ -41,7 +41,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20231106174013-bbf56f31fb17
 	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.31.0
-	gopkg.in/DataDog/dd-trace-go.v1 v1.58.0
+	gopkg.in/DataDog/dd-trace-go.v1 v1.58.1
 )
 
 require (
