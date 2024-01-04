@@ -17,28 +17,29 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fatih/structs"
+	structs "github.com/fatih/structs"
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
 	fluffycore_contracts_config "github.com/fluffy-bunny/fluffycore/contracts/config"
 	fluffycore_contract_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	fluffycore_contracts_health "github.com/fluffy-bunny/fluffycore/contracts/health"
 	fluffycore_contract_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
+	fluffycore_contracts_tasks "github.com/fluffy-bunny/fluffycore/contracts/tasks"
 	services_health "github.com/fluffy-bunny/fluffycore/internal/services/health"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
-	"github.com/fluffy-bunny/fluffycore/utils"
+	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/reugn/async"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"github.com/rs/zerolog/pkgerrors"
-	"github.com/spf13/viper"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	async "github.com/reugn/async"
+	zerolog "github.com/rs/zerolog"
+	log "github.com/rs/zerolog/log"
+	pkgerrors "github.com/rs/zerolog/pkgerrors"
+	viper "github.com/spf13/viper"
+	grpc "google.golang.org/grpc"
+	insecure "google.golang.org/grpc/credentials/insecure"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/keepalive"
+	keepalive "google.golang.org/grpc/keepalive"
 	grpc_reflection "google.golang.org/grpc/reflection"
 )
 
@@ -54,6 +55,7 @@ type ServerInstance struct {
 	Endpoints     []interface{}
 	RootContainer di.Container
 	logSetupOnce  sync.Once
+	Scheduler     fluffycore_contracts_tasks.ISingletonScheduler
 }
 type Runtime struct {
 	ServerInstances *ServerInstance
@@ -106,8 +108,8 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	defer func() {
 		control.Stop()
 	}()
-	logFormat := utils.StringEnv("LOG_FORMAT", "json")
-	logFileName := utils.StringEnv("LOG_FILE", "stderr")
+	logFormat := fluffycore_utils.StringEnv("LOG_FORMAT", "json")
+	logFileName := fluffycore_utils.StringEnv("LOG_FILE", "stderr")
 
 	var logFile *os.File
 	// validate log destination
@@ -129,8 +131,8 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		target = logFile
 	}
 
-	logLevel := utils.StringEnv("LOG_LEVEL", "info")
-	prettyLog := utils.BoolEnv("PRETTY_LOG", false)
+	logLevel := fluffycore_utils.StringEnv("LOG_LEVEL", "info")
+	prettyLog := fluffycore_utils.BoolEnv("PRETTY_LOG", false)
 
 	if prettyLog || logFormat == "pretty" {
 		target = zerolog.ConsoleWriter{Out: target}
@@ -203,6 +205,12 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		// Dispose root
 		si.RootContainer.(di.Disposable).Dispose()
 	}()
+	log.Info().Msg("starting up the ISingletonScheduler")
+	si.Scheduler = di.Get[fluffycore_contracts_tasks.ISingletonScheduler](si.RootContainer)
+	err = si.Scheduler.Start()
+	if err != nil {
+		panic(err)
+	}
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
 	startup.SetRootContainer(si.RootContainer)
@@ -222,7 +230,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	grpcServer := grpc.NewServer(
 		serverOpts...,
 	)
-	enableGRPCReflection := utils.BoolEnv("ENABLE_GRPC_SERVER_REFLECTION", false)
+	enableGRPCReflection := fluffycore_utils.BoolEnv("ENABLE_GRPC_SERVER_REFLECTION", false)
 	if enableGRPCReflection {
 		log.Info().Msg("Enabling GRPC Server Reflection")
 		grpc_reflection.Register(grpcServer)
@@ -322,6 +330,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	if si.ServerGRPCGatewayMux != nil {
 		si.ServerGRPCGatewayMux.Shutdown(context.Background())
 	}
+	si.Scheduler.Stop()
 	si.Server.GracefulStop()
 	startup.OnPostServerShutdown(ctx)
 	if si.FutureGRPCGatewayMux != nil {

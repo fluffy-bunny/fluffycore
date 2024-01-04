@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
@@ -13,6 +14,7 @@ import (
 	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
+	fluffycore_contracts_tasks "github.com/fluffy-bunny/fluffycore/contracts/tasks"
 	internal_auth "github.com/fluffy-bunny/fluffycore/example/internal/auth"
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
 	services_greeter "github.com/fluffy-bunny/fluffycore/example/internal/services/greeter"
@@ -31,6 +33,7 @@ import (
 	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
 	status "github.com/gogo/status"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	madflojo_tasks "github.com/madflojo/tasks"
 	async "github.com/reugn/async"
 	zerolog "github.com/rs/zerolog"
 	codes "google.golang.org/grpc/codes"
@@ -133,9 +136,39 @@ func (s *startup) Configure(ctx context.Context, rootContainer di.Container, una
 
 }
 
+type taskTracker struct {
+	ID    string
+	Count int
+}
+
 // OnPreServerStartup ...
 func (s *startup) OnPreServerStartup(ctx context.Context) error {
 	log := zerolog.Ctx(ctx).With().Str("method", "OnPreServerStartup").Logger()
+
+	log.Info().Msg("starting up the ISingletonScheduler")
+	singletonScheduler := di.Get[fluffycore_contracts_tasks.ISingletonScheduler](s.RootContainer)
+
+	myTaskTracker := &taskTracker{}
+	taskID, err := singletonScheduler.Add(&madflojo_tasks.Task{
+		Interval: 5 * time.Second,
+		TaskFunc: func() error {
+			// Put your logic here
+
+			if myTaskTracker.Count > 2 {
+				log.Info().Interface("myTaskTracker", myTaskTracker).Msg("I am a task and I am stopping myself")
+				singletonScheduler.Del(myTaskTracker.ID)
+			} else {
+				myTaskTracker.Count++
+				log.Info().Interface("myTaskTracker", myTaskTracker).Msg("I am a task and I am running every 5 seconds")
+			}
+			return nil
+		},
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to add task")
+		return err
+	}
+	myTaskTracker.ID = taskID
 
 	clientsJSON, err := os.ReadFile(s.config.ConfigFiles.ClientPath)
 	var clients []mocks_contracts_oauth2.Client
@@ -184,4 +217,5 @@ func (s *startup) OnPreServerShutdown(ctx context.Context) {
 	log.Info().Msg("Stopping Datadog Tracer and Profiler")
 	s.ddProfiler.Stop(ctx)
 	log.Info().Msg("Datadog Tracer and Profiler stopped")
+
 }
