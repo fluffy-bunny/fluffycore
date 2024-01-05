@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.5.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.0
-	github.com/jedib0t/go-pretty/v6 v6.4.9
+	github.com/jedib0t/go-pretty/v6 v6.5.0
 	github.com/jellydator/ttlcache/v2 v2.11.1
 	github.com/jinzhu/copier v0.4.0
 	github.com/labstack/echo/v4 v4.11.4
