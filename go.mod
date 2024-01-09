@@ -21,7 +21,7 @@ require (
 	github.com/jinzhu/copier v0.4.0
 	github.com/labstack/echo/v4 v4.11.4
 	github.com/labstack/gommon v0.4.2
-	github.com/lestrrat-go/jwx/v2 v2.0.18
+	github.com/lestrrat-go/jwx/v2 v2.0.19
 	github.com/madflojo/tasks v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
