@@ -12,21 +12,21 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-// IGreeterServer defines the grpc server
-type IGreeterServer interface {
+// IFluffyCoreGreeterServer defines the grpc server
+type IFluffyCoreGreeterServer interface {
 	GreeterServer
 }
 
-type UnimplementedGreeterServerEndpointRegistration struct {
+type UnimplementedFluffyCoreGreeterServerEndpointRegistration struct {
 }
 
-func (UnimplementedGreeterServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
+func (UnimplementedFluffyCoreGreeterServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
 // GreeterFluffyCoreServer defines the grpc server truct
 type GreeterFluffyCoreServer struct {
 	UnimplementedGreeterServer
-	UnimplementedGreeterServerEndpointRegistration
+	UnimplementedFluffyCoreGreeterServerEndpointRegistration
 }
 
 // Register the server with grpc
@@ -35,14 +35,14 @@ func (srv *GreeterFluffyCoreServer) Register(s *grpc.Server) {
 }
 
 // AddGreeterServerWithExternalRegistration adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway
-func AddGreeterServerWithExternalRegistration[T IGreeterServer](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+func AddGreeterServerWithExternalRegistration[T IFluffyCoreGreeterServer](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
 	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
-	fluffy_dozm_di.AddScoped[IGreeterServer](cb, ctor)
+	fluffy_dozm_di.AddScoped[IFluffyCoreGreeterServer](cb, ctor)
 }
 
 // AddGreeterServer adds the fluffycore aware grpc server
-func AddGreeterServer[T IGreeterServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	AddGreeterServerWithExternalRegistration[IGreeterServer](cb, ctor, func() endpoint.IEndpointRegistration {
+func AddGreeterServer[T IFluffyCoreGreeterServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	AddGreeterServerWithExternalRegistration[IFluffyCoreGreeterServer](cb, ctor, func() endpoint.IEndpointRegistration {
 		return &GreeterFluffyCoreServer{}
 	})
 }
@@ -50,25 +50,25 @@ func AddGreeterServer[T IGreeterServer](cb fluffy_dozm_di.ContainerBuilder, ctor
 // SayHello...
 func (s *GreeterFluffyCoreServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
-	downstreamService := fluffy_dozm_di.Get[IGreeterServer](requestContainer)
+	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](requestContainer)
 	return downstreamService.SayHello(ctx, request)
 }
 
-// IGreeter2Server defines the grpc server
-type IGreeter2Server interface {
+// IFluffyCoreGreeter2Server defines the grpc server
+type IFluffyCoreGreeter2Server interface {
 	Greeter2Server
 }
 
-type UnimplementedGreeter2ServerEndpointRegistration struct {
+type UnimplementedFluffyCoreGreeter2ServerEndpointRegistration struct {
 }
 
-func (UnimplementedGreeter2ServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
+func (UnimplementedFluffyCoreGreeter2ServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
 // Greeter2FluffyCoreServer defines the grpc server truct
 type Greeter2FluffyCoreServer struct {
 	UnimplementedGreeter2Server
-	UnimplementedGreeter2ServerEndpointRegistration
+	UnimplementedFluffyCoreGreeter2ServerEndpointRegistration
 }
 
 // Register the server with grpc
@@ -77,14 +77,14 @@ func (srv *Greeter2FluffyCoreServer) Register(s *grpc.Server) {
 }
 
 // AddGreeter2ServerWithExternalRegistration adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway
-func AddGreeter2ServerWithExternalRegistration[T IGreeter2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+func AddGreeter2ServerWithExternalRegistration[T IFluffyCoreGreeter2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
 	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
-	fluffy_dozm_di.AddScoped[IGreeter2Server](cb, ctor)
+	fluffy_dozm_di.AddScoped[IFluffyCoreGreeter2Server](cb, ctor)
 }
 
 // AddGreeter2Server adds the fluffycore aware grpc server
-func AddGreeter2Server[T IGreeter2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	AddGreeter2ServerWithExternalRegistration[IGreeter2Server](cb, ctor, func() endpoint.IEndpointRegistration {
+func AddGreeter2Server[T IFluffyCoreGreeter2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	AddGreeter2ServerWithExternalRegistration[IFluffyCoreGreeter2Server](cb, ctor, func() endpoint.IEndpointRegistration {
 		return &Greeter2FluffyCoreServer{}
 	})
 }
@@ -92,25 +92,25 @@ func AddGreeter2Server[T IGreeter2Server](cb fluffy_dozm_di.ContainerBuilder, ct
 // SayHello...
 func (s *Greeter2FluffyCoreServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
-	downstreamService := fluffy_dozm_di.Get[IGreeter2Server](requestContainer)
+	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeter2Server](requestContainer)
 	return downstreamService.SayHello(ctx, request)
 }
 
-// IMyStreamServiceServer defines the grpc server
-type IMyStreamServiceServer interface {
+// IFluffyCoreMyStreamServiceServer defines the grpc server
+type IFluffyCoreMyStreamServiceServer interface {
 	MyStreamServiceServer
 }
 
-type UnimplementedMyStreamServiceServerEndpointRegistration struct {
+type UnimplementedFluffyCoreMyStreamServiceServerEndpointRegistration struct {
 }
 
-func (UnimplementedMyStreamServiceServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
+func (UnimplementedFluffyCoreMyStreamServiceServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
 // MyStreamServiceFluffyCoreServer defines the grpc server truct
 type MyStreamServiceFluffyCoreServer struct {
 	UnimplementedMyStreamServiceServer
-	UnimplementedMyStreamServiceServerEndpointRegistration
+	UnimplementedFluffyCoreMyStreamServiceServerEndpointRegistration
 }
 
 // Register the server with grpc
@@ -119,14 +119,14 @@ func (srv *MyStreamServiceFluffyCoreServer) Register(s *grpc.Server) {
 }
 
 // AddMyStreamServiceServerWithExternalRegistration adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway
-func AddMyStreamServiceServerWithExternalRegistration[T IMyStreamServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+func AddMyStreamServiceServerWithExternalRegistration[T IFluffyCoreMyStreamServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
 	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
-	fluffy_dozm_di.AddScoped[IMyStreamServiceServer](cb, ctor)
+	fluffy_dozm_di.AddScoped[IFluffyCoreMyStreamServiceServer](cb, ctor)
 }
 
 // AddMyStreamServiceServer adds the fluffycore aware grpc server
-func AddMyStreamServiceServer[T IMyStreamServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	AddMyStreamServiceServerWithExternalRegistration[IMyStreamServiceServer](cb, ctor, func() endpoint.IEndpointRegistration {
+func AddMyStreamServiceServer[T IFluffyCoreMyStreamServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	AddMyStreamServiceServerWithExternalRegistration[IFluffyCoreMyStreamServiceServer](cb, ctor, func() endpoint.IEndpointRegistration {
 		return &MyStreamServiceFluffyCoreServer{}
 	})
 }
@@ -135,7 +135,7 @@ func AddMyStreamServiceServer[T IMyStreamServiceServer](cb fluffy_dozm_di.Contai
 func (s *MyStreamServiceFluffyCoreServer) RequestPoints(request *PointsRequest, stream MyStreamService_RequestPointsServer) error {
 	ctx := stream.Context()
 	requestContainer := dicontext.GetRequestContainer(ctx)
-	downstreamService := fluffy_dozm_di.Get[IMyStreamServiceServer](requestContainer)
+	downstreamService := fluffy_dozm_di.Get[IFluffyCoreMyStreamServiceServer](requestContainer)
 	return downstreamService.RequestPoints(request, stream)
 }
 
@@ -143,6 +143,6 @@ func (s *MyStreamServiceFluffyCoreServer) RequestPoints(request *PointsRequest, 
 func (s *MyStreamServiceFluffyCoreServer) StreamPoints(stream MyStreamService_StreamPointsServer) error {
 	ctx := stream.Context()
 	requestContainer := dicontext.GetRequestContainer(ctx)
-	downstreamService := fluffy_dozm_di.Get[IMyStreamServiceServer](requestContainer)
+	downstreamService := fluffy_dozm_di.Get[IFluffyCoreMyStreamServiceServer](requestContainer)
 	return downstreamService.StreamPoints(stream)
 }

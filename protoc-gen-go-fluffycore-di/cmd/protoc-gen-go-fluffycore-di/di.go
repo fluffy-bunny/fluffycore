@@ -155,7 +155,7 @@ func (s *serviceGenContext) genService() {
 	// IServiceEndpointRegistration
 	interfaceGRPCServerName := fmt.Sprintf("%vServer", service.GoName)
 
-	interfaceServerName := fmt.Sprintf("I%s", interfaceGRPCServerName)
+	interfaceServerName := fmt.Sprintf("IFluffyCore%s", interfaceGRPCServerName)
 	internalServerName := fmt.Sprintf("%vFluffyCoreServer", service.GoName)
 
 	g.P("// ", interfaceServerName, " defines the grpc server")
@@ -164,11 +164,11 @@ func (s *serviceGenContext) genService() {
 	g.P("}")
 	g.P()
 
-	g.P("type Unimplemented", service.GoName, "ServerEndpointRegistration struct {")
+	g.P("type UnimplementedFluffyCore", service.GoName, "ServerEndpointRegistration struct {")
 	g.P("}")
 	g.P()
 
-	g.P("func (Unimplemented", service.GoName, "ServerEndpointRegistration) RegisterHandler(gwmux *", grpcGatewayRuntimePackage.Ident("ServeMux"),
+	g.P("func (UnimplementedFluffyCore", service.GoName, "ServerEndpointRegistration) RegisterHandler(gwmux *", grpcGatewayRuntimePackage.Ident("ServeMux"),
 		",conn *", grpcPackage.Ident("ClientConn"), ") {")
 	g.P("}")
 	g.P()
@@ -178,7 +178,7 @@ func (s *serviceGenContext) genService() {
 	g.P("// ", internalServerName, " defines the grpc server truct")
 	g.P("type ", internalServerName, " struct {")
 	g.P("  	", "Unimplemented", service.GoName, "Server")
-	g.P("  	", "Unimplemented", service.GoName, "ServerEndpointRegistration")
+	g.P("  	", "UnimplementedFluffyCore", service.GoName, "ServerEndpointRegistration")
 	g.P("}")
 	g.P()
 
@@ -230,7 +230,7 @@ func (s *methodGenContext) generateUnaryServerMethodShim() {
 	method := s.ProtogenMethod
 	g := s.g
 	serverType := method.Parent.GoName
-	interfaceServerName := fmt.Sprintf("I%vServer", method.Parent.GoName)
+	interfaceServerName := fmt.Sprintf("IFluffyCore%vServer", method.Parent.GoName)
 	internalServerName := fmt.Sprintf("%vFluffyCoreServer", serverType)
 
 	g.P("// ", s.ProtogenMethod.GoName, "...")
@@ -245,7 +245,7 @@ func (s *methodGenContext) generateStreamServerMethodShim() {
 	method := s.ProtogenMethod
 	g := s.g
 	serverType := method.Parent.GoName
-	interfaceServerName := fmt.Sprintf("I%vServer", method.Parent.GoName)
+	interfaceServerName := fmt.Sprintf("IFluffyCore%vServer", method.Parent.GoName)
 	internalServerName := fmt.Sprintf("%vFluffyCoreServer", serverType)
 
 	sig, argCount := s.streamMethodSignature()

@@ -39,8 +39,8 @@ func (s *registrationServer) RegisterHandler(gwmux *grpc_gateway_runtime.ServeMu
 	proto_helloworld.RegisterGreeterHandler(context.Background(), gwmux, conn)
 }
 func AddGreeterService(builder di.ContainerBuilder) {
-	proto_helloworld.AddGreeterServerWithExternalRegistration[proto_helloworld.IGreeterServer](builder,
-		func(config *contracts_config.Config, scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable) proto_helloworld.IGreeterServer {
+	proto_helloworld.AddGreeterServerWithExternalRegistration[proto_helloworld.IFluffyCoreGreeterServer](builder,
+		func(config *contracts_config.Config, scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable) proto_helloworld.IFluffyCoreGreeterServer {
 			return &service{
 				config:               config,
 				scopedSomeDisposable: scopedSomeDisposable,
