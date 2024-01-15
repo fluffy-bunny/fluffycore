@@ -35,14 +35,14 @@ func (srv *SomeServiceFluffyCoreServer) Register(s *grpc.Server) {
 }
 
 // AddSomeServiceServerWithExternalRegistration adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway
-func AddSomeServiceServerWithExternalRegistration[T IFluffyCoreSomeServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+func AddSomeServiceServerWithExternalRegistration(cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
 	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
 	fluffy_dozm_di.AddScoped[IFluffyCoreSomeServiceServer](cb, ctor)
 }
 
 // AddSomeServiceServer adds the fluffycore aware grpc server
-func AddSomeServiceServer[T IFluffyCoreSomeServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	AddSomeServiceServerWithExternalRegistration[IFluffyCoreSomeServiceServer](cb, ctor, func() endpoint.IEndpointRegistration {
+func AddSomeServiceServer(cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	AddSomeServiceServerWithExternalRegistration(cb, ctor, func() endpoint.IEndpointRegistration {
 		return &SomeServiceFluffyCoreServer{}
 	})
 }
@@ -77,14 +77,14 @@ func (srv *SomeService2FluffyCoreServer) Register(s *grpc.Server) {
 }
 
 // AddSomeService2ServerWithExternalRegistration adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway
-func AddSomeService2ServerWithExternalRegistration[T IFluffyCoreSomeService2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+func AddSomeService2ServerWithExternalRegistration(cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
 	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
 	fluffy_dozm_di.AddScoped[IFluffyCoreSomeService2Server](cb, ctor)
 }
 
 // AddSomeService2Server adds the fluffycore aware grpc server
-func AddSomeService2Server[T IFluffyCoreSomeService2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	AddSomeService2ServerWithExternalRegistration[IFluffyCoreSomeService2Server](cb, ctor, func() endpoint.IEndpointRegistration {
+func AddSomeService2Server(cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	AddSomeService2ServerWithExternalRegistration(cb, ctor, func() endpoint.IEndpointRegistration {
 		return &SomeService2FluffyCoreServer{}
 	})
 }

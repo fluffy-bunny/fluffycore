@@ -188,14 +188,14 @@ func (s *serviceGenContext) genService() {
 	g.P("}")
 
 	g.P("// Add", service.GoName, "ServerWithExternalRegistration", " adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway")
-	g.P("func Add", service.GoName, "ServerWithExternalRegistration[T ", interfaceServerName, "](cb ", diPackage.Ident("ContainerBuilder"), ", ctor any, register func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " ) {")
+	g.P("func Add", service.GoName, "ServerWithExternalRegistration(cb ", diPackage.Ident("ContainerBuilder"), ", ctor any, register func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " ) {")
 	g.P("   ", diPackage.Ident("AddSingleton"), "[", contractsEndpointPackage.Ident("IEndpointRegistration"), "](cb,register)")
 	g.P("   ", diPackage.Ident("AddScoped"), "[", interfaceServerName, "](cb,ctor)")
 	g.P("}")
 
 	g.P("// Add", service.GoName, "Server", " adds the fluffycore aware grpc server")
-	g.P("func Add", service.GoName, "Server[T ", interfaceServerName, "](cb ", diPackage.Ident("ContainerBuilder"), ", ctor any) {")
-	g.P("   Add", service.GoName, "ServerWithExternalRegistration[", interfaceServerName, "](cb,ctor,func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " {")
+	g.P("func Add", service.GoName, "Server(cb ", diPackage.Ident("ContainerBuilder"), ", ctor any) {")
+	g.P("   Add", service.GoName, "ServerWithExternalRegistration(cb,ctor,func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " {")
 	g.P("      return &", internalServerName, "{}")
 	g.P("   })")
 	g.P("}")

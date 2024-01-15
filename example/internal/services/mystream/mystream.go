@@ -35,7 +35,7 @@ func (s *registrationServer) RegisterHandler(gwmux *grpc_gateway_runtime.ServeMu
 }
 
 func AddMyStreamService(builder di.ContainerBuilder) {
-	proto_helloworld.AddMyStreamServiceServerWithExternalRegistration[proto_helloworld.IFluffyCoreMyStreamServiceServer](builder,
+	proto_helloworld.AddMyStreamServiceServerWithExternalRegistration(builder,
 		func(config *contracts_config.Config, scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable) proto_helloworld.IFluffyCoreMyStreamServiceServer {
 			return &service{
 				config:               config,

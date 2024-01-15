@@ -35,14 +35,14 @@ func (srv *GreeterFluffyCoreServer) Register(s *grpc.Server) {
 }
 
 // AddGreeterServerWithExternalRegistration adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway
-func AddGreeterServerWithExternalRegistration[T IFluffyCoreGreeterServer](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+func AddGreeterServerWithExternalRegistration(cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
 	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
 	fluffy_dozm_di.AddScoped[IFluffyCoreGreeterServer](cb, ctor)
 }
 
 // AddGreeterServer adds the fluffycore aware grpc server
-func AddGreeterServer[T IFluffyCoreGreeterServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	AddGreeterServerWithExternalRegistration[IFluffyCoreGreeterServer](cb, ctor, func() endpoint.IEndpointRegistration {
+func AddGreeterServer(cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	AddGreeterServerWithExternalRegistration(cb, ctor, func() endpoint.IEndpointRegistration {
 		return &GreeterFluffyCoreServer{}
 	})
 }
@@ -77,14 +77,14 @@ func (srv *Greeter2FluffyCoreServer) Register(s *grpc.Server) {
 }
 
 // AddGreeter2ServerWithExternalRegistration adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway
-func AddGreeter2ServerWithExternalRegistration[T IFluffyCoreGreeter2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+func AddGreeter2ServerWithExternalRegistration(cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
 	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
 	fluffy_dozm_di.AddScoped[IFluffyCoreGreeter2Server](cb, ctor)
 }
 
 // AddGreeter2Server adds the fluffycore aware grpc server
-func AddGreeter2Server[T IFluffyCoreGreeter2Server](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	AddGreeter2ServerWithExternalRegistration[IFluffyCoreGreeter2Server](cb, ctor, func() endpoint.IEndpointRegistration {
+func AddGreeter2Server(cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	AddGreeter2ServerWithExternalRegistration(cb, ctor, func() endpoint.IEndpointRegistration {
 		return &Greeter2FluffyCoreServer{}
 	})
 }
@@ -119,14 +119,14 @@ func (srv *MyStreamServiceFluffyCoreServer) Register(s *grpc.Server) {
 }
 
 // AddMyStreamServiceServerWithExternalRegistration adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway
-func AddMyStreamServiceServerWithExternalRegistration[T IFluffyCoreMyStreamServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
+func AddMyStreamServiceServerWithExternalRegistration(cb fluffy_dozm_di.ContainerBuilder, ctor any, register func() endpoint.IEndpointRegistration) {
 	fluffy_dozm_di.AddSingleton[endpoint.IEndpointRegistration](cb, register)
 	fluffy_dozm_di.AddScoped[IFluffyCoreMyStreamServiceServer](cb, ctor)
 }
 
 // AddMyStreamServiceServer adds the fluffycore aware grpc server
-func AddMyStreamServiceServer[T IFluffyCoreMyStreamServiceServer](cb fluffy_dozm_di.ContainerBuilder, ctor any) {
-	AddMyStreamServiceServerWithExternalRegistration[IFluffyCoreMyStreamServiceServer](cb, ctor, func() endpoint.IEndpointRegistration {
+func AddMyStreamServiceServer(cb fluffy_dozm_di.ContainerBuilder, ctor any) {
+	AddMyStreamServiceServerWithExternalRegistration(cb, ctor, func() endpoint.IEndpointRegistration {
 		return &MyStreamServiceFluffyCoreServer{}
 	})
 }
