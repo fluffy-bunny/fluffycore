@@ -7,7 +7,7 @@ import (
 
 type (
 	IEndpointRegistration interface {
-		Register(s *grpc.Server)
-		RegisterHandler(gwmux *grpc_gateway_runtime.ServeMux, conn *grpc.ClientConn)
+		RegisterFluffyCoreGRPCService(s *grpc.Server)
+		RegisterFluffyCoreHandler(gwmux *grpc_gateway_runtime.ServeMux, conn *grpc.ClientConn)
 	}
 )
