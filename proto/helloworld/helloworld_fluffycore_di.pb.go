@@ -20,7 +20,7 @@ type IFluffyCoreGreeterServer interface {
 type UnimplementedFluffyCoreGreeterServerEndpointRegistration struct {
 }
 
-func (UnimplementedFluffyCoreGreeterServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
+func (UnimplementedFluffyCoreGreeterServerEndpointRegistration) RegisterFluffyCoreHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
 // GreeterFluffyCoreServer defines the grpc server truct
@@ -29,8 +29,8 @@ type GreeterFluffyCoreServer struct {
 	UnimplementedFluffyCoreGreeterServerEndpointRegistration
 }
 
-// Register the server with grpc
-func (srv *GreeterFluffyCoreServer) Register(s *grpc.Server) {
+// RegisterFluffyCoreGRPCService the server with grpc
+func (srv *GreeterFluffyCoreServer) RegisterFluffyCoreGRPCService(s *grpc.Server) {
 	RegisterGreeterServer(s, srv)
 }
 
@@ -62,7 +62,7 @@ type IFluffyCoreGreeter2Server interface {
 type UnimplementedFluffyCoreGreeter2ServerEndpointRegistration struct {
 }
 
-func (UnimplementedFluffyCoreGreeter2ServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
+func (UnimplementedFluffyCoreGreeter2ServerEndpointRegistration) RegisterFluffyCoreHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
 // Greeter2FluffyCoreServer defines the grpc server truct
@@ -71,8 +71,8 @@ type Greeter2FluffyCoreServer struct {
 	UnimplementedFluffyCoreGreeter2ServerEndpointRegistration
 }
 
-// Register the server with grpc
-func (srv *Greeter2FluffyCoreServer) Register(s *grpc.Server) {
+// RegisterFluffyCoreGRPCService the server with grpc
+func (srv *Greeter2FluffyCoreServer) RegisterFluffyCoreGRPCService(s *grpc.Server) {
 	RegisterGreeter2Server(s, srv)
 }
 
@@ -104,7 +104,7 @@ type IFluffyCoreMyStreamServiceServer interface {
 type UnimplementedFluffyCoreMyStreamServiceServerEndpointRegistration struct {
 }
 
-func (UnimplementedFluffyCoreMyStreamServiceServerEndpointRegistration) RegisterHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
+func (UnimplementedFluffyCoreMyStreamServiceServerEndpointRegistration) RegisterFluffyCoreHandler(gwmux *runtime.ServeMux, conn *grpc.ClientConn) {
 }
 
 // MyStreamServiceFluffyCoreServer defines the grpc server truct
@@ -113,8 +113,8 @@ type MyStreamServiceFluffyCoreServer struct {
 	UnimplementedFluffyCoreMyStreamServiceServerEndpointRegistration
 }
 
-// Register the server with grpc
-func (srv *MyStreamServiceFluffyCoreServer) Register(s *grpc.Server) {
+// RegisterFluffyCoreGRPCService the server with grpc
+func (srv *MyStreamServiceFluffyCoreServer) RegisterFluffyCoreGRPCService(s *grpc.Server) {
 	RegisterMyStreamServiceServer(s, srv)
 }
 

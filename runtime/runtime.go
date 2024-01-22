@@ -240,7 +240,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 	endpoints := di.Get[[]fluffycore_contract_endpoint.IEndpointRegistration](si.RootContainer)
 	for _, endpoint := range endpoints {
-		endpoint.Register(grpcServer)
+		endpoint.RegisterFluffyCoreGRPCService(grpcServer)
 	}
 
 	healthServer := di.Get[fluffycore_contracts_health.IHealthServer](si.RootContainer)
@@ -313,7 +313,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 			serveMuxOptions...,
 		)
 		for _, endpoint := range endpoints {
-			endpoint.RegisterHandler(gwmux, conn)
+			endpoint.RegisterFluffyCoreHandler(gwmux, conn)
 		}
 
 		gwServer := &http.Server{

@@ -168,7 +168,7 @@ func (s *serviceGenContext) genService() {
 	g.P("}")
 	g.P()
 
-	g.P("func (UnimplementedFluffyCore", service.GoName, "ServerEndpointRegistration) RegisterHandler(gwmux *", grpcGatewayRuntimePackage.Ident("ServeMux"),
+	g.P("func (UnimplementedFluffyCore", service.GoName, "ServerEndpointRegistration) RegisterFluffyCoreHandler(gwmux *", grpcGatewayRuntimePackage.Ident("ServeMux"),
 		",conn *", grpcPackage.Ident("ClientConn"), ") {")
 	g.P("}")
 	g.P()
@@ -182,8 +182,8 @@ func (s *serviceGenContext) genService() {
 	g.P("}")
 	g.P()
 
-	g.P("// Register the server with grpc")
-	g.P("func (srv *", internalServerName, ") Register(s *", grpcPackage.Ident("Server"), ") {")
+	g.P("// RegisterFluffyCoreGRPCService the server with grpc")
+	g.P("func (srv *", internalServerName, ") RegisterFluffyCoreGRPCService(s *", grpcPackage.Ident("Server"), ") {")
 	g.P("   ", "Register", interfaceGRPCServerName, "(s,srv)")
 	g.P("}")
 
