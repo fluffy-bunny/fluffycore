@@ -1,6 +1,7 @@
 package oauth2
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	jwt "github.com/golang-jwt/jwt/v4"
 	echo "github.com/labstack/echo/v4"
 	jwk "github.com/lestrrat-go/jwx/v2/jwk"
+	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
 )
 
 type (
@@ -343,6 +345,48 @@ func (a *Claims) JwtClaims() jwt.Claims {
 	return a
 }
 
+func ParseTokenRaw(accessToken string) (jwxt.Token, error) {
+	// Parse the JWT
+	parseOptions := []jwxt.ParseOption{}
+
+	parseOptions = append(parseOptions, jwxt.WithKeySet(keySet))
+
+	token, err := jwxt.ParseString(accessToken, parseOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	// This set had a key that worked
+	var validationOpts []jwxt.ValidateOption
+	//validationOpts = append(validationOpts, jwxt.WithIssuer(s.Options.OAuth2Document.Issuer))
+
+	// Allow clock skew
+	validationOpts = append(validationOpts,
+		jwxt.WithAcceptableSkew(time.Minute*time.Duration(5)))
+
+	opts := validationOpts
+	err = jwxt.Validate(token, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return token, nil
+}
+func ValidateToken(ctx context.Context, accessToken string) (IClaims, error) {
+	token, err := ParseTokenRaw(accessToken)
+	if err != nil {
+		return nil, err
+	}
+	claimMap, err := token.AsMap(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	claims := NewClaims()
+	for k, v := range claimMap {
+		claims.Set(k, v)
+	}
+	return claims, nil
+}
 func MintToken(claims IClaims) (string, error) {
 	var method jwt.SigningMethod
 	switch signingKey.PrivateJwk.Alg {
