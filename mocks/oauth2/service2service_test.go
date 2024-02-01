@@ -1,6 +1,7 @@
 package oauth2
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,9 +9,25 @@ import (
 	"testing"
 
 	testservices "github.com/fluffy-bunny/fluffycore/mocks/testservices"
+	"github.com/stretchr/testify/require"
 
 	"github.com/fluffy-bunny/fluffycore/utils"
 )
+
+func TestMintToken(t *testing.T) {
+	ctx := context.Background()
+	claims := NewClaims()
+	claims.Set("sub", "fluffy-micro")
+
+	token, err := MintToken(claims)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	claims2, err := ValidateToken(ctx, token)
+	require.NoError(t, err)
+	require.NotNil(t, claims2)
+	require.Equal(t, "fluffy-micro", claims2.Get("sub"))
+}
 
 func TestOAuth2Server(t *testing.T) {
 
