@@ -59,26 +59,28 @@ func (s *service) RegisterHandlers(app *echo.Group) {
 			handlerInstance := di.GetByLookupKey[contracts_handler.IHandler](scopedContainer, path)
 			return handlerInstance.Do(c)
 		}
+		handlerInstance := di.GetByLookupKey[contracts_handler.IHandler](scopedContainer, path)
+		middleware := handlerInstance.GetMiddleware()
 		for _, httpVerb := range httpVerbs {
 			switch httpVerb {
 			case contracts_handler.GET:
-				app.GET(path, doFunc)
+				app.GET(path, doFunc, middleware...)
 			case contracts_handler.POST:
-				app.POST(path, doFunc)
+				app.POST(path, doFunc, middleware...)
 			case contracts_handler.PUT:
-				app.PUT(path, doFunc)
+				app.PUT(path, doFunc, middleware...)
 			case contracts_handler.DELETE:
-				app.DELETE(path, doFunc)
+				app.DELETE(path, doFunc, middleware...)
 			case contracts_handler.PATCH:
-				app.PATCH(path, doFunc)
+				app.PATCH(path, doFunc, middleware...)
 			case contracts_handler.HEAD:
-				app.HEAD(path, doFunc)
+				app.HEAD(path, doFunc, middleware...)
 			case contracts_handler.OPTIONS:
-				app.OPTIONS(path, doFunc)
+				app.OPTIONS(path, doFunc, middleware...)
 			case contracts_handler.CONNECT:
-				app.CONNECT(path, doFunc)
+				app.CONNECT(path, doFunc, middleware...)
 			case contracts_handler.TRACE:
-				app.TRACE(path, doFunc)
+				app.TRACE(path, doFunc, middleware...)
 			}
 			log.Info().Str("echo", "RegisterHandlers").Str("path", path).Send()
 
