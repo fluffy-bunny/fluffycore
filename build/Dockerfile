@@ -6,8 +6,8 @@ RUN apk add bash curl && \
   curl -fSsL https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o /wait-for-it.sh && \
   chmod +x /wait-for-it.sh && \
   apk del curl
-  
-FROM golang:1.21 as build
+
+FROM golang:1.22 as build
 
 #!!!DO NOT REMOVE THE BELOW 3 LINES!!! Needed for github action to work
 #GHAONLY:COPY dotssh/* /root/.ssh/
@@ -57,6 +57,6 @@ WORKDIR /app
 COPY --from=build /build/${BINARY} ./
 
 ENV PATH=/app:${PATH}
- 
+
 
 ENTRYPOINT ["/app/server"]
