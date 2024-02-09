@@ -7,21 +7,22 @@ import (
 
 type (
 	JWTValidators struct {
-		Issuers  []string `json:"issuers" mapstructure:"ISSUERS"`
-		JWKSURLS []string `json:"jwksUrls" mapstructure:"JWKS_URLS"`
+		Issuers  []string `json:"issuers"`
+		JWKSURLS []string `json:"jwksUrls"`
 	}
 	ConfigFiles struct {
 		ClientPath string `json:"clientPath"`
 	}
 )
 type Config struct {
-	ConfigFiles                            ConfigFiles `json:"configFiles"`
 	fluffycore_contracts_config.CoreConfig `mapstructure:",squash"`
-	CustomString                           string                                  `json:"customString"`
-	SomeSecret                             string                                  `json:"someSecret" redact:"true"`
-	OAuth2Port                             int                                     `json:"oauth2Port"`
-	JWTValidators                          JWTValidators                           `json:"jwtValidators"`
-	DDProfilerConfig                       *fluffycore_contracts_ddprofiler.Config `json:"ddProfilerConfig"`
+
+	ConfigFiles      ConfigFiles                             `json:"configFiles"`
+	CustomString     string                                  `json:"customString"`
+	SomeSecret       string                                  `json:"someSecret" redact:"true"`
+	OAuth2Port       int                                     `json:"oauth2Port"`
+	JWTValidators    JWTValidators                           `json:"jwtValidators"`
+	DDProfilerConfig *fluffycore_contracts_ddprofiler.Config `json:"ddProfilerConfig"`
 }
 
 // ConfigDefaultJSON default json
@@ -42,10 +43,10 @@ var ConfigDefaultJSON = []byte(`
 		"clientPath": "./config/clients.json"
 	},
 	"ddProfilerConfig": {
-		"ENABLED": false,
-		"SERVICE_NAME": "in-environment",
-		"APPLICATION_ENVIRONMENT": "in-environment",
-		"VERSION": "1.0.0"
+		"enabled": false,
+		"serviceName": "in-environment",
+		"applicationEnvironment": "in-environment",
+		"version": "1.0.0"
 	}
 
   }

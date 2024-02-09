@@ -11,9 +11,9 @@ type (
 		Stop(ctx context.Context)
 	}
 	Config struct {
-		Enabled                bool   `json:"enabled" mapstructure:"ENABLED"`
-		ServiceName            string `json:"serviceName" mapstructure:"SERVICE_NAME"`
-		ApplicationEnvironment string `json:"applicationEnvironment" mapstructure:"APPLICATION_ENVIRONMENT"`
-		Version                string `json:"version" mapstructure:"VERSION"`
+		Enabled                bool   `json:"enabled"`
+		ServiceName            string `json:"serviceName"`
+		ApplicationEnvironment string `json:"applicationEnvironment"`
+		Version                string `json:"version"`
 	}
 )

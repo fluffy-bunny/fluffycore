@@ -383,10 +383,10 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	}
 	if _, ok := rootConfigMap["ddProfilerConfig"]; !ok {
 		rootConfigMap["ddProfilerConfig"] = map[string]interface{}{
-			"ENABLED":                 false,
-			"SERVICE_NAME":            "in-enviroment",
-			"APPLICATION_ENVIRONMENT": "in-enviroment",
-			"VERSION":                 "in-enviroment",
+			"enabled":                false,
+			"serviceName":            "in-enviroment",
+			"applicationEnvironment": "in-enviroment",
+			"version":                "in-enviroment",
 		}
 	}
 	rootConfig, err := json.Marshal(rootConfigMap)

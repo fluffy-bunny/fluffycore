@@ -43,8 +43,8 @@ services:
       customString: "In Flames"
       someSecret: "1234567890"
       ENABLE_GRPC_SERVER_REFLECTION: "true"
-      jwtValidators__ISSUERS: "${jwtValidators__ISSUERS}"
-      jwtValidators__JWKS_URLS: "${jwtValidators__JWKS_URLS}"
+      jwtValidators__issuers: "${jwtValidators__issuers}"
+      jwtValidators__jwksUrls: "${jwtValidators__jwksUrls}"
       CONFIG_FILES__CLIENT_PATH: "${EXAMPLE_CONFIG_FILES__CLIENT_PATH}"
     volumes:
       - ./config/example:/config
