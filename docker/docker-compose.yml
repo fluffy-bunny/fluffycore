@@ -1,7 +1,6 @@
 version: "3.9"
 
-x-default-service:
-  &default-service
+x-default-service: &default-service
   deploy:
     restart_policy:
       condition: on-failure
@@ -24,31 +23,31 @@ services:
     ports:
       - ${EXAMPLE_PORT}:${EXAMPLE_PORT}
       - ${EXAMPLE_REST_PORT}:${EXAMPLE_REST_PORT}
-      - ${EXAMPLE_OAUTH2_PORT}:${EXAMPLE_OAUTH2_PORT}
+      - ${EXAMPLE_oauth2Port}:${EXAMPLE_oauth2Port}
 
     logging:
       driver: "json-file"
       options:
         max-size: "${CONTAINER_LOG_SIZE}"
         max-file: "${CONTAINER_LOG_COUNT}"
- 
+
     environment:
-      APPLICATION_NAME: "${EXAMPLE_APPLICATION_NAME}"      
+      APPLICATION_NAME: "${EXAMPLE_APPLICATION_NAME}"
       APPLICATION_ENVIRONMENT: "${APPLICATION_ENVIRONMENT}"
       LOG_LEVEL: "${LOG_LEVEL}"
       PRETTY_LOG: "${PRETTY_LOG}"
       GRPC_GATEWAY_ENABLED: "${EXAMPLE_GRPC_GATEWAY_ENABLED}"
       PORT: "${EXAMPLE_PORT}"
       REST_PORT: "${EXAMPLE_REST_PORT}"
-      OAUTH2_PORT: "${EXAMPLE_OAUTH2_PORT}"
-      CUSTOM_STRING: "In Flames"
-      SOME_SECRET: "1234567890"
+      oauth2Port: "${EXAMPLE_oauth2Port}"
+      customString: "In Flames"
+      someSecret: "1234567890"
       ENABLE_GRPC_SERVER_REFLECTION: "true"
-      JWT_VALIDATORS__ISSUERS: "${JWT_VALIDATORS__ISSUERS}"
-      JWT_VALIDATORS__JWKS_URLS: "${JWT_VALIDATORS__JWKS_URLS}"
+      jwtValidators__ISSUERS: "${jwtValidators__ISSUERS}"
+      jwtValidators__JWKS_URLS: "${jwtValidators__JWKS_URLS}"
       CONFIG_FILES__CLIENT_PATH: "${EXAMPLE_CONFIG_FILES__CLIENT_PATH}"
     volumes:
-       - ./config/example:/config        
+      - ./config/example:/config
     networks:
       - fluffycore
     entrypoint: ["/app/server", "serve"]
@@ -58,4 +57,3 @@ services:
 #====================================================
 networks:
   fluffycore:
- 

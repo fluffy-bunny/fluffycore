@@ -381,8 +381,8 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	if _, ok := rootConfigMap["LOG_LEVEL"]; !ok {
 		rootConfigMap["LOG_LEVEL"] = "info"
 	}
-	if _, ok := rootConfigMap["DD_PROFILER_CONFIG"]; !ok {
-		rootConfigMap["DD_PROFILER_CONFIG"] = map[string]interface{}{
+	if _, ok := rootConfigMap["ddProfilerConfig"]; !ok {
+		rootConfigMap["ddProfilerConfig"] = map[string]interface{}{
 			"ENABLED":                 false,
 			"SERVICE_NAME":            "in-enviroment",
 			"APPLICATION_ENVIRONMENT": "in-enviroment",
