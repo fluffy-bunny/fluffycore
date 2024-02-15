@@ -5,9 +5,8 @@ import (
 	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
-
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
-	"github.com/stretchr/testify/require"
+	require"github.com/stretchr/testify/require"
 )
 
 func TestSameTypeAsScopedTransientSingleton(t *testing.T) {
