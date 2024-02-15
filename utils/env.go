@@ -7,8 +7,10 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	// add zerolog
@@ -70,4 +72,15 @@ func DurationEnv(key string, def time.Duration) time.Duration {
 		return def
 	}
 	return v
+}
+
+// Env Replace in a string buffer.
+// ReplaceEnv("Hello ${USER}", "${%s}")
+// enumerates all env variables, turns them into the ${} format and replaces them in the string.
+func ReplaceEnv(original string, format string) string {
+	for _, env := range os.Environ() {
+		key, value := strings.Split(env, "=")[0], strings.Split(env, "=")[1]
+		original = strings.Replace(original, fmt.Sprintf(format, key), value, -1)
+	}
+	return original
 }
