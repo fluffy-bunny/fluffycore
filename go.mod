@@ -30,7 +30,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
-	github.com/redis/go-redis/v9 v9.4.0
+	github.com/redis/go-redis/v9 v9.5.0
 	github.com/reugn/async v0.7.0
 	github.com/rs/xid v1.5.0
 	github.com/rs/zerolog v1.32.0
