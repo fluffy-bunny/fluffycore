@@ -22,6 +22,7 @@ import (
 	middleware_container "github.com/fluffy-bunny/fluffycore/echo/middleware/container"
 	middleware_logger "github.com/fluffy-bunny/fluffycore/echo/middleware/logger"
 	services_contextaccessor "github.com/fluffy-bunny/fluffycore/echo/services/contextaccessor"
+	services_cookies_insecure "github.com/fluffy-bunny/fluffycore/echo/services/cookies/insecure"
 	services_handler "github.com/fluffy-bunny/fluffycore/echo/services/handler"
 	core_echo_templates "github.com/fluffy-bunny/fluffycore/echo/templates"
 	fluffycore_runtime "github.com/fluffy-bunny/fluffycore/runtime"
@@ -342,5 +343,6 @@ func (s *Runtime) addDefaultServices(builder di.ContainerBuilder) error {
 	fluffycore_services_common.AddCommonServices(builder)
 	services_contextaccessor.AddScopedIEchoContextAccessor(builder)
 	services_handler.AddSingletonIHandlerFactory(builder)
+	services_cookies_insecure.AddCookies(builder)
 	return nil
 }
