@@ -19,6 +19,7 @@ on:
       - "**.md"
     branches: [main]
 
+
 env:
   BINARY: "server"
   GO_VERSION: "1.22"
