@@ -102,16 +102,29 @@ func (s *service) GetCookie(c echo.Context, name string) (*contracts_cookies.Get
 		Value: value,
 	}, nil
 }
-
-func (s *service) DeleteCookie(c echo.Context, name string) error {
-	if fluffycore_utils.IsEmptyOrNil(name) {
+func (s *service) validateDeleteCookieRequest(request *contracts_cookies.DeleteCookieRequest) error {
+	if fluffycore_utils.IsEmptyOrNil(request.Name) {
 		return status.Error(codes.InvalidArgument, "Name is required")
 	}
+	if fluffycore_utils.IsEmptyOrNil(request.Path) {
+		return status.Error(codes.InvalidArgument, "Path is required")
+	}
+	if fluffycore_utils.IsEmptyOrNil(request.Domain) {
+		return status.Error(codes.InvalidArgument, "Domain is required")
+	}
+	return nil
+}
+func (s *service) DeleteCookie(c echo.Context, request *contracts_cookies.DeleteCookieRequest) error {
+	err := s.validateDeleteCookieRequest(request)
+	if err != nil {
+		return err
+	}
 	cookie := &http.Cookie{
-		Name:   name,
+		Name:   request.Name,
 		Value:  "",
-		Path:   "/",
+		Path:   request.Path,
 		MaxAge: -1,
+		Domain: request.Domain,
 	}
 	c.SetCookie(cookie)
 	return nil

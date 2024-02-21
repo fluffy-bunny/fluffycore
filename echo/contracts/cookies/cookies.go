@@ -27,10 +27,15 @@ type (
 	GetCookieResponse struct {
 		Value map[string]interface{} `json:"value"`
 	}
+	DeleteCookieRequest struct {
+		Name   string `json:"name"`
+		Domain string `json:"domain"`
+		Path   string `json:"path"`
+	}
 	ICookies interface {
 		SetCookie(c echo.Context, request *SetCookieRequest) (*SetCookieResponse, error)
 		GetCookie(c echo.Context, name string) (*GetCookieResponse, error)
-		DeleteCookie(c echo.Context, name string) error
+		DeleteCookie(c echo.Context, request *DeleteCookieRequest) error
 	}
 	SecureCookiesConfig struct {
 		HashKey  string `json:"hashKey"`
