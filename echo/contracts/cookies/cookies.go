@@ -12,12 +12,12 @@ type (
 		Name     string                 `json:"name"`
 		Value    map[string]interface{} `json:"value"`
 		Path     string                 `json:"path"`
-		Secure   bool                   `json:"secure"`
+		Secure   *bool                  `json:"secure"`
 		HttpOnly bool                   `json:"httpOnly"`
 		Expires  time.Time              `json:"expires"`
 		MaxAge   int                    `json:"maxAge"`
 		Domain   string                 `json:"domain"`
-		SameSite http.SameSite		  `json:"sameSite"`
+		SameSite http.SameSite          `json:"sameSite"`
 	}
 	SetCookieResponse struct{}
 

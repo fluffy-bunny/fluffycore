@@ -48,6 +48,13 @@ func (s *service) SetCookie(c echo.Context, request *contracts_cookies.SetCookie
 		return nil, err
 	}
 
+	r := c.Request()
+
+	isTLS := r.TLS != nil
+	if request.Secure != nil {
+		// override
+		isTLS = *request.Secure
+	}
 	cookieData, err := json.Marshal(request.Value)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -60,7 +67,7 @@ func (s *service) SetCookie(c echo.Context, request *contracts_cookies.SetCookie
 		Name:     request.Name,
 		Value:    encoded,
 		Path:     request.Path,
-		Secure:   request.Secure,
+		Secure:   isTLS,
 		HttpOnly: request.HttpOnly,
 		Expires:  request.Expires,
 		MaxAge:   request.MaxAge,
