@@ -1,7 +1,6 @@
 package session_factory
 
 import (
-	"reflect"
 	"sync"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
@@ -43,11 +42,9 @@ func (s *service) Ctor(
 	}, nil
 }
 
-func AddScopedCookieSessionStore(b di.ContainerBuilder) {
-	di.AddScoped[*service](b,
+func AddScopedSessionFactory(b di.ContainerBuilder) {
+	di.AddScoped[contracts_sessions.ISessionFactory](b,
 		stemService.Ctor,
-		reflect.TypeOf((*contracts_sessions.IInternalSession)(nil)),
-		reflect.TypeOf((*contracts_sessions.ISession)(nil)),
 	)
 }
 

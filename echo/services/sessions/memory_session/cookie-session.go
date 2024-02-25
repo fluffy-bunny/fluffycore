@@ -39,7 +39,7 @@ func (s *service) Ctor(
 	}, nil
 }
 
-func AddTransientCookieSession(b di.ContainerBuilder) {
+func AddTransientBackendSession(b di.ContainerBuilder) {
 	di.AddTransient[*service](b,
 		stemService.Ctor,
 		reflect.TypeOf((*contracts_sessions.IInternalBackendSession)(nil)),

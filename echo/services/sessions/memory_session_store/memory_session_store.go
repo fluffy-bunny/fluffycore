@@ -23,7 +23,7 @@ type (
 var stemService = (*service)(nil)
 
 func init() {
-	var _ contracts_sessions.ICookieSessionStore = (*service)(nil)
+	var _ contracts_sessions.IBackendSessionStore = (*service)(nil)
 }
 func validateSessionConfig(config *contracts_sessions.SessionConfig) error {
 	if config == nil {
@@ -63,8 +63,8 @@ func (s *service) Ctor(
 	}, nil
 }
 
-func AddSingletonCookieSessionStore(b di.ContainerBuilder) {
-	di.AddSingleton[contracts_sessions.ICookieSessionStore](b,
+func AddSingletonBackendSessionStore(b di.ContainerBuilder) {
+	di.AddSingleton[contracts_sessions.IBackendSessionStore](b,
 		stemService.Ctor,
 	)
 }
