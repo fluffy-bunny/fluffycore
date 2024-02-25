@@ -1,6 +1,8 @@
 package memory_session_store
 
 import (
+	"reflect"
+
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_contextaccessor "github.com/fluffy-bunny/fluffycore/echo/contracts/contextaccessor"
 	contracts_sessions "github.com/fluffy-bunny/fluffycore/echo/contracts/sessions"
@@ -49,7 +51,7 @@ func validateCookieSessionStoreConfig(config *contracts_sessions.SessionConfig) 
 func (s *service) Ctor(
 	config *contracts_sessions.SessionConfig,
 	contextAccessor contracts_contextaccessor.IEchoContextAccessor,
-) (contracts_sessions.IMemorySessionStore, error) {
+) (*service, error) {
 
 	err := validateCookieSessionStoreConfig(config)
 	if err != nil {
@@ -82,7 +84,11 @@ func (s *service) Ctor(
 }
 
 func AddScopedCookieSessionStore(b di.ContainerBuilder) {
-	di.AddScoped[contracts_sessions.ICookieSessionStore](b, stemService.Ctor)
+	di.AddScoped[*service](b,
+		stemService.Ctor,
+		reflect.TypeOf((*contracts_sessions.ISessionStore)(nil)),
+		reflect.TypeOf((*contracts_sessions.IMemorySessionStore)(nil)),
+	)
 }
 
 func (s *service) Set(key string, value interface{}) error {
