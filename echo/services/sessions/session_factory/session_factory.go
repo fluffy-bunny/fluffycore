@@ -39,6 +39,8 @@ func (s *service) Ctor(
 		cookieSessionStore:  cookieSessionStore,
 		contextAccessor:     contextAccessor,
 		backendSessionStore: backendSessionStore,
+		cookieSessions:      make(map[string]contracts_sessions.ISession),
+		backendSessions:     make(map[string]contracts_sessions.ISession),
 	}, nil
 }
 
@@ -81,5 +83,6 @@ func (s *service) GetBackendSession(name string) (contracts_sessions.ISession, e
 		Name:                name,
 		EchoContextAccessor: s.contextAccessor,
 	})
+	s.backendSessions[name] = obj
 	return obj, nil
 }
