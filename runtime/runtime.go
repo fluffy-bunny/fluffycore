@@ -29,6 +29,7 @@ import (
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
+	fluffycoreutils "github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	async "github.com/reugn/async"
@@ -349,6 +350,9 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	v := viper.NewWithOptions(viper.KeyDelimiter("__"))
 	var err error
 	v.SetConfigType("json")
+	if !fluffycoreutils.IsEmptyOrNil(configOptions.EnvPrefix) {
+		v.SetEnvPrefix(configOptions.EnvPrefix)
+	}
 	// Environment Variables override everything.
 	v.AutomaticEnv()
 
@@ -432,10 +436,9 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	allSettings := structs.Map(configOptions.Destination)
 
 	// normal viper stuff
-	myViperEx, err := viperEx.New(allSettings, func(ve *viperEx.ViperEx) error {
-		ve.KeyDelimiter = "__"
-		return nil
-	})
+	myViperEx, err := viperEx.New(allSettings,
+		viperEx.WithEnvPrefix(configOptions.EnvPrefix),
+		viperEx.WithDelimiter("__"))
 	if err != nil {
 		return err
 	}
