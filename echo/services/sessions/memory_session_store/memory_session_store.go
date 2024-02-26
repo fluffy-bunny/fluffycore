@@ -55,6 +55,7 @@ func (s *service) Ctor(
 		[]byte(config.EncryptionKey),
 	)
 	store.Options.Domain = config.Domain
+	store.MaxAge(config.MaxAge)
 
 	return &service{
 		config:   config,
