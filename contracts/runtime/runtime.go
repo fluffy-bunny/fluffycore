@@ -16,6 +16,7 @@ type (
 		Destination interface{}
 		RootConfig  []byte
 		ConfigPath  string
+		EnvPrefix   string
 	}
 
 	UnimplementedStartup struct {
