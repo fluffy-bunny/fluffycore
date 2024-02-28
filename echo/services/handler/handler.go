@@ -2,6 +2,7 @@ package handler
 
 import (
 	"reflect"
+	"strings"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_container "github.com/fluffy-bunny/fluffycore/echo/contracts/container"
@@ -40,6 +41,9 @@ func (s *service) RegisterHandlers(app *echo.Group) {
 	scope := scopeFactory.CreateScope()
 	scopedContainer := scope.Container()
 	descriptors := scopedContainer.GetDescriptors()
+	// we need to build a map of paths because these can be overridden
+
+	pathToDescriptors := make(map[string]*di.Descriptor)
 	for _, descriptor := range descriptors {
 		found := false
 		for _, serviceType := range descriptor.ImplementedInterfaceTypes {
@@ -51,6 +55,15 @@ func (s *service) RegisterHandlers(app *echo.Group) {
 		if !found {
 			continue
 		}
+		metadata := descriptor.Metadata
+		path := metadata["path"].(string)
+		path = strings.ToLower(path)
+		// when we find a duplicate path, the last one wins
+		pathToDescriptors[path] = descriptor
+	}
+
+	for _, descriptor := range pathToDescriptors {
+
 		metadata := descriptor.Metadata
 		path := metadata["path"].(string)
 		httpVerbs := metadata["httpVerbs"].([]contracts_handler.HTTPVERB)
