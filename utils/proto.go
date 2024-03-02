@@ -70,3 +70,18 @@ func ConvertMapToProto(m map[string]interface{}, pb proto.Message) error {
 
 	return nil
 }
+
+func ConvertProtoToProto(from proto.Message, to proto.Message) error {
+	// Marshal the from protobuf message to JSON.
+	jsonBytes, err := protojson.Marshal(from)
+	if err != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("failed to marshal from protobuf message to JSON: %v", err))
+	}
+
+	// Unmarshal the JSON to the to protobuf message.
+	if err := protojson.Unmarshal(jsonBytes, to); err != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("failed to unmarshal JSON to to protobuf message: %v", err))
+	}
+
+	return nil
+}
