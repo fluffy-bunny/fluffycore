@@ -54,7 +54,7 @@ func IsZero(v reflect.Value) bool {
 }
 
 // IsEmptyOrNil checks if a value is empty or nil, useful for strings and arrays
-func IsEmptyOrNil(i interface{}) bool {
+func _isEmptyOrNil(i interface{}) bool {
 	if i == nil {
 		return true
 	}
@@ -70,8 +70,20 @@ func IsEmptyOrNil(i interface{}) bool {
 	return false //everything else here is a primitive
 }
 
+// define an alias for IsEmptyOrNil
+var IsNilOrEmpty = _isEmptyOrNil
+var IsEmptyOrNil = _isEmptyOrNil
+
+// InNotEmptyOrNil checks if a value is not empty or nil, useful for strings and arrays
+func _isNotEmptyOrNil(i interface{}) bool {
+	return !IsEmptyOrNil(i)
+}
+
+var IsNotEmptyOrNil = _isNotEmptyOrNil
+var IsNotNilOrEmpty = _isNotEmptyOrNil
+
 // IsNil is a wholistic nil checker
-func IsNil(i interface{}) bool {
+func _isNil(i interface{}) bool {
 	if i == nil {
 		return true
 	}
@@ -81,3 +93,11 @@ func IsNil(i interface{}) bool {
 	}
 	return false //everything else here is a primitive
 }
+
+// IsNotNil is a wholistic nil checker
+func _isNotNil(i interface{}) bool {
+	return !IsNil(i)
+}
+
+var IsNil = _isNil
+var IsNotNil = _isNotNil
