@@ -6,6 +6,7 @@ go 1.22
 
 require (
 	github.com/ahmetb/go-linq/v3 v3.2.0
+	github.com/alexedwards/argon2id v1.0.0
 	github.com/auth0/go-jwt-middleware/v2 v2.2.1
 	github.com/eko/gocache/lib/v4 v4.1.5
 	github.com/eko/gocache/store/go_cache/v4 v4.2.1
@@ -31,6 +32,7 @@ require (
 	github.com/labstack/gommon v0.4.2
 	github.com/lestrrat-go/jwx/v2 v2.0.21
 	github.com/madflojo/tasks v1.1.0
+	github.com/nicksnyder/go-i18n/v2 v2.4.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
