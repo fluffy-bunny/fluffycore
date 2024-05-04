@@ -8,7 +8,7 @@ require (
 	github.com/ahmetb/go-linq/v3 v3.2.0
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/auth0/go-jwt-middleware/v2 v2.2.1
-	github.com/eko/gocache/lib/v4 v4.1.5
+	github.com/eko/gocache/lib/v4 v4.1.6
 	github.com/eko/gocache/store/go_cache/v4 v4.2.1
 	github.com/eko/gocache/store/redis/v4 v4.2.1
 	github.com/fatih/structs v1.1.0
@@ -28,7 +28,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.5.8
 	github.com/jellydator/ttlcache/v2 v2.11.1
 	github.com/jinzhu/copier v0.4.0
-	github.com/labstack/echo/v4 v4.11.4
+	github.com/labstack/echo/v4 v4.12.0
 	github.com/labstack/gommon v0.4.2
 	github.com/lestrrat-go/jwx/v2 v2.0.21
 	github.com/madflojo/tasks v1.2.0
@@ -50,7 +50,7 @@ require (
 	github.com/tkuchiki/parsetime v0.3.0
 	github.com/tufin/asciitree v0.0.0-20210127111056-bf70173ef677
 	github.com/ziflex/lecho/v3 v3.6.0
-	go.mongodb.org/mongo-driver v1.14.0
+	go.mongodb.org/mongo-driver v1.15.0
 	golang.org/x/oauth2 v0.19.0
 	golang.org/x/text v0.14.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de
