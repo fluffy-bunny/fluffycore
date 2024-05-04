@@ -50,7 +50,7 @@ require (
 	github.com/tkuchiki/parsetime v0.3.0
 	github.com/tufin/asciitree v0.0.0-20210127111056-bf70173ef677
 	github.com/ziflex/lecho/v3 v3.6.0
-	go.mongodb.org/mongo-driver v1.14.0
+	go.mongodb.org/mongo-driver v1.15.0
 	golang.org/x/oauth2 v0.19.0
 	golang.org/x/text v0.14.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de
