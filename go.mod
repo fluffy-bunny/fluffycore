@@ -49,7 +49,7 @@ require (
 	github.com/swaggo/swag v1.16.3
 	github.com/tkuchiki/parsetime v0.3.0
 	github.com/tufin/asciitree v0.0.0-20210127111056-bf70173ef677
-	github.com/ziflex/lecho/v3 v3.6.0
+	github.com/ziflex/lecho/v3 v3.7.0
 	go.mongodb.org/mongo-driver v1.15.0
 	golang.org/x/oauth2 v0.20.0
 	golang.org/x/text v0.15.0
