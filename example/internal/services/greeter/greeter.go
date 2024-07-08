@@ -2,15 +2,20 @@ package greeter
 
 import (
 	"context"
+	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
 	fluffycore_contracts_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/contracts/somedisposable"
+	fluffycore_grpcclient "github.com/fluffy-bunny/fluffycore/grpcclient"
 	proto_helloworld "github.com/fluffy-bunny/fluffycore/proto/helloworld"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	zerolog "github.com/rs/zerolog"
-	"google.golang.org/grpc"
+	otel "go.opentelemetry.io/otel"
+	attribute "go.opentelemetry.io/otel/attribute"
+	trace "go.opentelemetry.io/otel/trace"
+	grpc "google.golang.org/grpc"
 )
 
 type (
@@ -26,6 +31,7 @@ type (
 )
 
 var stemService = (*service)(nil)
+var tracer = otel.Tracer("grpc-example")
 
 func init() {
 	var _ proto_helloworld.IFluffyCoreGreeterServer = stemService
@@ -50,10 +56,41 @@ func AddGreeterService(builder di.ContainerBuilder) {
 			return &registrationServer{}
 		})
 }
-func (s *service) SayHello(ctx context.Context, request *proto_helloworld.HelloRequest) (*proto_helloworld.HelloReply, error) {
+
+func (s *service) SayHelloDownstream(ctx context.Context, request *proto_helloworld.HelloRequest) (*proto_helloworld.HelloReply, error) {
 	log := zerolog.Ctx(ctx)
-	log.Info().Msg("SayHello")
+	log.Info().Msg("SayHelloDownstream")
+
 	return &proto_helloworld.HelloReply{
 		Message: "Hello " + request.Name,
 	}, nil
+}
+func (s *service) SayHello(ctx context.Context, request *proto_helloworld.HelloRequest) (*proto_helloworld.HelloReply, error) {
+	log := zerolog.Ctx(ctx)
+	log.Info().Msg("SayHello")
+	s.workHard(ctx)
+	time.Sleep(50 * time.Millisecond)
+
+	grpcClient, err := fluffycore_grpcclient.NewGrpcClient(
+		fluffycore_grpcclient.WithHost("localhost"),
+		fluffycore_grpcclient.WithPort(50051),
+		fluffycore_grpcclient.WithInsecure(true),
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("Creating gRPC client")
+		return nil, err
+	}
+	defer grpcClient.Close()
+
+	cli := proto_helloworld.NewGreeterClient(grpcClient.GetConnection())
+	reply, err := cli.SayHelloDownstream(ctx, request)
+	return reply, nil
+}
+
+func (s *service) workHard(ctx context.Context) {
+	_, span := tracer.Start(ctx, "workHard",
+		trace.WithAttributes(attribute.String("extra.key", "extra.value")))
+	defer span.End()
+
+	time.Sleep(50 * time.Millisecond)
 }

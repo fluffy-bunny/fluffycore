@@ -27,6 +27,7 @@ import (
 	fluffycore_contracts_tasks "github.com/fluffy-bunny/fluffycore/contracts/tasks"
 	services_health "github.com/fluffy-bunny/fluffycore/internal/services/health"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
+	fluffycore_runtime_otel "github.com/fluffy-bunny/fluffycore/runtime/otel"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
@@ -89,6 +90,15 @@ func (s *Runtime) Wait() {
 func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contract_runtime.IStartup) {
 	ctx := context.Background()
 	var err error
+	tp, err := fluffycore_runtime_otel.Init()
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			log.Printf("Error shutting down tracer provider: %v", err)
+		}
+	}()
 	// start the pprof web server
 	pProfServer := NewPProfServer()
 	pProfServer.Start()
