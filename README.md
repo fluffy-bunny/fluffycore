@@ -90,3 +90,8 @@ Because making a gazillion unary requests are wasteful.
 ```bash
  docker build --file .\build\Dockerfile . --tag fluffycore.example
 ```
+
+## OpenTelemetry
+
+[ref](https://github.com/honeycombio/intro-to-o11y-go)  
+[ref](https://github.com/uptrace/opentelemetry-go-extra/tree/main/example/grpc)

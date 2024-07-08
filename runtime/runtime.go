@@ -29,7 +29,6 @@ import (
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
-	fluffycoreutils "github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	async "github.com/reugn/async"
@@ -37,14 +36,14 @@ import (
 	log "github.com/rs/zerolog/log"
 	pkgerrors "github.com/rs/zerolog/pkgerrors"
 	viper "github.com/spf13/viper"
+	otelgrpc "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	otel "go.opentelemetry.io/otel"
 	grpc "google.golang.org/grpc"
 	insecure "google.golang.org/grpc/credentials/insecure"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
 	keepalive "google.golang.org/grpc/keepalive"
 	grpc_reflection "google.golang.org/grpc/reflection"
 )
-
-const bufSize = 1024 * 1024
 
 type ServerInstance struct {
 	Server *grpc.Server
@@ -217,6 +216,10 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	startup.SetRootContainer(si.RootContainer)
 	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 	var serverOpts []grpc.ServerOption
+	otelOpts := []otelgrpc.Option{
+		otelgrpc.WithPropagators(otel.GetTextMapPropagator()),
+	}
+	serverOpts = append(serverOpts, grpc.StatsHandler(otelgrpc.NewServerHandler(otelOpts...)))
 	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepalive.ServerParameters{
 		MaxConnectionIdle: 5 * time.Minute, // <--- This fixes it!
 	}))
@@ -228,6 +231,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	if len(streamInterceptors) != 0 {
 		serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(streamInterceptors...))
 	}
+
 	grpcServer := grpc.NewServer(
 		serverOpts...,
 	)
@@ -270,18 +274,14 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		// Create a client connection to the gRPC server we just started
 		// This is where the gRPC-Gateway proxies the requests
 		opts := []grpc.DialOption{
-			grpc.WithBlock(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		}
 
 		endpoint := fmt.Sprintf("0.0.0.0:%d", coreConfig.PORT)
 		// Create a client connection to the gRPC server we just started
 		// This is where the gRPC-Gateway proxies the requests
-		conn, err := grpc.DialContext(
-			ctx,
-			endpoint,
-			opts...,
-		)
+		conn, err := grpc.NewClient(endpoint, opts...)
+
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to dial server")
 		}
@@ -350,7 +350,7 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	v := viper.NewWithOptions(viper.KeyDelimiter("__"))
 	var err error
 	v.SetConfigType("json")
-	if !fluffycoreutils.IsEmptyOrNil(configOptions.EnvPrefix) {
+	if !fluffycore_utils.IsEmptyOrNil(configOptions.EnvPrefix) {
 		v.SetEnvPrefix(configOptions.EnvPrefix)
 	}
 	// Environment Variables override everything.
