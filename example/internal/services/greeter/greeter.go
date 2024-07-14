@@ -24,6 +24,7 @@ type (
 
 		config               *contracts_config.Config
 		scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable
+		otelTracingEnabled   bool
 	}
 	registrationServer struct {
 		proto_helloworld.GreeterFluffyCoreServer
@@ -44,9 +45,14 @@ func (s *registrationServer) RegisterHandler(gwmux *grpc_gateway_runtime.ServeMu
 func (s *service) Ctor(
 	config *contracts_config.Config,
 	scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable) (proto_helloworld.IFluffyCoreGreeterServer, error) {
+	otelTracingEnabled := false
+	if config.OTELConfig != nil {
+		otelTracingEnabled = config.OTELConfig.TracingConfig.Enabled
+	}
 	return &service{
 		config:               config,
 		scopedSomeDisposable: scopedSomeDisposable,
+		otelTracingEnabled:   otelTracingEnabled,
 	}, nil
 }
 func AddGreeterService(builder di.ContainerBuilder) {
@@ -71,11 +77,16 @@ func (s *service) SayHello(ctx context.Context, request *proto_helloworld.HelloR
 	s.workHard(ctx)
 	time.Sleep(50 * time.Millisecond)
 
-	grpcClient, err := fluffycore_grpcclient.NewGrpcClient(
+	opts := []fluffycore_grpcclient.GrpcClientOption{
 		fluffycore_grpcclient.WithHost("localhost"),
 		fluffycore_grpcclient.WithPort(50051),
 		fluffycore_grpcclient.WithInsecure(true),
-	)
+	}
+	if s.otelTracingEnabled {
+		opts = append(opts, fluffycore_grpcclient.WithOTELTracer(s.otelTracingEnabled))
+	}
+
+	grpcClient, err := fluffycore_grpcclient.NewGrpcClient(opts...)
 	if err != nil {
 		log.Error().Err(err).Msg("Creating gRPC client")
 		return nil, err
@@ -84,7 +95,7 @@ func (s *service) SayHello(ctx context.Context, request *proto_helloworld.HelloR
 
 	cli := proto_helloworld.NewGreeterClient(grpcClient.GetConnection())
 	reply, err := cli.SayHelloDownstream(ctx, request)
-	return reply, nil
+	return reply, err
 }
 
 func (s *service) workHard(ctx context.Context) {

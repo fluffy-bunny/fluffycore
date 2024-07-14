@@ -11,7 +11,7 @@
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/echo-example",
       "env": {
-        "APPLICATION_NAME": "example",
+        "APPLICATION_NAME": "example-app",
         "APPLICATION_ENVIRONMENT": "Development",
         "LOG_LEVEL": "debug",
         "PRETTY_LOG": "true",
@@ -26,7 +26,7 @@
       "mode": "auto",
       "program": "${workspaceFolder}/example/server",
       "env": {
-        "EXAMPLE_APPLICATION_NAME": "example",
+        "EXAMPLE_APPLICATION_NAME": "example-app",
         "EXAMPLE_APPLICATION_ENVIRONMENT": "Development",
         "APPLICATION_ENVIRONMENT": "Development",
         "EXAMPLE_LOG_LEVEL": "debug",
@@ -39,7 +39,9 @@
         "EXAMPLE_someSecret": "1234567890",
         "ENABLE_GRPC_SERVER_REFLECTION": "true",
         "EXAMPLE_jwtValidators__issuers": "http://localhost:50053,http://host.docker.internal:50053",
-        "EXAMPLE_jwtValidators__jwksUrls": "http://localhost:50053/.well-known/jwks,http://host.docker.internal:50053/.well-known/jwks"
+        "EXAMPLE_jwtValidators__jwksUrls": "http://localhost:50053/.well-known/jwks,http://host.docker.internal:50053/.well-known/jwks",
+        "EXAMPLE_otelConfig__tracingConfig__enabled": "true",
+
       },
       "args": ["serve"]
     },
@@ -50,7 +52,7 @@
       "mode": "auto",
       "program": "${workspaceFolder}/example/server",
       "env": {
-        "APPLICATION_NAME": "example",
+        "APPLICATION_NAME": "example-app",
         "APPLICATION_ENVIRONMENT": "Development",
         "LOG_LEVEL": "debug",
         "PRETTY_LOG": "true",

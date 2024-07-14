@@ -27,7 +27,6 @@ import (
 	fluffycore_contracts_tasks "github.com/fluffy-bunny/fluffycore/contracts/tasks"
 	services_health "github.com/fluffy-bunny/fluffycore/internal/services/health"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
-	fluffycore_runtime_otel "github.com/fluffy-bunny/fluffycore/runtime/otel"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
@@ -37,8 +36,6 @@ import (
 	log "github.com/rs/zerolog/log"
 	pkgerrors "github.com/rs/zerolog/pkgerrors"
 	viper "github.com/spf13/viper"
-	otelgrpc "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	otel "go.opentelemetry.io/otel"
 	grpc "google.golang.org/grpc"
 	insecure "google.golang.org/grpc/credentials/insecure"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
@@ -90,15 +87,7 @@ func (s *Runtime) Wait() {
 func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contract_runtime.IStartup) {
 	ctx := context.Background()
 	var err error
-	tp, err := fluffycore_runtime_otel.Init()
-	if err != nil {
-		panic(err)
-	}
-	defer func() {
-		if err := tp.Shutdown(context.Background()); err != nil {
-			log.Printf("Error shutting down tracer provider: %v", err)
-		}
-	}()
+
 	// start the pprof web server
 	pProfServer := NewPProfServer()
 	pProfServer.Start()
@@ -224,12 +213,10 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
 	startup.SetRootContainer(si.RootContainer)
-	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 	var serverOpts []grpc.ServerOption
-	otelOpts := []otelgrpc.Option{
-		otelgrpc.WithPropagators(otel.GetTextMapPropagator()),
-	}
-	serverOpts = append(serverOpts, grpc.StatsHandler(otelgrpc.NewServerHandler(otelOpts...)))
+	serverOpts = append(serverOpts, startup.GetPreConfigureServerOpts(ctx)...)
+	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
+
 	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepalive.ServerParameters{
 		MaxConnectionIdle: 5 * time.Minute, // <--- This fixes it!
 	}))
@@ -241,7 +228,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	if len(streamInterceptors) != 0 {
 		serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(streamInterceptors...))
 	}
-
+	serverOpts = append(serverOpts, startup.GetPostConfigureServerOpts(ctx)...)
 	grpcServer := grpc.NewServer(
 		serverOpts...,
 	)

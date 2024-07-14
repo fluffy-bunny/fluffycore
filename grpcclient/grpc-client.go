@@ -10,8 +10,7 @@ import (
 
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	log "github.com/rs/zerolog/log"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	otelgrpc "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	oauth2 "golang.org/x/oauth2"
 	grpc "google.golang.org/grpc"
 	backoff "google.golang.org/grpc/backoff"
@@ -19,8 +18,6 @@ import (
 	insecure "google.golang.org/grpc/credentials/insecure"
 	oauth "google.golang.org/grpc/credentials/oauth"
 )
-
-var serviceName = semconv.ServiceNameKey.String("test-service")
 
 // Example Usage:
 // ```
@@ -63,18 +60,19 @@ var defaultGrpcCallTimeoutInSeconds *int
 
 // GrpcClient object
 type GrpcClient struct {
-	conn           *grpc.ClientConn
-	target         string
-	authority      string
-	host           string
-	port           int
-	insecure       bool
-	sidecarSecured bool
-	tracingMode    bool
-	certBundleFile string
-	clientCerts    []tls.Certificate
-	ctx            context.Context
-	tokenSource    oauth2.TokenSource
+	conn              *grpc.ClientConn
+	target            string
+	authority         string
+	host              string
+	port              int
+	insecure          bool
+	sidecarSecured    bool
+	tracingMode       bool
+	certBundleFile    string
+	clientCerts       []tls.Certificate
+	ctx               context.Context
+	tokenSource       oauth2.TokenSource
+	enableOTELTracing bool
 }
 
 // ClientOption is used for option pattern calling
@@ -107,7 +105,9 @@ func NewGrpcClient(opts ...GrpcClientOption) (*GrpcClient, error) {
 		dialOpts = append(dialOpts, grpc.WithAuthority(c.authority))
 	}
 	if c.tracingMode {
-		dialOpts = append(dialOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
+		if c.enableOTELTracing {
+			dialOpts = append(dialOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
+		}
 	}
 
 	// Let user choose whether to put full address or to put host & port separately
@@ -189,6 +189,14 @@ func (c *GrpcClient) GetConnection() *grpc.ClientConn {
 //
 // Options
 //
+
+// Sets full url to gRPC endpoint. Do not this method with WithHost or WithPort.
+func WithOTELTracer(enable bool) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.enableOTELTracing = enable
+		return nil
+	}
+}
 
 // Sets full url to gRPC endpoint. Do not this method with WithHost or WithPort.
 func WithTarget(target string) GrpcClientOption {

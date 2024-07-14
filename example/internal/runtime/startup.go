@@ -13,6 +13,7 @@ import (
 	fluffycore_contracts_ddprofiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
 	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
+	fluffycore_contracts_otel "github.com/fluffy-bunny/fluffycore/contracts/otel"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	fluffycore_contracts_tasks "github.com/fluffy-bunny/fluffycore/contracts/tasks"
 	internal_auth "github.com/fluffy-bunny/fluffycore/example/internal/auth"
@@ -36,11 +37,15 @@ import (
 	madflojo_tasks "github.com/madflojo/tasks"
 	async "github.com/reugn/async"
 	zerolog "github.com/rs/zerolog"
+	otelgrpc "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	otel "go.opentelemetry.io/otel"
+	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 )
 
 type (
 	startup struct {
+		*OTELContainer // embedded  OTEL
 		fluffycore_contracts_runtime.UnimplementedStartup
 		RootContainer di.Container
 
@@ -54,7 +59,9 @@ type (
 )
 
 func NewStartup() fluffycore_contracts_runtime.IStartup {
-	return &startup{}
+	return &startup{
+		OTELContainer: NewOTELContainer(),
+	}
 }
 func (s *startup) SetRootContainer(container di.Container) {
 	s.RootContainer = container
@@ -76,11 +83,18 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 	}
 	log.Info().Interface("config", dst).Msg("config")
 	config := s.configOptions.Destination.(*contracts_config.Config)
-	config.DDProfilerConfig.ApplicationEnvironment = config.ApplicationEnvironment
-	config.DDProfilerConfig.ServiceName = config.ApplicationName
-	config.DDProfilerConfig.Version = internal_version.Version()
-	di.AddInstance[*fluffycore_contracts_ddprofiler.Config](builder, config.DDProfilerConfig)
-	di.AddInstance[*contracts_config.Config](builder, config)
+	if config.OTELConfig == nil {
+		config.OTELConfig = &fluffycore_contracts_otel.OTELConfig{}
+	}
+	s.OTELContainer.Config = config.OTELConfig
+
+	config.OTELConfig.ServiceName = config.ApplicationName
+
+	config.DDConfig.ApplicationEnvironment = config.ApplicationEnvironment
+	config.DDConfig.ServiceName = config.ApplicationName
+	config.DDConfig.Version = internal_version.Version()
+	fluffycore_contracts_ddprofiler.AddDDConfig(builder, config.DDConfig)
+	contracts_config.AddConfig(builder, config)
 
 	fluffycore_services_ddprofiler.AddSingletonIProfiler(builder)
 	services_health.AddHealthService(builder)
@@ -99,6 +113,19 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 	}
 	fluffycore_middleware_auth_jwt.AddValidators(builder, issuerConfigs)
 }
+func (s *startup) GetPreConfigureServerOpts(ctx context.Context) []grpc.ServerOption {
+	// initialized the OTEL stuff before we make our intercepters.
+	s.OTELContainer.Init(ctx)
+	var serverOpts []grpc.ServerOption
+	otelOpts := []otelgrpc.Option{
+		otelgrpc.WithPropagators(otel.GetTextMapPropagator()),
+		otelgrpc.WithTracerProvider(otel.GetTracerProvider()),
+	}
+
+	serverOpts = append(serverOpts,
+		grpc.StatsHandler(otelgrpc.NewServerHandler(otelOpts...)))
+	return serverOpts
+}
 func (s *startup) Configure(ctx context.Context, rootContainer di.Container, unaryServerInterceptorBuilder fluffycore_contracts_middleware.IUnaryServerInterceptorBuilder, streamServerInterceptorBuilder fluffycore_contracts_middleware.IStreamServerInterceptorBuilder) {
 	log := zerolog.Ctx(ctx).With().Str("method", "Configure").Logger()
 
@@ -109,7 +136,7 @@ func (s *startup) Configure(ctx context.Context, rootContainer di.Container, una
 	streamServerInterceptorBuilder.Use(fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor())
 
 	// log correlation and spans
-	unaryServerInterceptorBuilder.Use(fluffycore_middleware_correlation.EnsureCorrelationIDUnaryServerInterceptor())
+	unaryServerInterceptorBuilder.Use(fluffycore_middleware_correlation.EnsureOTELCorrelationIDUnaryServerInterceptor())
 	// dicontext is responsible of create a scoped context for each request.
 	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_dicontext.UnaryServerInterceptor")
 	unaryServerInterceptorBuilder.Use(fluffycore_middleware_dicontext.UnaryServerInterceptor(rootContainer))
@@ -146,6 +173,13 @@ type taskTracker struct {
 func (s *startup) OnPreServerStartup(ctx context.Context) error {
 	log := zerolog.Ctx(ctx).With().Str("method", "OnPreServerStartup").Logger()
 
+	ctxOTEL := log.WithContext(context.Background())
+	err := s.OTELContainer.Start(ctxOTEL)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to Start OTELContainer")
+		return err
+	}
+
 	log.Info().Msg("starting up the ISingletonScheduler")
 	singletonScheduler := di.Get[fluffycore_contracts_tasks.ISingletonScheduler](s.RootContainer)
 
@@ -154,7 +188,6 @@ func (s *startup) OnPreServerStartup(ctx context.Context) error {
 		Interval: 5 * time.Second,
 		TaskFunc: func() error {
 			// Put your logic here
-
 			if myTaskTracker.Count > 2 {
 				log.Info().Interface("myTaskTracker", myTaskTracker).Msg("I am a task and I am stopping myself")
 				singletonScheduler.Del(myTaskTracker.ID)
@@ -203,8 +236,11 @@ func (s *startup) OnPreServerStartup(ctx context.Context) error {
 		}
 	})
 
-	s.ddProfiler = di.Get[fluffycore_contracts_ddprofiler.IDataDogProfiler](s.RootContainer)
-	s.ddProfiler.Start(ctx)
+	// TODO: is there an OTEL profiler
+	s.ddProfiler, err = di.TryGet[fluffycore_contracts_ddprofiler.IDataDogProfiler](s.RootContainer)
+	if err == nil {
+		s.ddProfiler.Start(ctx)
+	}
 	return nil
 }
 
@@ -217,6 +253,8 @@ func (s *startup) OnPreServerShutdown(ctx context.Context) {
 	log.Info().Msg("mockOAuth2Server shutdown complete")
 	log.Info().Msg("Stopping Datadog Tracer and Profiler")
 	s.ddProfiler.Stop(ctx)
+
 	log.Info().Msg("Datadog Tracer and Profiler stopped")
+	s.OTELContainer.Stop(ctx)
 
 }
