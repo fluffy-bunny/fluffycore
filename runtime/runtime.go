@@ -214,7 +214,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
 	startup.SetRootContainer(si.RootContainer)
 	var serverOpts []grpc.ServerOption
-	serverOpts = append(serverOpts, startup.GetPreConfigureServerOpts(ctx)...)
+	serverOpts = append(serverOpts, startup.ConfigureServerOpts(ctx)...)
 	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 
 	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepalive.ServerParameters{
@@ -228,7 +228,6 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	if len(streamInterceptors) != 0 {
 		serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(streamInterceptors...))
 	}
-	serverOpts = append(serverOpts, startup.GetPostConfigureServerOpts(ctx)...)
 	grpcServer := grpc.NewServer(
 		serverOpts...,
 	)

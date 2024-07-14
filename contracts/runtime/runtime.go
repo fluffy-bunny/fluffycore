@@ -45,6 +45,13 @@ func (u UnimplementedStartup) OnPreServerShutdown(ctx context.Context) {}
 func (u UnimplementedStartup) GetPort() int {
 	return 0
 }
+func (u UnimplementedStartup) ConfigureServerOpts(ctx context.Context) []grpc.ServerOption {
+	return []grpc.ServerOption{}
+}
+func (u UnimplementedStartup) Configure(ctx context.Context, rootContainer di.Container,
+	unaryServerInterceptorBuilder fluffycore_contract_middleware.IUnaryServerInterceptorBuilder,
+	streamServerInterceptorBuilder fluffycore_contract_middleware.IStreamServerInterceptorBuilder) {
+}
 
 // IStartup contract
 type IStartup interface {
@@ -53,11 +60,11 @@ type IStartup interface {
 	ConfigureServices(ctx context.Context, builder di.ContainerBuilder)
 	SetRootContainer(container di.Container)
 
-	GetPreConfigureServerOpts(ctx context.Context) []grpc.ServerOption
+	ConfigureServerOpts(ctx context.Context) []grpc.ServerOption
+	// Deprecated: use ConfigureServerOpts
 	Configure(ctx context.Context, rootContainer di.Container,
 		unaryServerInterceptorBuilder fluffycore_contract_middleware.IUnaryServerInterceptorBuilder,
 		streamServerInterceptorBuilder fluffycore_contract_middleware.IStreamServerInterceptorBuilder)
-	GetPostConfigureServerOpts(ctx context.Context) []grpc.ServerOption
 
 	OnPreServerStartup(ctx context.Context) error
 	OnPostServerShutdown(ctx context.Context)
