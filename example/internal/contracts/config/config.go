@@ -62,12 +62,12 @@ var ConfigDefaultJSON = []byte(`
         "serviceName": "in-environment",
         "tracingConfig": {
             "enabled": false,
-            "endpointType": "http",
+            "endpointType": "stdout",
             "endpoint": "localhost:4318"
         },
         "metricConfig": {
             "enabled": false,
-            "endpointType": "http",
+            "endpointType": "stdout",
             "intervalSeconds": 10,
             "endpoint": "localhost:4318",
             "runtimeEnabled": false,
