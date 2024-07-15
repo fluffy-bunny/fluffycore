@@ -16,6 +16,7 @@ import (
 	fluffycore_contracts_otel "github.com/fluffy-bunny/fluffycore/contracts/otel"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	fluffycore_contracts_tasks "github.com/fluffy-bunny/fluffycore/contracts/tasks"
+	internal_auth "github.com/fluffy-bunny/fluffycore/example/internal/auth"
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
 	services_greeter "github.com/fluffy-bunny/fluffycore/example/internal/services/greeter"
 	services_health "github.com/fluffy-bunny/fluffycore/example/internal/services/health"
@@ -25,6 +26,7 @@ import (
 	fluffycore_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/middleware/auth/jwt"
 	mocks_contracts_oauth2 "github.com/fluffy-bunny/fluffycore/mocks/contracts/oauth2"
 	mocks_oauth2_echo "github.com/fluffy-bunny/fluffycore/mocks/oauth2/echo"
+	fluffycore_runtime_otel "github.com/fluffy-bunny/fluffycore/runtime/otel"
 	fluffycore_services_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/services/GRPCClientFactory"
 	fluffycore_services_ddprofiler "github.com/fluffy-bunny/fluffycore/services/ddprofiler"
 	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
@@ -35,7 +37,7 @@ import (
 
 type (
 	startup struct {
-		*FluffyCoreOTELStartup
+		*fluffycore_runtime_otel.FluffyCoreOTELStartup
 
 		configOptions *fluffycore_contracts_runtime.ConfigOptions
 		config        *contracts_config.Config
@@ -48,7 +50,9 @@ type (
 
 func NewStartup() fluffycore_contracts_runtime.IStartup {
 	return &startup{
-		FluffyCoreOTELStartup: NewFluffyCoreOTELStartup(),
+		FluffyCoreOTELStartup: fluffycore_runtime_otel.NewFluffyCoreOTELStartup(&fluffycore_runtime_otel.FluffyCoreOTELStartupConfig{
+			FuncAuthGetEntryPointConfigs: internal_auth.BuildGrpcEntrypointPermissionsClaimsMap,
+		}),
 	}
 }
 
@@ -194,7 +198,7 @@ func (s *startup) OnPreServerShutdown(ctx context.Context) {
 	log.Info().Msg("Stopping Datadog Tracer and Profiler")
 	s.ddProfiler.Stop(ctx)
 
-	log.Info().Msg("Datadog Tracer and Profiler stopped")
+	log.Info().Msg("FluffyCoreOTELStartup stopped")
 	s.FluffyCoreOTELStartup.OnPreServerShutdown(ctx)
 
 }

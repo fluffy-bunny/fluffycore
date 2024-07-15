@@ -1,11 +1,11 @@
-package runtime
+package otel
 
 import (
 	"context"
 
+	contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 	fluffycore_contracts_otel "github.com/fluffy-bunny/fluffycore/contracts/otel"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
-	internal_auth "github.com/fluffy-bunny/fluffycore/example/internal/auth"
 	fluffycore_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/middleware/auth/jwt"
 	fluffycore_middleware_claimsprincipal "github.com/fluffy-bunny/fluffycore/middleware/claimsprincipal"
 	fluffycore_middleware_correlation "github.com/fluffy-bunny/fluffycore/middleware/correlation"
@@ -24,12 +24,21 @@ type (
 	FluffyCoreOTELStartup struct {
 		*OTELContainer // embedded  OTEL
 		fluffycore_contracts_runtime.UnimplementedStartup
+		FluffyCoreOTELStartupConfig *FluffyCoreOTELStartupConfig
+	}
+	FuncAuthGetEntryPointConfigs func() map[string]contracts_common.IEntryPointConfig
+
+	FluffyCoreOTELStartupConfig struct {
+		FuncAuthGetEntryPointConfigs FuncAuthGetEntryPointConfigs
 	}
 )
 
-func NewFluffyCoreOTELStartup() *FluffyCoreOTELStartup {
-	obj := &FluffyCoreOTELStartup{}
-	obj.OTELContainer = NewOTELContainer()
+func NewFluffyCoreOTELStartup(fluffyCoreOTELStartupConfig *FluffyCoreOTELStartupConfig) *FluffyCoreOTELStartup {
+	obj := &FluffyCoreOTELStartup{
+		FluffyCoreOTELStartupConfig: fluffyCoreOTELStartupConfig,
+		OTELContainer:               NewOTELContainer(),
+	}
+
 	return obj
 }
 func (s *FluffyCoreOTELStartup) SetConfig(config *fluffycore_contracts_otel.OTELConfig) {
@@ -67,7 +76,8 @@ func (s *FluffyCoreOTELStartup) ConfigureServerOpts(ctx context.Context) []grpc.
 	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_auth_jwt.UnaryServerInterceptor(s.RootContainer)))
 
 	// Here the gating happens
-	grpcEntrypointClaimsMap := internal_auth.BuildGrpcEntrypointPermissionsClaimsMap()
+	//grpcEntrypointClaimsMap := internal_auth.BuildGrpcEntrypointPermissionsClaimsMap()
+	grpcEntrypointClaimsMap := s.FluffyCoreOTELStartupConfig.FuncAuthGetEntryPointConfigs()
 	// claims principal
 	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_claimsprincipal.UnaryServerInterceptor")
 	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_claimsprincipal.FinalAuthVerificationMiddlewareUsingClaimsMapWithZeroTrustV2(grpcEntrypointClaimsMap)))
