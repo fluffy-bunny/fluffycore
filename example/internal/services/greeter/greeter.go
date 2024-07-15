@@ -5,6 +5,7 @@ import (
 	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
+	fluffycore_contracts_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
 	fluffycore_contracts_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/contracts/somedisposable"
@@ -24,7 +25,7 @@ type (
 
 		config               *contracts_config.Config
 		scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable
-		otelTracingEnabled   bool
+		grpcClientFactory    fluffycore_contracts_GRPCClientFactory.IGRPCClientFactory
 	}
 	registrationServer struct {
 		proto_helloworld.GreeterFluffyCoreServer
@@ -44,15 +45,13 @@ func (s *registrationServer) RegisterHandler(gwmux *grpc_gateway_runtime.ServeMu
 }
 func (s *service) Ctor(
 	config *contracts_config.Config,
+	grpcClientFactory fluffycore_contracts_GRPCClientFactory.IGRPCClientFactory,
 	scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable) (proto_helloworld.IFluffyCoreGreeterServer, error) {
-	otelTracingEnabled := false
-	if config.OTELConfig != nil {
-		otelTracingEnabled = config.OTELConfig.TracingConfig.Enabled
-	}
+
 	return &service{
 		config:               config,
 		scopedSomeDisposable: scopedSomeDisposable,
-		otelTracingEnabled:   otelTracingEnabled,
+		grpcClientFactory:    grpcClientFactory,
 	}, nil
 }
 func AddGreeterService(builder di.ContainerBuilder) {
@@ -82,11 +81,8 @@ func (s *service) SayHello(ctx context.Context, request *proto_helloworld.HelloR
 		fluffycore_grpcclient.WithPort(50051),
 		fluffycore_grpcclient.WithInsecure(true),
 	}
-	if s.otelTracingEnabled {
-		opts = append(opts, fluffycore_grpcclient.WithOTELTracer(s.otelTracingEnabled))
-	}
 
-	grpcClient, err := fluffycore_grpcclient.NewGrpcClient(opts...)
+	grpcClient, err := s.grpcClientFactory.NewGrpcClient(opts...)
 	if err != nil {
 		log.Error().Err(err).Msg("Creating gRPC client")
 		return nil, err

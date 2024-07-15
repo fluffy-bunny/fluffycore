@@ -10,6 +10,7 @@ import (
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
+	fluffycore_contracts_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory"
 	fluffycore_contracts_ddprofiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
 	fluffycore_contracts_otel "github.com/fluffy-bunny/fluffycore/contracts/otel"
@@ -24,6 +25,7 @@ import (
 	fluffycore_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/middleware/auth/jwt"
 	mocks_contracts_oauth2 "github.com/fluffy-bunny/fluffycore/mocks/contracts/oauth2"
 	mocks_oauth2_echo "github.com/fluffy-bunny/fluffycore/mocks/oauth2/echo"
+	fluffycore_services_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/services/GRPCClientFactory"
 	fluffycore_services_ddprofiler "github.com/fluffy-bunny/fluffycore/services/ddprofiler"
 	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
 	madflojo_tasks "github.com/madflojo/tasks"
@@ -73,6 +75,12 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 	}
 	config.OTELConfig.ServiceName = config.ApplicationName
 	s.FluffyCoreOTELStartup.SetConfig(config.OTELConfig)
+	// add grpcclient factory that is config aware.  Will make sure that you get one that has otel tracing if enabled.
+	fluffycore_contracts_GRPCClientFactory.AddGRPCClientConfig(builder,
+		&fluffycore_contracts_GRPCClientFactory.GRPCClientConfig{
+			OTELTracingEnabled: config.OTELConfig.TracingConfig.Enabled,
+		})
+	fluffycore_services_GRPCClientFactory.AddSingletonIGRPCClientFactory(builder)
 
 	config.DDConfig.ApplicationEnvironment = config.ApplicationEnvironment
 	config.DDConfig.ServiceName = config.ApplicationName

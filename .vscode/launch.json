@@ -42,7 +42,7 @@
         "EXAMPLE_jwtValidators__jwksUrls": "http://localhost:50053/.well-known/jwks,http://host.docker.internal:50053/.well-known/jwks",
         "EXAMPLE_otelConfig__tracingConfig__enabled": "true",
         "EXAMPLE_otelConfig__metricConfig__enabled": "true",
-        "EXAMPLE_otelConfig__metricConfig__endpointType": "stdout",
+       // "EXAMPLE_otelConfig__metricConfig__endpointType": "stdout",
         "EXAMPLE_otelConfig__metricConfig__runtimeEnabled": "true",
         "EXAMPLE_otelConfig__metricConfig__hostEnabled": "true",
 

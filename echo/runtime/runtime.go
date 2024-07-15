@@ -184,7 +184,9 @@ func (s *Runtime) phase3() error {
 	// MIDDELWARE
 	//-------------------------------------------------------
 	s.echo.Use(middleware_logger.EnsureContextLogger(s.Container))
-	s.echo.Use(middleware_logger.EnsureContextLoggerCorrelation(s.Container))
+	//s.echo.Use(middleware_logger.EnsureContextLoggerCorrelation(s.Container))
+	s.echo.Use(middleware_logger.EnsureContextLoggerOTEL(s.Container))
+
 	s.echo.Use(middleware_container.EnsureScopedContainer(s.Container))
 
 	app := s.echo.Group("")
