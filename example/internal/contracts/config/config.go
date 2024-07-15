@@ -68,8 +68,10 @@ var ConfigDefaultJSON = []byte(`
             "enabled": false,
             "endpointType": "http",
             "intervalSeconds": 10,
-            "endpoint": "localhost:4318"
-        }
+            "endpoint": "localhost:4318",
+            "runtimeEnabled": false,
+            "hostEnabled": false
+        } 
     }
 }
 	`)

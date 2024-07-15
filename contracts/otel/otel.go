@@ -27,7 +27,10 @@ type (
 		EndpointType    EndpointType `json:"endpointType"`
 		Endpoint        string       `json:"endpoint"`
 		IntervalSeconds int          `json:"intervalSeconds"`
+		RuntimeEnabled  bool         `json:"runtimeEnabled"`
+		HostEnabled     bool         `json:"hostEnabled"`
 	}
+
 	OTELConfig struct {
 		ServiceName   string        `json:"serviceName"`
 		TracingConfig TracingConfig `json:"tracingConfig"`

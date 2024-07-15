@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"strings"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
@@ -11,7 +12,7 @@ import (
 	otel "go.opentelemetry.io/otel"
 	attribute "go.opentelemetry.io/otel/attribute"
 	propagation "go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	trace "go.opentelemetry.io/otel/trace"
 )
 
@@ -27,6 +28,21 @@ type traceConfig struct {
 	tracer      trace.Tracer
 	propagator  propagation.TextMapPropagator
 	attributes  []attribute.KeyValue
+}
+
+func Proto(proto string) string {
+	switch proto {
+	case "HTTP/1.0":
+		return "1.0"
+	case "HTTP/1.1":
+		return "1.1"
+	case "HTTP/2":
+		return "2"
+	case "HTTP/3":
+		return "3"
+	default:
+		return proto
+	}
 }
 
 // EnsureContextLoggerCorrelation ...
@@ -59,11 +75,11 @@ func EnsureContextLoggerOTEL(_ di.Container, opt ...TraceOption) echo.Middleware
 			ctx := config.propagator.Extract(requestCtx, propagation.HeaderCarrier(r.Header))
 			// the standard trace.SpanStartOption options whom are applied to every server handler.
 			opts := []trace.SpanStartOption{
-
-				trace.WithAttributes(semconv.NetAttributesFromHTTPRequest("tcp", r)...),
-				trace.WithAttributes(semconv.EndUserAttributesFromHTTPRequest(r)...),
-				trace.WithAttributes(semconv.HTTPServerAttributesFromHTTPRequest(r.Host, extractRoute(r.RequestURI), r)...),
-				trace.WithAttributes(semconv.HTTPClientAttributesFromHTTPRequest(r)...),
+				trace.WithAttributes(semconv.ServiceNameKey.String(config.serviceName)),
+				trace.WithAttributes(semconv.HTTPRequestMethodKey.String(r.Method)),
+				trace.WithAttributes(semconv.NetworkProtocolName(strings.ToLower(r.Proto))),
+				trace.WithAttributes(semconv.NetworkProtocolVersion(Proto(r.Proto))),
+				trace.WithAttributes(semconv.ServerAddress(r.Host)),
 				trace.WithAttributes(semconv.TelemetrySDKLanguageGo),
 				trace.WithSpanKind(trace.SpanKindClient),
 			}

@@ -57,9 +57,10 @@ func (u UnimplementedStartup) Configure(ctx context.Context, rootContainer di.Co
 type IStartup interface {
 	mustEmbedUnimplementedStartup()
 	GetConfigOptions() *ConfigOptions
+	// ConfigureService is where you add your objects to the DI container
 	ConfigureServices(ctx context.Context, builder di.ContainerBuilder)
 	SetRootContainer(container di.Container)
-
+	// ConfigureServerOpts is where you set up your interceptors and tracing.
 	ConfigureServerOpts(ctx context.Context) []grpc.ServerOption
 	// Deprecated: use ConfigureServerOpts
 	Configure(ctx context.Context, rootContainer di.Container,
@@ -67,6 +68,6 @@ type IStartup interface {
 		streamServerInterceptorBuilder fluffycore_contract_middleware.IStreamServerInterceptorBuilder)
 
 	OnPreServerStartup(ctx context.Context) error
-	OnPostServerShutdown(ctx context.Context)
 	OnPreServerShutdown(ctx context.Context)
+	OnPostServerShutdown(ctx context.Context)
 }
