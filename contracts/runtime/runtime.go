@@ -21,10 +21,14 @@ type (
 	}
 
 	UnimplementedStartup struct {
+		RootContainer di.Container
 	}
 )
 
 func (UnimplementedStartup) mustEmbedUnimplementedStartup() {}
+func (s *UnimplementedStartup) SetRootContainer(container di.Container) {
+	s.RootContainer = container
+}
 
 func (u UnimplementedStartup) GetPreConfigureServerOpts(ctx context.Context) []grpc.ServerOption {
 	return []grpc.ServerOption{}
