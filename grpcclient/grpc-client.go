@@ -17,6 +17,7 @@ import (
 	credentials "google.golang.org/grpc/credentials"
 	insecure "google.golang.org/grpc/credentials/insecure"
 	oauth "google.golang.org/grpc/credentials/oauth"
+	datadog_grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 )
 
 // Example Usage:
@@ -60,19 +61,19 @@ var defaultGrpcCallTimeoutInSeconds *int
 
 // GrpcClient object
 type GrpcClient struct {
-	conn              *grpc.ClientConn
-	target            string
-	authority         string
-	host              string
-	port              int
-	insecure          bool
-	sidecarSecured    bool
-	tracingMode       bool
-	certBundleFile    string
-	clientCerts       []tls.Certificate
-	ctx               context.Context
-	tokenSource       oauth2.TokenSource
-	enableOTELTracing bool
+	conn                 *grpc.ClientConn
+	target               string
+	authority            string
+	host                 string
+	port                 int
+	insecure             bool
+	sidecarSecured       bool
+	certBundleFile       string
+	clientCerts          []tls.Certificate
+	ctx                  context.Context
+	tokenSource          oauth2.TokenSource
+	enableOTELTracing    bool
+	enableDataDogTracing bool
 }
 
 // ClientOption is used for option pattern calling
@@ -83,9 +84,9 @@ type GrpcClientOption func(*GrpcClient) error
 func NewGrpcClient(opts ...GrpcClientOption) (*GrpcClient, error) {
 	// Create a client
 	c := &GrpcClient{
-		insecure:       true, // By default Envoy cares about security
-		sidecarSecured: true, // TODO: sidecarSecured/insecure should be set based on a cmdline/env option
-		tracingMode:    true,
+		insecure:          true, // By default Envoy cares about security
+		sidecarSecured:    true, // TODO: sidecarSecured/insecure should be set based on a cmdline/env option
+		enableOTELTracing: true,
 	}
 
 	// Process options
@@ -104,9 +105,23 @@ func NewGrpcClient(opts ...GrpcClientOption) (*GrpcClient, error) {
 	if !fluffycore_utils.IsEmptyOrNil(c.authority) {
 		dialOpts = append(dialOpts, grpc.WithAuthority(c.authority))
 	}
-	if c.tracingMode {
-		if c.enableOTELTracing {
+	tracingOpsFuncs := map[bool]func(){
+		c.enableOTELTracing: func() {
 			dialOpts = append(dialOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
+		},
+		c.enableDataDogTracing: func() {
+			streamTraceInterceptor := datadog_grpctrace.StreamClientInterceptor()
+			unaryTraceInterceptor := datadog_grpctrace.UnaryClientInterceptor()
+
+			dialOpts = append(dialOpts,
+				grpc.WithStreamInterceptor(streamTraceInterceptor),
+				grpc.WithUnaryInterceptor(unaryTraceInterceptor))
+		},
+	}
+	for k, v := range tracingOpsFuncs {
+		if k {
+			v()
+			break
 		}
 	}
 
@@ -190,7 +205,12 @@ func (c *GrpcClient) GetConnection() *grpc.ClientConn {
 // Options
 //
 
-// Sets full url to gRPC endpoint. Do not this method with WithHost or WithPort.
+func WithDataDpgTracer(enable bool) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.enableDataDogTracing = enable
+		return nil
+	}
+}
 func WithOTELTracer(enable bool) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.enableOTELTracing = enable
@@ -262,14 +282,6 @@ func WithSidecarSecured(sidecarSecured bool) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.insecure = sidecarSecured
 		c.sidecarSecured = sidecarSecured
-		return nil
-	}
-}
-
-// Do not pass Datadog trace headers
-func WithNoTracing() GrpcClientOption {
-	return func(c *GrpcClient) error {
-		c.tracingMode = false
 		return nil
 	}
 }
