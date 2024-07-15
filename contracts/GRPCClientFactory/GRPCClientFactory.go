@@ -9,7 +9,8 @@ import (
 
 type (
 	GRPCClientConfig struct {
-		OTELTracingEnabled bool `json:"otelTracingEnabled"`
+		OTELTracingEnabled    bool `json:"otelTracingEnabled"`
+		DataDogTracingEnabled bool `json:"dataDogTracingEnabled"`
 	}
 	// IGRPCClientFactory ...
 	IGRPCClientFactory interface {

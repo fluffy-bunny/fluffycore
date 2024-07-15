@@ -18,6 +18,7 @@ type (
 		Enabled bool `json:"enabled"`
 	}
 	Config struct {
+		TracingEnabled         bool              `json:"tracingEnabled"`
 		DDProfilerConfig       *DDProfilerConfig `json:"ddProfilerConfig"`
 		ServiceName            string            `json:"serviceName"`
 		ApplicationEnvironment string            `json:"applicationEnvironment"`

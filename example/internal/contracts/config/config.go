@@ -53,6 +53,7 @@ var ConfigDefaultJSON = []byte(`
         "ddProfilerConfig": {
             "enabled": false
         },
+        "tracingEnabled": false,
         "serviceName": "in-environment",
         "applicationEnvironment": "in-environment",
         "version": "1.0.0"

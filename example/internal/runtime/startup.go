@@ -82,10 +82,13 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 	// add grpcclient factory that is config aware.  Will make sure that you get one that has otel tracing if enabled.
 	fluffycore_contracts_GRPCClientFactory.AddGRPCClientConfig(builder,
 		&fluffycore_contracts_GRPCClientFactory.GRPCClientConfig{
-			OTELTracingEnabled: config.OTELConfig.TracingConfig.Enabled,
+			OTELTracingEnabled:    config.OTELConfig.TracingConfig.Enabled,
+			DataDogTracingEnabled: config.DDConfig.TracingEnabled,
 		})
 	fluffycore_services_GRPCClientFactory.AddSingletonIGRPCClientFactory(builder)
-
+	if config.DDConfig == nil {
+		config.DDConfig = &fluffycore_contracts_ddprofiler.Config{}
+	}
 	config.DDConfig.ApplicationEnvironment = config.ApplicationEnvironment
 	config.DDConfig.ServiceName = config.ApplicationName
 	config.DDConfig.Version = internal_version.Version()
