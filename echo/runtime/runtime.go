@@ -185,6 +185,7 @@ func (s *Runtime) phase3() error {
 	//-------------------------------------------------------
 	s.echo.Use(middleware_logger.EnsureContextLogger(s.Container))
 	//s.echo.Use(middleware_logger.EnsureContextLoggerCorrelation(s.Container))
+
 	s.echo.Use(middleware_logger.EnsureContextLoggerOTEL(s.Container))
 
 	s.echo.Use(middleware_container.EnsureScopedContainer(s.Container))
@@ -294,8 +295,14 @@ func (s *Runtime) finalPhase() error {
 	}
 
 	err := s.echo.Shutdown(ctx)
-
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to shutdown server")
+	}
 	response, err := future.Join()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to join future")
+		return err
+	}
 	asyncResponse := response
 	err = asyncResponse.Error
 	fmt.Println(asyncResponse.Message)

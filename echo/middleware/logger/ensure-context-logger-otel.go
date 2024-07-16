@@ -73,7 +73,12 @@ func EnsureContextLoggerOTEL(_ di.Container, opt ...TraceOption) echo.Middleware
 			requestCtx := r.Context()
 			// extract the OpenTelemetry span context from the context.Context object.
 			ctx := config.propagator.Extract(requestCtx, propagation.HeaderCarrier(r.Header))
-			traceID, _ := trace.TraceIDFromHex(r.Header.Get("x-b3-traceid"))
+			traceS := ""
+			traceID, err := trace.TraceIDFromHex(r.Header.Get("x-b3-traceid"))
+			if err == nil {
+				traceS = traceID.String()
+			}
+
 			// the standard trace.SpanStartOption options whom are applied to every server handler.
 			opts := []trace.SpanStartOption{
 				trace.WithAttributes(semconv.ServiceNameKey.String(config.serviceName)),
@@ -118,7 +123,9 @@ func EnsureContextLoggerOTEL(_ di.Container, opt ...TraceOption) echo.Middleware
 				correlationID = fluffycore_utils.GenerateUniqueID()
 			}
 			loggerMap["correlation_id"] = correlationID
-			loggerMap["trace_id"] = traceID.String()
+			if fluffycore_utils.IsNotEmptyOrNil(traceS) {
+				loggerMap["trace_id"] = traceS
+			}
 
 			// add the correlation id to the context
 			ctx = context.
