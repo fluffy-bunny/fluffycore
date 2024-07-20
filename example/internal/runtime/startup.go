@@ -10,9 +10,10 @@ import (
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
+	fluffycore_contracts_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory"
 	fluffycore_contracts_ddprofiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
-	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
+	fluffycore_contracts_otel "github.com/fluffy-bunny/fluffycore/contracts/otel"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	fluffycore_contracts_tasks "github.com/fluffy-bunny/fluffycore/contracts/tasks"
 	internal_auth "github.com/fluffy-bunny/fluffycore/example/internal/auth"
@@ -23,26 +24,20 @@ import (
 	services_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/services/somedisposable"
 	internal_version "github.com/fluffy-bunny/fluffycore/example/internal/version"
 	fluffycore_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/middleware/auth/jwt"
-	fluffycore_middleware_claimsprincipal "github.com/fluffy-bunny/fluffycore/middleware/claimsprincipal"
-	fluffycore_middleware_correlation "github.com/fluffy-bunny/fluffycore/middleware/correlation"
-	fluffycore_middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
-	fluffycore_middleware_logging "github.com/fluffy-bunny/fluffycore/middleware/logging"
 	mocks_contracts_oauth2 "github.com/fluffy-bunny/fluffycore/mocks/contracts/oauth2"
 	mocks_oauth2_echo "github.com/fluffy-bunny/fluffycore/mocks/oauth2/echo"
+	fluffycore_runtime_otel "github.com/fluffy-bunny/fluffycore/runtime/otel"
+	fluffycore_services_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/services/GRPCClientFactory"
 	fluffycore_services_ddprofiler "github.com/fluffy-bunny/fluffycore/services/ddprofiler"
 	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
-	status "github.com/gogo/status"
-	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	madflojo_tasks "github.com/madflojo/tasks"
 	async "github.com/reugn/async"
 	zerolog "github.com/rs/zerolog"
-	codes "google.golang.org/grpc/codes"
 )
 
 type (
 	startup struct {
-		fluffycore_contracts_runtime.UnimplementedStartup
-		RootContainer di.Container
+		*fluffycore_runtime_otel.FluffyCoreOTELStartup
 
 		configOptions *fluffycore_contracts_runtime.ConfigOptions
 		config        *contracts_config.Config
@@ -54,11 +49,13 @@ type (
 )
 
 func NewStartup() fluffycore_contracts_runtime.IStartup {
-	return &startup{}
+	return &startup{
+		FluffyCoreOTELStartup: fluffycore_runtime_otel.NewFluffyCoreOTELStartup(&fluffycore_runtime_otel.FluffyCoreOTELStartupConfig{
+			FuncAuthGetEntryPointConfigs: internal_auth.BuildGrpcEntrypointPermissionsClaimsMap,
+		}),
+	}
 }
-func (s *startup) SetRootContainer(container di.Container) {
-	s.RootContainer = container
-}
+
 func (s *startup) GetConfigOptions() *fluffycore_contracts_runtime.ConfigOptions {
 	s.config = &contracts_config.Config{}
 	s.configOptions = &fluffycore_contracts_runtime.ConfigOptions{
@@ -76,11 +73,27 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 	}
 	log.Info().Interface("config", dst).Msg("config")
 	config := s.configOptions.Destination.(*contracts_config.Config)
-	config.DDProfilerConfig.ApplicationEnvironment = config.ApplicationEnvironment
-	config.DDProfilerConfig.ServiceName = config.ApplicationName
-	config.DDProfilerConfig.Version = internal_version.Version()
-	di.AddInstance[*fluffycore_contracts_ddprofiler.Config](builder, config.DDProfilerConfig)
-	di.AddInstance[*contracts_config.Config](builder, config)
+	// need to set the OTEL Config in the base startup
+	if config.OTELConfig == nil {
+		config.OTELConfig = &fluffycore_contracts_otel.OTELConfig{}
+	}
+	config.OTELConfig.ServiceName = config.ApplicationName
+	s.FluffyCoreOTELStartup.SetConfig(config.OTELConfig)
+	// add grpcclient factory that is config aware.  Will make sure that you get one that has otel tracing if enabled.
+	fluffycore_contracts_GRPCClientFactory.AddGRPCClientConfig(builder,
+		&fluffycore_contracts_GRPCClientFactory.GRPCClientConfig{
+			OTELTracingEnabled:    config.OTELConfig.TracingConfig.Enabled,
+			DataDogTracingEnabled: config.DDConfig.TracingEnabled,
+		})
+	fluffycore_services_GRPCClientFactory.AddSingletonIGRPCClientFactory(builder)
+	if config.DDConfig == nil {
+		config.DDConfig = &fluffycore_contracts_ddprofiler.Config{}
+	}
+	config.DDConfig.ApplicationEnvironment = config.ApplicationEnvironment
+	config.DDConfig.ServiceName = config.ApplicationName
+	config.DDConfig.Version = internal_version.Version()
+	fluffycore_contracts_ddprofiler.AddDDConfig(builder, config.DDConfig)
+	contracts_config.AddConfig(builder, config)
 
 	fluffycore_services_ddprofiler.AddSingletonIProfiler(builder)
 	services_health.AddHealthService(builder)
@@ -99,43 +112,6 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 	}
 	fluffycore_middleware_auth_jwt.AddValidators(builder, issuerConfigs)
 }
-func (s *startup) Configure(ctx context.Context, rootContainer di.Container, unaryServerInterceptorBuilder fluffycore_contracts_middleware.IUnaryServerInterceptorBuilder, streamServerInterceptorBuilder fluffycore_contracts_middleware.IStreamServerInterceptorBuilder) {
-	log := zerolog.Ctx(ctx).With().Str("method", "Configure").Logger()
-
-	// puts a zerlog logger into the request context
-	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_logging.EnsureContextLoggingUnaryServerInterceptor")
-	unaryServerInterceptorBuilder.Use(fluffycore_middleware_logging.EnsureContextLoggingUnaryServerInterceptor())
-	log.Info().Msg("adding streamServerInterceptorBuilder: fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor")
-	streamServerInterceptorBuilder.Use(fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor())
-
-	// log correlation and spans
-	unaryServerInterceptorBuilder.Use(fluffycore_middleware_correlation.EnsureCorrelationIDUnaryServerInterceptor())
-	// dicontext is responsible of create a scoped context for each request.
-	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_dicontext.UnaryServerInterceptor")
-	unaryServerInterceptorBuilder.Use(fluffycore_middleware_dicontext.UnaryServerInterceptor(rootContainer))
-	log.Info().Msg("adding streamServerInterceptorBuilder: fluffycore_middleware_dicontext.StreamServerInterceptor")
-	streamServerInterceptorBuilder.Use(fluffycore_middleware_dicontext.StreamServerInterceptor(rootContainer))
-
-	// auth
-	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_auth_jwt.UnaryServerInterceptor")
-	unaryServerInterceptorBuilder.Use(fluffycore_middleware_auth_jwt.UnaryServerInterceptor(rootContainer))
-
-	// Here the gating happens
-	grpcEntrypointClaimsMap := internal_auth.BuildGrpcEntrypointPermissionsClaimsMap()
-	// claims principal
-	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_claimsprincipal.UnaryServerInterceptor")
-	unaryServerInterceptorBuilder.Use(fluffycore_middleware_claimsprincipal.FinalAuthVerificationMiddlewareUsingClaimsMapWithZeroTrustV2(grpcEntrypointClaimsMap))
-
-	// last is the recovery middleware
-	customFunc := func(p interface{}) (err error) {
-		return status.Errorf(codes.Unknown, "panic triggered: %v", p)
-	}
-	opts := []grpc_recovery.Option{
-		grpc_recovery.WithRecoveryHandler(customFunc),
-	}
-	unaryServerInterceptorBuilder.Use(grpc_recovery.UnaryServerInterceptor(opts...))
-
-}
 
 type taskTracker struct {
 	ID    string
@@ -146,6 +122,11 @@ type taskTracker struct {
 func (s *startup) OnPreServerStartup(ctx context.Context) error {
 	log := zerolog.Ctx(ctx).With().Str("method", "OnPreServerStartup").Logger()
 
+	err := s.FluffyCoreOTELStartup.OnPreServerStartup(ctx)
+	if err != nil {
+		return err
+	}
+
 	log.Info().Msg("starting up the ISingletonScheduler")
 	singletonScheduler := di.Get[fluffycore_contracts_tasks.ISingletonScheduler](s.RootContainer)
 
@@ -154,7 +135,6 @@ func (s *startup) OnPreServerStartup(ctx context.Context) error {
 		Interval: 5 * time.Second,
 		TaskFunc: func() error {
 			// Put your logic here
-
 			if myTaskTracker.Count > 2 {
 				log.Info().Interface("myTaskTracker", myTaskTracker).Msg("I am a task and I am stopping myself")
 				singletonScheduler.Del(myTaskTracker.ID)
@@ -203,8 +183,11 @@ func (s *startup) OnPreServerStartup(ctx context.Context) error {
 		}
 	})
 
-	s.ddProfiler = di.Get[fluffycore_contracts_ddprofiler.IDataDogProfiler](s.RootContainer)
-	s.ddProfiler.Start(ctx)
+	// TODO: is there an OTEL profiler
+	s.ddProfiler, err = di.TryGet[fluffycore_contracts_ddprofiler.IDataDogProfiler](s.RootContainer)
+	if err == nil {
+		s.ddProfiler.Start(ctx)
+	}
 	return nil
 }
 
@@ -217,6 +200,8 @@ func (s *startup) OnPreServerShutdown(ctx context.Context) {
 	log.Info().Msg("mockOAuth2Server shutdown complete")
 	log.Info().Msg("Stopping Datadog Tracer and Profiler")
 	s.ddProfiler.Stop(ctx)
-	log.Info().Msg("Datadog Tracer and Profiler stopped")
+
+	log.Info().Msg("FluffyCoreOTELStartup stopped")
+	s.FluffyCoreOTELStartup.OnPreServerShutdown(ctx)
 
 }

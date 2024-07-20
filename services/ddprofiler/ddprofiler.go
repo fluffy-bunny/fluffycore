@@ -15,8 +15,9 @@ import (
 
 type (
 	service struct {
-		errProfiler error
-		config      *contractsProfiler.Config
+		errProfiler     error
+		config          *contractsProfiler.Config
+		profilerEnabled bool
 	}
 
 	DatadogTracerLoggerShim struct {
@@ -50,13 +51,14 @@ func AddSingletonIProfiler(builder di.ContainerBuilder) {
 }
 func (s *service) Ctor(config *contractsProfiler.Config) (contractsProfiler.IDataDogProfiler, error) {
 	obj := &service{
-		config: config,
+		config:          config,
+		profilerEnabled: s.config.DDProfilerConfig != nil && s.config.DDProfilerConfig.Enabled,
 	}
 	return obj, nil
 }
 func (s *service) Start(ctx context.Context) {
 	log := zerolog.Ctx(ctx).With().Logger()
-	if s.config.Enabled {
+	if s.profilerEnabled {
 		log.Info().Msg("Starting Datadog Tracer and Profiler")
 		// Start datadog tracing
 		tracer.Start(
@@ -86,7 +88,7 @@ func (s *service) Start(ctx context.Context) {
 	}
 }
 func (s *service) Stop(ctx context.Context) {
-	if s.config.Enabled {
+	if s.profilerEnabled {
 		log.Info().Msg("Stoping Datadog Tracer and Profiler")
 		tracer.Stop()
 		if s.errProfiler == nil {

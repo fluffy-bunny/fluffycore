@@ -9,13 +9,15 @@ import (
 	"time"
 
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
-	"github.com/rs/zerolog/log"
-	"golang.org/x/oauth2"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/backoff"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/oauth"
-	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
+	log "github.com/rs/zerolog/log"
+	otelgrpc "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	oauth2 "golang.org/x/oauth2"
+	grpc "google.golang.org/grpc"
+	backoff "google.golang.org/grpc/backoff"
+	credentials "google.golang.org/grpc/credentials"
+	insecure "google.golang.org/grpc/credentials/insecure"
+	oauth "google.golang.org/grpc/credentials/oauth"
+	datadog_grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 )
 
 // Example Usage:
@@ -59,19 +61,19 @@ var defaultGrpcCallTimeoutInSeconds *int
 
 // GrpcClient object
 type GrpcClient struct {
-	conn           *grpc.ClientConn
-	target         string
-	authority      string
-	host           string
-	port           int
-	authToken      string
-	insecure       bool
-	sidecarSecured bool
-	tracingMode    bool
-	certBundleFile string
-	clientCerts    []tls.Certificate
-	ctx            context.Context
-	tokenSource    oauth2.TokenSource
+	conn                 *grpc.ClientConn
+	target               string
+	authority            string
+	host                 string
+	port                 int
+	insecure             bool
+	sidecarSecured       bool
+	certBundleFile       string
+	clientCerts          []tls.Certificate
+	ctx                  context.Context
+	tokenSource          oauth2.TokenSource
+	enableOTELTracing    bool
+	enableDataDogTracing bool
 }
 
 // ClientOption is used for option pattern calling
@@ -82,9 +84,9 @@ type GrpcClientOption func(*GrpcClient) error
 func NewGrpcClient(opts ...GrpcClientOption) (*GrpcClient, error) {
 	// Create a client
 	c := &GrpcClient{
-		insecure:       true, // By default Envoy cares about security
-		sidecarSecured: true, // TODO: sidecarSecured/insecure should be set based on a cmdline/env option
-		tracingMode:    true,
+		insecure:          true, // By default Envoy cares about security
+		sidecarSecured:    true, // TODO: sidecarSecured/insecure should be set based on a cmdline/env option
+		enableOTELTracing: true,
 	}
 
 	// Process options
@@ -97,22 +99,30 @@ func NewGrpcClient(opts ...GrpcClientOption) (*GrpcClient, error) {
 	}
 
 	dialOpts := []grpc.DialOption{
-		grpc.WithReturnConnectionError(),
 		grpc.WithDisableRetry(),
-		grpc.FailOnNonTempDialError(true),
 		grpc.WithConnectParams(grpc.ConnectParams{MinConnectTimeout: time.Second, Backoff: backoff.DefaultConfig}),
 	}
 	if !fluffycore_utils.IsEmptyOrNil(c.authority) {
 		dialOpts = append(dialOpts, grpc.WithAuthority(c.authority))
 	}
-	if c.tracingMode {
-		// Create DataDog interceptors to enabled distributed tracing
-		streamTraceInterceptor := grpctrace.StreamClientInterceptor()
-		unaryTraceInterceptor := grpctrace.UnaryClientInterceptor()
+	tracingOpsFuncs := map[bool]func(){
+		c.enableOTELTracing: func() {
+			dialOpts = append(dialOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
+		},
+		c.enableDataDogTracing: func() {
+			streamTraceInterceptor := datadog_grpctrace.StreamClientInterceptor()
+			unaryTraceInterceptor := datadog_grpctrace.UnaryClientInterceptor()
 
-		dialOpts = append(dialOpts,
-			grpc.WithStreamInterceptor(streamTraceInterceptor),
-			grpc.WithUnaryInterceptor(unaryTraceInterceptor))
+			dialOpts = append(dialOpts,
+				grpc.WithStreamInterceptor(streamTraceInterceptor),
+				grpc.WithUnaryInterceptor(unaryTraceInterceptor))
+		},
+	}
+	for k, v := range tracingOpsFuncs {
+		if k {
+			v()
+			break
+		}
 	}
 
 	// Let user choose whether to put full address or to put host & port separately
@@ -120,8 +130,6 @@ func NewGrpcClient(opts ...GrpcClientOption) (*GrpcClient, error) {
 	if url == "" {
 		url = fmt.Sprintf("%s:%d", c.host, c.port)
 	}
-
-	authToken := c.authToken
 
 	// Do we need to use a custom server root cert bundle?
 	if !c.insecure {
@@ -157,42 +165,24 @@ func NewGrpcClient(opts ...GrpcClientOption) (*GrpcClient, error) {
 		}
 
 		// Do we have auth to pass?
-		if !fluffycore_utils.IsEmptyOrNil(authToken) || !fluffycore_utils.IsEmptyOrNil(c.tokenSource) {
-			var rpcCreds credentials.PerRPCCredentials
-			if !fluffycore_utils.IsEmptyOrNil(c.tokenSource) {
-				// this wins
-				rpcCreds = oauth.TokenSource{TokenSource: c.tokenSource}
-			} else {
-				rpcCreds = oauth.NewOauthAccess(&oauth2.Token{AccessToken: authToken})
-			}
+		if fluffycore_utils.IsNotNil(c.tokenSource) {
+			rpcCreds := oauth.TokenSource{TokenSource: c.tokenSource}
 			dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(rpcCreds))
 		}
 
 	} else {
-		dialOpts = append(dialOpts, grpc.WithInsecure())
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
-		if !fluffycore_utils.IsEmptyOrNil(authToken) || !fluffycore_utils.IsEmptyOrNil(c.tokenSource) {
-			var rpcCreds credentials.PerRPCCredentials
-			// Do we have auth to pass?
-			// NOTE: We have a separate version here since golang's oauth requires TLS
-			if !fluffycore_utils.IsEmptyOrNil(c.tokenSource) {
-				// this wins
-				rpcCreds = NewOauthAccessFromTokenSource(c.tokenSource, c.sidecarSecured)
-			} else {
-				rpcCreds = NewOauthAccess(&oauth2.Token{AccessToken: authToken}, c.sidecarSecured)
-			}
-
+		if fluffycore_utils.IsNotNil(c.tokenSource) {
+			// this wins
+			rpcCreds := NewOauthAccessFromTokenSource(c.tokenSource, c.sidecarSecured)
 			dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(rpcCreds))
 		}
 	}
 
 	// Set up a connection to the server.
 	var err error
-	if fluffycore_utils.IsNil(c.ctx) {
-		c.conn, err = grpc.Dial(url, dialOpts...)
-	} else {
-		c.conn, err = grpc.DialContext(c.ctx, c.target, dialOpts...)
-	}
+	c.conn, err = grpc.NewClient(url, dialOpts...)
 	if err != nil {
 		log.Error().Err(err).Str("url", url).Msg("Failed to connect")
 		return nil, err
@@ -214,6 +204,19 @@ func (c *GrpcClient) GetConnection() *grpc.ClientConn {
 //
 // Options
 //
+
+func WithDataDpgTracer(enable bool) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.enableDataDogTracing = enable
+		return nil
+	}
+}
+func WithOTELTracer(enable bool) GrpcClientOption {
+	return func(c *GrpcClient) error {
+		c.enableOTELTracing = enable
+		return nil
+	}
+}
 
 // Sets full url to gRPC endpoint. Do not this method with WithHost or WithPort.
 func WithTarget(target string) GrpcClientOption {
@@ -254,13 +257,6 @@ func WithTokenSource(tokenSource oauth2.TokenSource) GrpcClientOption {
 	}
 }
 
-func WithAuthToken(authToken string) GrpcClientOption {
-	return func(c *GrpcClient) error {
-		c.authToken = authToken
-		return nil
-	}
-}
-
 func WithCertBundle(certBundleFile string) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.certBundleFile = certBundleFile
@@ -286,14 +282,6 @@ func WithSidecarSecured(sidecarSecured bool) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.insecure = sidecarSecured
 		c.sidecarSecured = sidecarSecured
-		return nil
-	}
-}
-
-// Do not pass Datadog trace headers
-func WithNoTracing() GrpcClientOption {
-	return func(c *GrpcClient) error {
-		c.tracingMode = false
 		return nil
 	}
 }

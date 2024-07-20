@@ -54,6 +54,13 @@ func (s *GreeterFluffyCoreServer) SayHello(ctx context.Context, request *HelloRe
 	return downstreamService.SayHello(ctx, request)
 }
 
+// SayHelloDownstream...
+func (s *GreeterFluffyCoreServer) SayHelloDownstream(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+	requestContainer := dicontext.GetRequestContainer(ctx)
+	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](requestContainer)
+	return downstreamService.SayHelloDownstream(ctx, request)
+}
+
 // IFluffyCoreGreeter2Server defines the grpc server
 type IFluffyCoreGreeter2Server interface {
 	Greeter2Server
