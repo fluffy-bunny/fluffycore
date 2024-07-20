@@ -6,10 +6,9 @@ import (
 	"github.com/rs/zerolog"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
-	"github.com/fluffy-bunny/fluffycore/utils"
-	core_utils "github.com/fluffy-bunny/fluffycore/utils"
-	"github.com/fluffy-bunny/fluffycore/wellknown"
-	"github.com/labstack/echo/v4"
+	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
+	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
+	echo "github.com/labstack/echo/v4"
 )
 
 // EnsureContextLoggerCorrelation ...
@@ -20,31 +19,31 @@ func EnsureContextLoggerCorrelation(_ di.Container) echo.MiddlewareFunc {
 			headers := c.Request().Header
 
 			// CORRELATION ID
-			correlationID := headers.Get(wellknown.XCorrelationIDName)
-			if core_utils.IsEmptyOrNil(correlationID) {
-				correlationID = utils.GenerateUniqueID()
+			correlationID := headers.Get(fluffycore_wellknown.XCorrelationIDName)
+			if fluffycore_utils.IsEmptyOrNil(correlationID) {
+				correlationID = fluffycore_utils.GenerateUniqueID()
 			}
 			loggerMap["correlation_id"] = correlationID
 
 			// SPANS
-			span := headers.Get(wellknown.XSpanName)
+			span := headers.Get(fluffycore_wellknown.XSpanName)
 
-			if !core_utils.IsEmptyOrNil(span) {
-				loggerMap[wellknown.LogParentName] = span
-				span = utils.GenerateUniqueID()
+			if !fluffycore_utils.IsEmptyOrNil(span) {
+				loggerMap[fluffycore_wellknown.LogParentName] = span
+				span = fluffycore_utils.GenerateUniqueID()
 			}
 			// generate a new span for this context
-			newSpanID := utils.GenerateUniqueID()
-			loggerMap[wellknown.LogSpanName] = newSpanID
+			newSpanID := fluffycore_utils.GenerateUniqueID()
+			loggerMap[fluffycore_wellknown.LogSpanName] = newSpanID
 
 			ctx := c.Request().Context()
 			// add the correlation id to the context
 			ctx = context.
-				WithValue(ctx, wellknown.XCorrelationIDName, correlationID)
+				WithValue(ctx, fluffycore_wellknown.XCorrelationIDName, correlationID)
 			ctx = context.
-				WithValue(ctx, wellknown.XParentName, span)
+				WithValue(ctx, fluffycore_wellknown.XParentName, span)
 			ctx = context.
-				WithValue(ctx, wellknown.XSpanName, newSpanID)
+				WithValue(ctx, fluffycore_wellknown.XSpanName, newSpanID)
 
 			log := zerolog.Ctx(ctx)
 			log.UpdateContext(func(c zerolog.Context) zerolog.Context {

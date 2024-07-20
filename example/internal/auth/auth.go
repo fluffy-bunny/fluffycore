@@ -12,6 +12,7 @@ var writeEndpoints = []string{
 var noAuthEndpoints = []string{
 	"/grpc.health.v1.Health/Check",
 	proto_helloworld.Greeter_SayHello_FullMethodName,
+	proto_helloworld.Greeter_SayHelloDownstream_FullMethodName,
 }
 
 func BuildGrpcEntrypointPermissionsClaimsMap() map[string]contracts_common.IEntryPointConfig {

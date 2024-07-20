@@ -29,7 +29,6 @@ import (
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
-	fluffycoreutils "github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	async "github.com/reugn/async"
@@ -43,8 +42,6 @@ import (
 	keepalive "google.golang.org/grpc/keepalive"
 	grpc_reflection "google.golang.org/grpc/reflection"
 )
-
-const bufSize = 1024 * 1024
 
 type ServerInstance struct {
 	Server *grpc.Server
@@ -90,6 +87,7 @@ func (s *Runtime) Wait() {
 func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contract_runtime.IStartup) {
 	ctx := context.Background()
 	var err error
+
 	// start the pprof web server
 	pProfServer := NewPProfServer()
 	pProfServer.Start()
@@ -215,8 +213,10 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
 	startup.SetRootContainer(si.RootContainer)
-	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 	var serverOpts []grpc.ServerOption
+	serverOpts = append(serverOpts, startup.ConfigureServerOpts(ctx)...)
+	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
+
 	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepalive.ServerParameters{
 		MaxConnectionIdle: 5 * time.Minute, // <--- This fixes it!
 	}))
@@ -270,18 +270,14 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		// Create a client connection to the gRPC server we just started
 		// This is where the gRPC-Gateway proxies the requests
 		opts := []grpc.DialOption{
-			grpc.WithBlock(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		}
 
 		endpoint := fmt.Sprintf("0.0.0.0:%d", coreConfig.PORT)
 		// Create a client connection to the gRPC server we just started
 		// This is where the gRPC-Gateway proxies the requests
-		conn, err := grpc.DialContext(
-			ctx,
-			endpoint,
-			opts...,
-		)
+		conn, err := grpc.NewClient(endpoint, opts...)
+
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to dial server")
 		}
@@ -350,7 +346,7 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	v := viper.NewWithOptions(viper.KeyDelimiter("__"))
 	var err error
 	v.SetConfigType("json")
-	if !fluffycoreutils.IsEmptyOrNil(configOptions.EnvPrefix) {
+	if !fluffycore_utils.IsEmptyOrNil(configOptions.EnvPrefix) {
 		v.SetEnvPrefix(configOptions.EnvPrefix)
 	}
 	// Environment Variables override everything.
