@@ -28,6 +28,14 @@ type (
 		JWSMessage  *jws.Message
 		AccessToken string
 	}
+	JWTValidatorOptions struct {
+		ClockSkewMinutes    int    `json:"clockSkewMinutes"`
+		ValidateSignature   *bool  `json:"validateSignature"`
+		ValidateIssuer      *bool  `json:"validateIssuer"`
+		Issuer              string `json:"issuer"`
+		AltJWKSUrl          string `json:"altJWKSUrl"`
+		AltTokenEndpointUrl string `json:"altTokenEndpointUrl"`
+	}
 	IValidator interface {
 		ValidateAccessToken(cxt context.Context, rawToken *ParsedToken) (bool, error)
 	}
