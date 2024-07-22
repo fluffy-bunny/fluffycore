@@ -129,3 +129,9 @@ func FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOptionV2(grpcEntrypoi
 		return handler(ctx, req)
 	}
 }
+func FinalAuthVerificationMiddlewareNilVefication() grpc.UnaryServerInterceptor {
+	log.Info().Msg("FinalAuthVerificationMiddlewareNilVefication")
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		return handler(ctx, req)
+	}
+}
