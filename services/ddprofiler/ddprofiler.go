@@ -8,15 +8,15 @@ import (
 	"github.com/rs/zerolog/log"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
-	contractsProfiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
+	contracts_profiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
+	tracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	profiler "gopkg.in/DataDog/dd-trace-go.v1/profiler"
 )
 
 type (
 	service struct {
 		errProfiler     error
-		config          *contractsProfiler.Config
+		config          *contracts_profiler.Config
 		profilerEnabled bool
 	}
 
@@ -25,11 +25,9 @@ type (
 	}
 )
 
-var stemService = new(service)
+var stemService = (*service)(nil)
 
-func init() {
-	var _ contractsProfiler.IDataDogProfiler = (*service)(nil)
-}
+var _ contracts_profiler.IDataDogProfiler = (*service)(nil)
 
 // Shim method to make Datadog tracer log in JSON format instead of plain text
 func (d *DatadogTracerLoggerShim) Log(msg string) {
@@ -46,13 +44,18 @@ func NewDatadogTracerLoggerShim(logger *zerolog.Logger) *DatadogTracerLoggerShim
 	return &DatadogTracerLoggerShim{logger: logger}
 }
 
-func AddSingletonIProfiler(builder di.ContainerBuilder) {
-	di.AddSingleton[contractsProfiler.IDataDogProfiler](builder, stemService.Ctor)
+func AddSingletonIProfiler(builder di.ContainerBuilder, config *contracts_profiler.Config) {
+	contracts_profiler.AddDDConfig(builder, config)
+	di.AddSingleton[contracts_profiler.IDataDogProfiler](builder, stemService.Ctor)
 }
-func (s *service) Ctor(config *contractsProfiler.Config) (contractsProfiler.IDataDogProfiler, error) {
+func (s *service) Ctor(config *contracts_profiler.Config) (contracts_profiler.IDataDogProfiler, error) {
+	profilerEnabled := false
+	if config.DDProfilerConfig != nil {
+		profilerEnabled = config.DDProfilerConfig.Enabled
+	}
 	obj := &service{
 		config:          config,
-		profilerEnabled: s.config.DDProfilerConfig != nil && s.config.DDProfilerConfig.Enabled,
+		profilerEnabled: profilerEnabled,
 	}
 	return obj, nil
 }
