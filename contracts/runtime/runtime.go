@@ -26,6 +26,16 @@ type (
 )
 
 func (UnimplementedStartup) mustEmbedUnimplementedStartup() {}
+func (s *UnimplementedStartup) SetRootContainer(container di.Container) {
+	s.RootContainer = container
+}
+
+func (u UnimplementedStartup) GetPreConfigureServerOpts(ctx context.Context) []grpc.ServerOption {
+	return []grpc.ServerOption{}
+}
+func (u UnimplementedStartup) GetPostConfigureServerOpts(ctx context.Context) []grpc.ServerOption {
+	return []grpc.ServerOption{}
+}
 
 func (s *UnimplementedStartup) SetRootContainer(container di.Container) {
 	s.RootContainer = container
@@ -68,7 +78,9 @@ type IStartup interface {
 	// ConfigureService is where you add your objects to the DI container
 	ConfigureServices(ctx context.Context, builder di.ContainerBuilder)
 	SetRootContainer(container di.Container)
+ 
 	GetRootContainer() di.Container
+ 
 	// ConfigureServerOpts is where you set up your interceptors and tracing.
 	ConfigureServerOpts(ctx context.Context) []grpc.ServerOption
 	// Deprecated: use ConfigureServerOpts
