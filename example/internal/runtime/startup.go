@@ -93,10 +93,9 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 	config.DDConfig.ApplicationEnvironment = config.ApplicationEnvironment
 	config.DDConfig.ServiceName = config.ApplicationName
 	config.DDConfig.Version = internal_version.Version()
-	fluffycore_contracts_ddprofiler.AddDDConfig(builder, config.DDConfig)
 	contracts_config.AddConfig(builder, config)
 
-	fluffycore_services_ddprofiler.AddSingletonIProfiler(builder)
+	fluffycore_services_ddprofiler.AddSingletonIProfiler(builder, config.DDConfig)
 	services_health.AddHealthService(builder)
 	services_greeter.AddGreeterService(builder)
 	services_somedisposable.AddScopedSomeDisposable(builder)
@@ -112,9 +111,9 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 			})
 	}
 	fluffycore_middleware_auth_jwt.AddValidators(builder, issuerConfigs)
- 
+
 	services_auth_FinalAuthVerificationServerOptionAccessor_claimsprincipal.AddFinalAuthVerificationServerOptionAccessor(builder, internal_auth.BuildGrpcEntrypointPermissionsClaimsMap())
- 
+
 }
 
 type taskTracker struct {
