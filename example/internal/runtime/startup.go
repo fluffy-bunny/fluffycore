@@ -28,6 +28,7 @@ import (
 	mocks_oauth2_echo "github.com/fluffy-bunny/fluffycore/mocks/oauth2/echo"
 	fluffycore_runtime_otel "github.com/fluffy-bunny/fluffycore/runtime/otel"
 	fluffycore_services_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/services/GRPCClientFactory"
+	services_auth_FinalAuthVerificationServerOptionAccessor_claimsprincipal "github.com/fluffy-bunny/fluffycore/services/auth/FinalAuthVerificationServerOptionAccessor/claimsprincipal"
 	fluffycore_services_ddprofiler "github.com/fluffy-bunny/fluffycore/services/ddprofiler"
 	fluffycore_utils_redact "github.com/fluffy-bunny/fluffycore/utils/redact"
 	madflojo_tasks "github.com/madflojo/tasks"
@@ -111,6 +112,9 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 			})
 	}
 	fluffycore_middleware_auth_jwt.AddValidators(builder, issuerConfigs)
+ 
+	services_auth_FinalAuthVerificationServerOptionAccessor_claimsprincipal.AddFinalAuthVerificationServerOptionAccessor(builder, internal_auth.BuildGrpcEntrypointPermissionsClaimsMap())
+ 
 }
 
 type taskTracker struct {
