@@ -42,6 +42,19 @@ func removeIndex(s []string, index int) []string {
 	return s
 }
 
+// RemoveClaimType removes a claim type
+func (c *claimsPrincipal) RemoveClaimType(claimTypes ...string) {
+	for _, claimType := range claimTypes {
+		_, ok := c.claims[claimType]
+		if !ok {
+			return
+		}
+		delete(c.claims, claimType)
+		delete(c.fastMap, claimType)
+
+	}
+}
+
 // RemoveClaim removes a claims
 func (c *claimsPrincipal) RemoveClaim(claims ...fluffycore_contracts_common.Claim) {
 	for _, claim := range claims {
@@ -59,6 +72,10 @@ func (c *claimsPrincipal) RemoveClaim(claims ...fluffycore_contracts_common.Clai
 		}
 		if foundidx != nil {
 			c.claims[claim.Type] = removeIndex(claims, *foundidx)
+			if len(c.claims[claim.Type]) == 0 {
+				delete(c.claims, claim.Type)
+				delete(c.fastMap, claim.Type)
+			}
 		}
 	}
 }
