@@ -2,6 +2,8 @@ package common
 
 import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
+	fluffycore_contracts_auth "github.com/fluffy-bunny/fluffycore/contracts/auth"
+	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 	fluffycore_services_auth_FinalAuthVerificationServerOptionAccessor_nilverification "github.com/fluffy-bunny/fluffycore/services/auth/FinalAuthVerificationServerOptionAccessor/nilverification"
 	fluffycore_services_common_cache "github.com/fluffy-bunny/fluffycore/services/common/cache"
 	fluffycore_services_common_claimsprincipal "github.com/fluffy-bunny/fluffycore/services/common/claimsprincipal"
@@ -18,4 +20,6 @@ func AddCommonServices(builder di.ContainerBuilder) {
 	fluffycore_services_common_cache.AddMemoryCache(builder)
 	fluffycore_services_tasks.AddTasksServices(builder)
 	fluffycore_services_auth_FinalAuthVerificationServerOptionAccessor_nilverification.AddFinalAuthVerificationServerOptionAccessor(builder)
+	fluffycore_contracts_auth.AddGetEntryPointConfigFunc(builder, make(map[string]fluffycore_contracts_common.IEntryPointConfig))
+
 }
