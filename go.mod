@@ -1,6 +1,7 @@
 module github.com/fluffy-bunny/fluffycore
 
 go 1.22
+toolchain go1.23.0
 
 //replace github.com/fluffy-bunny/viperEx => ../ViperEx
 
@@ -22,7 +23,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/securecookie v1.1.2
-	github.com/gorilla/sessions v1.3.0
+	github.com/gorilla/sessions v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
 	github.com/jedib0t/go-pretty/v6 v6.5.9
