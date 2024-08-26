@@ -68,8 +68,8 @@ github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk5
 github.com/alexedwards/argon2id v1.0.0 h1:wJzDx66hqWX7siL/SRUmgz3F8YMrd/nfX/xHHcQQP0w=
 github.com/alexedwards/argon2id v1.0.0/go.mod h1:tYKkqIjzXvZdzPvADMWOEZ+l6+BD6CtBXMj5fnJppiw=
 github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
-github.com/auth0/go-jwt-middleware/v2 v2.2.1 h1:pqxEIwlCztD0T9ZygGfOrw4NK/F9iotnCnPJVADKbkE=
-github.com/auth0/go-jwt-middleware/v2 v2.2.1/go.mod h1:CSi0tuu0QrALbWdiQZwqFL8SbBhj4e2MJzkvNfjY0Us=
+github.com/auth0/go-jwt-middleware/v2 v2.2.2 h1:vrvkFZf72r3Qbt45KLjBG3/6Xq2r3NTixWKu2e8de9I=
+github.com/auth0/go-jwt-middleware/v2 v2.2.2/go.mod h1:4vwxpVtu/Kl4c4HskT+gFLjq0dra8F1joxzamrje6J0=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
