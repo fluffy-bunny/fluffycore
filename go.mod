@@ -38,7 +38,7 @@ require (
 	github.com/pkg/profile v1.7.0
 	github.com/quasoft/memstore v0.0.0-20191010062613-2bce066d2b0b
 	github.com/redis/go-redis/v9 v9.6.1
-	github.com/reugn/async v0.8.0
+	github.com/reugn/async v0.9.0
 	github.com/rs/xid v1.5.0
 	github.com/rs/zerolog v1.33.0
 	github.com/sirupsen/logrus v1.9.3
