@@ -46,8 +46,8 @@ func NewTestStartup(testStartupHook ITestStartup, innerStartup fluffycore_contra
 
 	return wrapper
 }
-func ExecuteWithPromiseAsync(runtime *fluffycore_runtime.Runtime, statup fluffycore_contracts_runtime.IStartup, lis *bufconn.Listener) async.Future[fluffycore_async.AsyncResponse] {
-	future := fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[fluffycore_async.AsyncResponse]) {
+func ExecuteWithPromiseAsync(runtime *fluffycore_runtime.Runtime, statup fluffycore_contracts_runtime.IStartup, lis *bufconn.Listener) async.Future[*fluffycore_async.AsyncResponse] {
+	future := fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[*fluffycore_async.AsyncResponse]) {
 		var err error
 		defer func() {
 			promise.Success(&fluffycore_async.AsyncResponse{

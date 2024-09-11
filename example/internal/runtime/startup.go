@@ -44,7 +44,7 @@ type (
 		config        *contracts_config.Config
 
 		mockOAuth2Server       *mocks_oauth2_echo.MockOAuth2Service
-		mockOAuth2ServerFuture async.Future[fluffycore_async.AsyncResponse]
+		mockOAuth2ServerFuture async.Future[*fluffycore_async.AsyncResponse]
 		ddProfiler             fluffycore_contracts_ddprofiler.IDataDogProfiler
 	}
 )
@@ -168,7 +168,7 @@ func (s *startup) OnPreServerStartup(ctx context.Context) error {
 	s.mockOAuth2Server = mocks_oauth2_echo.NewOAuth2TestServer(&mocks_contracts_oauth2.MockOAuth2Config{
 		Clients: clients,
 	})
-	s.mockOAuth2ServerFuture = fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[fluffycore_async.AsyncResponse]) {
+	s.mockOAuth2ServerFuture = fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[*fluffycore_async.AsyncResponse]) {
 		var err error
 		defer func() {
 			promise.Success(&fluffycore_async.AsyncResponse{
