@@ -53,9 +53,9 @@ require (
 	github.com/tufin/asciitree v0.0.0-20210127111056-bf70173ef677
 	github.com/ziflex/lecho/v3 v3.7.0
 	go.mongodb.org/mongo-driver v1.16.1
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0
-	go.opentelemetry.io/contrib/instrumentation/host v0.54.0
-	go.opentelemetry.io/contrib/instrumentation/runtime v0.54.0
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.55.0
+	go.opentelemetry.io/contrib/instrumentation/host v0.55.0
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.55.0
 	go.opentelemetry.io/otel v1.30.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.30.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.30.0
@@ -126,7 +126,7 @@ require (
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
-	github.com/lufia/plan9stats v0.0.0-20240819163618-b1d8f4d146e7 // indirect
+	github.com/lufia/plan9stats v0.0.0-20240909124753-873cd0166683 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -151,7 +151,7 @@ require (
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.7.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
-	github.com/shirou/gopsutil/v4 v4.24.7 // indirect
+	github.com/shirou/gopsutil/v4 v4.24.8 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
