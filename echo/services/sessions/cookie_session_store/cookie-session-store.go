@@ -49,11 +49,24 @@ func (s *service) Ctor(
 	if err != nil {
 		return nil, err
 	}
-	var store = gorilla_sessions.NewCookieStore(
-		[]byte(config.AuthenticationKey),
-		[]byte(config.EncryptionKey),
-	)
+	var store *gorilla_sessions.CookieStore
+	if config.Insecure {
+		store = gorilla_sessions.NewCookieStore(
+			[]byte(config.AuthenticationKey),
+		)
+	} else {
+		store = gorilla_sessions.NewCookieStore(
+			[]byte(config.AuthenticationKey),
+			[]byte(config.EncryptionKey),
+		)
+	}
+
 	store.Options.Domain = config.Domain
+	if config.Insecure {
+		store.Options.Secure = false
+		store.Options.HttpOnly = true
+		store.Options.SameSite = http.SameSiteLaxMode
+	}
 	store.MaxAge(config.MaxAge)
 	return &service{
 		config:   config,

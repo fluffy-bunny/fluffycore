@@ -59,5 +59,6 @@ type (
 		AuthenticationKey string `json:"authenticationKey"`
 		Domain            string `json:"domain"`
 		MaxAge            int    `json:"maxAge"`
+		Insecure          bool   `json:"insecure"`
 	}
 )

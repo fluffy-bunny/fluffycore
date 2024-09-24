@@ -192,9 +192,9 @@ func (p *ClaimsAST) _string(op fluffycore_contracts_common.Operand) string {
 
 	switch op {
 	case and:
-		return "(" + strings.Join(groups, " && ") + ")"
+		return "(" + strings.Join(groups, " AND ") + ")"
 	case or:
-		return "(" + strings.Join(groups, " || ") + ")"
+		return "(" + strings.Join(groups, " OR ") + ")"
 	}
 
 	log.Fatal().Int("op", int(op)).Msg("invalid operand")
