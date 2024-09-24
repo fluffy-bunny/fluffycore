@@ -36,7 +36,7 @@ func TestClaimsRootOnly(t *testing.T) {
 	}
 
 	fmt.Println(perms.String())
-	assert.Equal(t, "(has_claim(permissions|A) && has_claim(permissions|B))", perms.String())
+	assert.Equal(t, "(has_claim(permissions|A) AND has_claim(permissions|B))", perms.String())
 	assert.True(t, perms.Validate(NewmockClaimsPrincipalToken("A", "B", "C", "D")))
 	assert.False(t, perms.Validate(NewmockClaimsPrincipalToken("B", "C", "D")))
 	assert.False(t, perms.Validate(NewmockClaimsPrincipalToken("A", "C", "D")))
@@ -94,7 +94,7 @@ func TestClaimsAndOrGroup(t *testing.T) {
 	}
 	fmt.Println(perms.String())
 
-	require.Equal(t, "((has_claim_type(all) || (has_claim_type(org) && ((has_claim(permissions|A) || has_claim(permissions|B))))))", perms.String())
+	require.Equal(t, "((has_claim_type(all) OR (has_claim_type(org) AND ((has_claim(permissions|A) OR has_claim(permissions|B))))))", perms.String())
 
 	cp := NewmockClaimsPrincipalToken("secret")
 	cp.AddClaim(contracts_claimsprincipal.Claim{
@@ -154,7 +154,7 @@ func TestClaimsBranchAnd(t *testing.T) {
 		And: ands,
 	}
 
-	assert.Equal(t, "((has_claim(permissions|A) && has_claim(permissions|B)))", perms.String())
+	assert.Equal(t, "((has_claim(permissions|A) AND has_claim(permissions|B)))", perms.String())
 	assert.True(t, perms.Validate(NewmockClaimsPrincipalToken("A", "B", "C", "D")))
 	assert.False(t, perms.Validate(NewmockClaimsPrincipalToken("B", "C", "D")))
 	assert.False(t, perms.Validate(NewmockClaimsPrincipalToken("A", "C", "D")))
@@ -181,7 +181,7 @@ func TestClaimsBranchOr(t *testing.T) {
 		Or: ors,
 	}
 
-	require.Equal(t, "((has_claim(permissions|A) || has_claim(permissions|B)))", perms.String())
+	require.Equal(t, "((has_claim(permissions|A) OR has_claim(permissions|B)))", perms.String())
 	require.True(t, perms.Validate(NewmockClaimsPrincipalToken("A", "B", "C", "D")))
 	require.True(t, perms.Validate(NewmockClaimsPrincipalToken("B", "C", "D")))
 	require.True(t, perms.Validate(NewmockClaimsPrincipalToken("A", "C", "D")))
@@ -223,7 +223,7 @@ func TestClaimsBranchNot(t *testing.T) {
 		Not: nots,
 	}
 
-	assert.Equal(t, "(!(has_claim(permissions|A) && has_claim(permissions|B)))", perms.String())
+	assert.Equal(t, "(!(has_claim(permissions|A) AND has_claim(permissions|B)))", perms.String())
 	assert.True(t, perms.Validate(NewmockClaimsPrincipalToken("C", "D", "E", "F")))
 	assert.True(t, perms.Validate(NewmockClaimsPrincipalToken("A", "C", "D")))
 	assert.True(t, perms.Validate(NewmockClaimsPrincipalToken("B", "C", "D")))
@@ -255,7 +255,7 @@ func TestClaimsBranchNotNested(t *testing.T) {
 		Not: nots,
 	}
 
-	assert.Equal(t, "(!((has_claim(permissions|A) || has_claim(permissions|B))))", perms.String())
+	assert.Equal(t, "(!((has_claim(permissions|A) OR has_claim(permissions|B))))", perms.String())
 	assert.True(t, perms.Validate(NewmockClaimsPrincipalToken("C", "D", "E", "F")))
 	assert.False(t, perms.Validate(NewmockClaimsPrincipalToken("A", "C", "D")))
 	assert.False(t, perms.Validate(NewmockClaimsPrincipalToken("B", "C", "D")))
@@ -358,7 +358,7 @@ func TestClaimsDocSample(t *testing.T) {
 		}
 	*/
 	fmt.Println(perms.String())
-	assert.Equal(t, "(has_claim(permissions|A) && has_claim(permissions|B) && (has_claim(permissions|C) || has_claim(permissions|D)) && (has_claim(permissions|E) || has_claim(permissions|F) || (has_claim(permissions|G) && has_claim(permissions|H))) && !((has_claim(permissions|I) && has_claim(permissions|J))))", perms.String())
+	assert.Equal(t, "(has_claim(permissions|A) AND has_claim(permissions|B) AND (has_claim(permissions|C) OR has_claim(permissions|D)) AND (has_claim(permissions|E) OR has_claim(permissions|F) OR (has_claim(permissions|G) AND has_claim(permissions|H))) AND !((has_claim(permissions|I) AND has_claim(permissions|J))))", perms.String())
 
 	assert.True(t, perms.Validate(NewmockClaimsPrincipalToken("A", "B", "C", "D", "E", "F", "G", "H")))
 	assert.True(t, perms.Validate(NewmockClaimsPrincipalToken("A", "B", "C", "D", "E", "F", "G", "H", "I")))
