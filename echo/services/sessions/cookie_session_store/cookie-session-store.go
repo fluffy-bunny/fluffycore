@@ -64,8 +64,7 @@ func (s *service) Ctor(
 	store.Options.Domain = config.Domain
 	if config.Insecure {
 		store.Options.Secure = false
-		store.Options.HttpOnly = true
-		store.Options.SameSite = http.SameSiteLaxMode
+		store.Options.SameSite = 0
 	}
 	store.MaxAge(config.MaxAge)
 	return &service{
