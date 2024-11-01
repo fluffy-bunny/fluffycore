@@ -14,32 +14,29 @@ import (
 )
 
 const jwtKey = `{
-    "private_key": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIFA+8y3M5qxkjuI7HOUAPVgrsjUnu5kwRjsZlbCmyabCoAoGCCqGSM49\nAwEHoUQDQgAEYMrUm/S5+d+euQHrrzQMWJSFafSYcgUE0RYjfI7sErK75hSdE0aj\nPNMXaaDG395zD18VxjsmqPTWom17ncVnnw==\n-----END EC PRIVATE KEY-----\n",
-    "public_key": "-----BEGIN EC  PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYMrUm/S5+d+euQHrrzQMWJSFafSY\ncgUE0RYjfI7sErK75hSdE0ajPNMXaaDG395zD18VxjsmqPTWom17ncVnnw==\n-----END EC  PUBLIC KEY-----\n",
-    "not_before": "2022-01-02T00:00:00Z",
-    "not_after": "2023-01-02T00:00:00Z",
-    "password": "",
-    "kid": "0b2cd2e54c924ce89f010f242862367d",
-    "public_jwk": {
-        "alg": "ES256",
-        "crv": "P-256",
-        "kid": "0b2cd2e54c924ce89f010f242862367d",
-        "kty": "EC",
-        "use": "sig",
-        "x": "YMrUm_S5-d-euQHrrzQMWJSFafSYcgUE0RYjfI7sErI",
-        "y": "u-YUnRNGozzTF2mgxt_ecw9fFcY7Jqj01qJte53FZ58"
-    },
-    "private_jwk": {
-        "alg": "ES256",
-        "crv": "P-256",
-        "d": "UD7zLczmrGSO4jsc5QA9WCuyNSe7mTBGOxmVsKbJpsI",
-        "kid": "0b2cd2e54c924ce89f010f242862367d",
-        "kty": "EC",
-        "use": "sig",
-        "x": "YMrUm_S5-d-euQHrrzQMWJSFafSYcgUE0RYjfI7sErI",
-        "y": "u-YUnRNGozzTF2mgxt_ecw9fFcY7Jqj01qJte53FZ58"
-    }
-}`
+        "private_key": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIFyg95QloKek6oJQBWtJZL8u8ZDGOLjGsTp7ejUK/hUJ\n-----END PRIVATE KEY-----\n",
+        "public_key": "-----BEGIN ED25519 PUBLIC KEY-----\nMCowBQYDK2VwAyEAonYSt2V0HhMZSpiu2Mw9xz75aSUf2jYH1Hwn2Xz173s=\n-----END ED25519 PUBLIC KEY-----\n",
+        "not_before": "2023-11-01T14:50:22.7555184-07:00",
+        "not_after": "2030-11-01T14:50:22.7555184-07:00",
+        "kid": "526756287cc1938baa1a35c8b7a32368",
+        "public_jwk": {
+            "alg": "EdDSA",
+            "crv": "Ed25519",
+            "kid": "526756287cc1938baa1a35c8b7a32368",
+            "kty": "OKP",
+            "use": "sig",
+            "x": "onYSt2V0HhMZSpiu2Mw9xz75aSUf2jYH1Hwn2Xz173s"
+        },
+        "private_jwk": {
+            "alg": "EdDSA",
+            "crv": "Ed25519",
+            "kid": "526756287cc1938baa1a35c8b7a32368",
+            "kty": "OKP",
+            "use": "sig",
+            "x": "onYSt2V0HhMZSpiu2Mw9xz75aSUf2jYH1Hwn2Xz173s",
+            "d": "XKD3lCWgp6TqglAFa0lkvy7xkMY4uMaxOnt6NQr-FQk"
+        }
+    }`
 
 type (
 	PublicJwk struct {
@@ -270,6 +267,8 @@ func MintToken(claims IClaims) (string, error) {
 		method = jwt.SigningMethodES384
 	case "ES512":
 		method = jwt.SigningMethodES512
+	case "EdDSA":
+		method = jwt.SigningMethodEdDSA
 	default:
 		return "", fmt.Errorf("unsupported signing method: %s", signingKey.PrivateJwk.Alg)
 	}
@@ -278,6 +277,16 @@ func MintToken(claims IClaims) (string, error) {
 
 	var getKey = func() (interface{}, error) {
 		var key interface{}
+
+		if strings.HasPrefix(signingKey.PrivateJwk.Alg, "Ed") {
+			v, err := jwt.ParseEdPrivateKeyFromPEM(signedKey)
+			if err != nil {
+				return "", err
+			}
+			key = v
+			return key, nil
+		}
+
 		if strings.HasPrefix(signingKey.PrivateJwk.Alg, "ES") {
 			v, err := jwt.ParseECPrivateKeyFromPEM(signedKey)
 			if err != nil {
