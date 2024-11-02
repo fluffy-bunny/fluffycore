@@ -19,7 +19,7 @@ func TestJwtMinter(t *testing.T) {
 		o.ValidateScopes = true
 		o.ValidateOnBuild = true
 	})
-	keyMaterialJSON := GetSigningKeysJSON()
+	keyMaterialJSON := GetSigningKeysES256_JSON()
 	keymaterial := &fluffycore_contracts_jwtminter.KeyMaterial{}
 	err := json.Unmarshal([]byte(keyMaterialJSON), keymaterial)
 	require.NoError(t, err)
@@ -41,6 +41,36 @@ func TestJwtMinter(t *testing.T) {
 	claims.Set("exp", expiration)
 
 	token, err := jwtMinter.MintToken(context.TODO(), claims)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	b = di.Builder()
+	b.ConfigureOptions(func(o *di.Options) {
+		o.ValidateScopes = true
+		o.ValidateOnBuild = true
+	})
+	keyMaterialJSON = GetSigningKeysEdDSA_JSON()
+	keymaterial = &fluffycore_contracts_jwtminter.KeyMaterial{}
+	err = json.Unmarshal([]byte(keyMaterialJSON), keymaterial)
+	require.NoError(t, err)
+	di.AddInstance[*fluffycore_contracts_jwtminter.KeyMaterial](b, keymaterial)
+	// order maters for Singleton and Transient, they are both app scoped and the last one wins
+	AddSingletonIJWTMinter(b)
+	fluffycore_services_keymaterial.AddSingletonIKeyMaterial(b)
+	container = b.Build()
+
+	jwtMinter = di.Get[fluffycore_contracts_jwtminter.IJWTMinter](container)
+	require.NotNil(t, jwtMinter)
+
+	now = time.Now()
+	expiration = now.Add(24 * time.Hour).Unix()
+	claims = fluffycore_services_claims.NewClaims()
+	claims.Set("sub", "1234567890")
+	claims.Set("name", "John Doe")
+	claims.Set("iss", "http://example.com")
+	claims.Set("exp", expiration)
+
+	token, err = jwtMinter.MintToken(context.TODO(), claims)
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 

@@ -7,7 +7,7 @@ import (
 )
 
 var writeEndpoints = []string{
-	//proto_helloworld.Greeter_SayHello_FullMethodName,
+	proto_helloworld.Greeter_SayHelloAuth_FullMethodName,
 }
 var noAuthEndpoints = []string{
 	"/grpc.health.v1.Health/Check",

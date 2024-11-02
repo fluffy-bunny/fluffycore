@@ -61,6 +61,9 @@ func AddGreeterService(builder di.ContainerBuilder) {
 			return &registrationServer{}
 		})
 }
+func (s *service) SayHelloAuth(ctx context.Context, request *proto_helloworld.HelloRequest) (*proto_helloworld.HelloReply, error) {
+	return s.SayHello(ctx, request)
+}
 
 func (s *service) SayHelloDownstream(ctx context.Context, request *proto_helloworld.HelloRequest) (*proto_helloworld.HelloReply, error) {
 	log := zerolog.Ctx(ctx)

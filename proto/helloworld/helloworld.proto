@@ -33,6 +33,13 @@ service Greeter {
       body: "*"
     };
   }
+    // Sends a greeting
+    rpc SayHelloAuth (HelloRequest) returns (HelloReply) {
+      option (google.api.http) = {
+        post: "/v1/greeter/sayhello-auth"
+        body: "*"
+      };
+    }
   // SayHelloDownstream is called from SayHello to demonstrate grpc opentelemetry tracing
   rpc SayHelloDownstream (HelloRequest) returns (HelloReply) {
     option (google.api.http) = {
