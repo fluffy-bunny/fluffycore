@@ -8,7 +8,6 @@ import (
 	linq "github.com/ahmetb/go-linq/v3"
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_jwtminter "github.com/fluffy-bunny/fluffycore/contracts/jwtminter"
-	ecdsa "github.com/fluffy-bunny/fluffycore/utils/ecdsa"
 	jwk "github.com/lestrrat-go/jwx/v2/jwk"
 )
 
@@ -61,14 +60,61 @@ func (s *service) _reloadKeys() {
 		// return the last one.
 		s.signingKey = signingKeys[len(signingKeys)-1]
 
-		// strip off the encryption and store the open key for downstream ease of use
-		privateKey, publicKey, err := ecdsa.DecodePrivatePem(s.signingKey.Password, s.signingKey.PrivateKey)
-		if err != nil {
-			panic(err)
-		}
-		encPriv, _, err := ecdsa.Encode("", privateKey, publicKey)
-		s.signingKey.PrivateKey = encPriv
+		/*
+			// strip off the encryption and store the open key for downstream ease of use
+			var method jwt.SigningMethod
+			signingKey := s.signingKey
+			switch signingKey.PrivateJwk.Alg {
+			case "RS256":
+				method = jwt.SigningMethodRS256
+			case "RS384":
+				method = jwt.SigningMethodRS384
+			case "RS512":
+				method = jwt.SigningMethodRS512
+			case "ES256":
+				method = jwt.SigningMethodES256
+			case "ES384":
+				method = jwt.SigningMethodES384
+			case "ES512":
+				method = jwt.SigningMethodES512
+			case "EdDSA":
+				method = jwt.SigningMethodEdDSA
+			default:
+				panic("unsupported signing method")
+			}
+			signedKey := []byte(signingKey.PrivateKey)
 
+			var getKey = func() (interface{}, error) {
+				var key interface{}
+
+				if strings.HasPrefix(signingKey.PrivateJwk.Alg, "Ed") {
+					v, err := jwt.ParseEdPrivateKeyFromPEM(signedKey)
+					if err != nil {
+						return "", err
+					}
+					key = v
+					return key, nil
+				}
+
+				if strings.HasPrefix(signingKey.PrivateJwk.Alg, "ES") {
+					v, err := jwt.ParseECPrivateKeyFromPEM(signedKey)
+					if err != nil {
+						return "", err
+					}
+					key = v
+					return key, nil
+				}
+
+				v, err := jwt.ParseRSAPrivateKeyFromPEM(signedKey)
+				if err != nil {
+					return "", err
+				}
+				key = v
+				return key, nil
+			}
+
+			s.signingKey.PrivateKey = signingKey.PrivateKey
+		*/
 		var jwks []*fluffycore_contracts_jwtminter.PublicJwk
 		linq.From(s.keyMaterial.SigningKeys).Where(func(c interface{}) bool {
 			signingKey := c.(*fluffycore_contracts_jwtminter.SigningKey)

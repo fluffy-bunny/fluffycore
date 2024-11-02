@@ -54,6 +54,8 @@ func (s *service) MintToken(ctx context.Context, claims fluffycore_contracts_cla
 		method = jwt.SigningMethodES384
 	case "ES512":
 		method = jwt.SigningMethodES512
+	case "EdDSA":
+		method = jwt.SigningMethodEdDSA
 	default:
 		return "", status.Errorf(codes.InvalidArgument, "unsupported signing method: %s", signingKey.PrivateJwk.Alg)
 	}
@@ -62,6 +64,16 @@ func (s *service) MintToken(ctx context.Context, claims fluffycore_contracts_cla
 
 	var getKey = func() (interface{}, error) {
 		var key interface{}
+
+		if strings.HasPrefix(signingKey.PrivateJwk.Alg, "Ed") {
+			v, err := jwt.ParseEdPrivateKeyFromPEM(signedKey)
+			if err != nil {
+				return "", err
+			}
+			key = v
+			return key, nil
+		}
+
 		if strings.HasPrefix(signingKey.PrivateJwk.Alg, "ES") {
 			v, err := jwt.ParseECPrivateKeyFromPEM(signedKey)
 			if err != nil {
