@@ -17,7 +17,7 @@ const jwtKey = `{
         "private_key": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIFyg95QloKek6oJQBWtJZL8u8ZDGOLjGsTp7ejUK/hUJ\n-----END PRIVATE KEY-----\n",
         "public_key": "-----BEGIN ED25519 PUBLIC KEY-----\nMCowBQYDK2VwAyEAonYSt2V0HhMZSpiu2Mw9xz75aSUf2jYH1Hwn2Xz173s=\n-----END ED25519 PUBLIC KEY-----\n",
         "not_before": "2023-11-01T14:50:22.7555184-07:00",
-        "not_after": "2030-11-01T14:50:22.7555184-07:00",
+        "not_after": "2050-11-01T14:50:22.7555184-07:00",
         "kid": "526756287cc1938baa1a35c8b7a32368",
         "public_jwk": {
             "alg": "EdDSA",
