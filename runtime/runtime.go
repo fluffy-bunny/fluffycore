@@ -130,6 +130,21 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		target = logFile
 	}
 
+	grpcMaxReceiveMsgSizeMegs := fluffycore_utils.IntEnv("GRPC_MAX_RECEIVE_MSG_SIZE_MEGS", 4)
+	grpcMaxSendMsgSizeMegs := fluffycore_utils.IntEnv("GRPC_MAX_SEND_MSG_SIZE_MEGS", 4)
+	if grpcMaxReceiveMsgSizeMegs > 32 {
+		grpcMaxReceiveMsgSizeMegs = 32
+	}
+	if grpcMaxSendMsgSizeMegs > 32 {
+		grpcMaxSendMsgSizeMegs = 32
+	}
+	if grpcMaxReceiveMsgSizeMegs < 4 {
+		grpcMaxReceiveMsgSizeMegs = 4
+	}
+	if grpcMaxSendMsgSizeMegs < 4 {
+		grpcMaxSendMsgSizeMegs = 4
+	}
+
 	logLevel := fluffycore_utils.StringEnv("LOG_LEVEL", "info")
 	prettyLog := fluffycore_utils.BoolEnv("PRETTY_LOG", false)
 
@@ -214,6 +229,10 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
 	startup.SetRootContainer(si.RootContainer)
 	var serverOpts []grpc.ServerOption
+
+	serverOpts = append(serverOpts, grpc.MaxRecvMsgSize(grpcMaxReceiveMsgSizeMegs*1024*1024))
+	serverOpts = append(serverOpts, grpc.MaxSendMsgSize(grpcMaxSendMsgSizeMegs*1024*1024))
+
 	serverOpts = append(serverOpts, startup.ConfigureServerOpts(ctx)...)
 	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 
@@ -228,6 +247,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	if len(streamInterceptors) != 0 {
 		serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(streamInterceptors...))
 	}
+
 	grpcServer := grpc.NewServer(
 		serverOpts...,
 	)
