@@ -53,8 +53,8 @@ func newGenFileContext(gen *protogen.Plugin, file *protogen.File) *genFileContex
 	return ctx
 }
 func isServiceIgnored(service *protogen.Service) bool {
-	// Look for a comment consisting of "di:ignore"
-	const ignore = "di:ignore"
+	// Look for a comment consisting of "fluffycore:di:ignore"
+	const ignore = "fluffycore:di:ignore"
 	for _, comment := range service.Comments.LeadingDetached {
 		if strings.Contains(string(comment), ignore) {
 			return true
