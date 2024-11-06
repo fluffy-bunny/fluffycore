@@ -107,7 +107,7 @@ func getGRPCMsgSizeLimits() (int, int) {
 		grpcMaxSendMsgSizeMegs = minMsgSizeMegs
 	}
 
-	return grpcMaxReceiveMsgSizeMegs, grpcMaxSendMsgSizeMegs
+	return grpcMaxReceiveMsgSizeMegs * 1024 * 1024, grpcMaxSendMsgSizeMegs * 1024 * 1024
 }
 func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contract_runtime.IStartup) {
 	ctx := context.Background()
