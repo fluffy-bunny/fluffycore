@@ -1,8 +1,11 @@
 package claims
 
 import (
+	"fmt"
+	"time"
+
 	fluffycore_contracts_claims "github.com/fluffy-bunny/fluffycore/contracts/claims"
-	jwt "github.com/golang-jwt/jwt/v4"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 type (
@@ -29,6 +32,62 @@ func NewClaim(claimType string, claimValue interface{}) fluffycore_contracts_cla
 		claimType:  claimType,
 		claimValue: claimValue,
 	}
+}
+
+func (a *Claims) GetAudience() (jwt.ClaimStrings, error) {
+	aud, ok := (*a)["aud"].([]string)
+	if !ok {
+		return nil, fmt.Errorf("audience is not a string array")
+	}
+	return aud, nil
+}
+
+func (a *Claims) GetExpirationTime() (*jwt.NumericDate, error) {
+	exp, ok := (*a)["exp"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("expiration time is not a float64")
+	}
+
+	expTime := time.Unix(int64(exp), 0)
+	return &jwt.NumericDate{
+		Time: expTime,
+	}, nil
+}
+func (a *Claims) GetIssuedAt() (*jwt.NumericDate, error) {
+	iat, ok := (*a)["iat"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("issued at time is not a float64")
+	}
+
+	iatTime := time.Unix(int64(iat), 0)
+	return &jwt.NumericDate{
+		Time: iatTime,
+	}, nil
+}
+func (a *Claims) GetNotBefore() (*jwt.NumericDate, error) {
+	nbf, ok := (*a)["nbf"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("not before time is not a float64")
+	}
+
+	nbfTime := time.Unix(int64(nbf), 0)
+	return &jwt.NumericDate{
+		Time: nbfTime,
+	}, nil
+}
+func (a *Claims) GetIssuer() (string, error) {
+	iss, ok := (*a)["iss"].(string)
+	if !ok {
+		return "", fmt.Errorf("issuer is not a string")
+	}
+	return iss, nil
+}
+func (a *Claims) GetSubject() (string, error) {
+	sub, ok := (*a)["sub"].(string)
+	if !ok {
+		return "", fmt.Errorf("subject is not a string")
+	}
+	return sub, nil
 }
 
 // Valid claims verification

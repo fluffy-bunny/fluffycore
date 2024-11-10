@@ -1,7 +1,7 @@
 package claims
 
 import (
-	jwt "github.com/golang-jwt/jwt/v4"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 type (

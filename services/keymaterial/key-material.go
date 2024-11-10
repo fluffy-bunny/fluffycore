@@ -1,7 +1,15 @@
 package keymaterial
 
 import (
+	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -60,6 +68,11 @@ func (s *service) _reloadKeys() {
 		// return the last one.
 		s.signingKey = signingKeys[len(signingKeys)-1]
 
+		decrtypedPrivateKey, err := DecryptPEM([]byte(s.signingKey.PrivateKey), []byte(s.signingKey.Password))
+		if err != nil {
+			panic(err)
+		}
+		s.signingKey.DecryptedPrivateKey = string(decrtypedPrivateKey)
 		/*
 			// strip off the encryption and store the open key for downstream ease of use
 			var method jwt.SigningMethod
@@ -177,4 +190,90 @@ func (s *service) GetPublicWebKeys() ([]*fluffycore_contracts_jwtminter.PublicJw
 	defer s.lock.RUnlock()
 	//--~--~--~--~--~-- BARBED WIRE --~--~--~--~--~--~--
 	return s.jwks, nil
+}
+
+func DecryptPEM(encryptedPEM []byte, password []byte) ([]byte, error) {
+	// Parse PEM block
+	block, _ := pem.Decode(encryptedPEM)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+
+	// Check if encrypted
+	if block.Headers["Proc-Type"] != "4,ENCRYPTED" {
+		return encryptedPEM, nil // Return original if not encrypted
+	}
+
+	// Parse DEK-Info header
+	dekInfo := strings.Split(block.Headers["DEK-Info"], ",")
+	if len(dekInfo) != 2 {
+		return nil, fmt.Errorf("malformed DEK-Info header")
+	}
+
+	// Get cipher type and IV
+	cipherType := dekInfo[0]
+	if cipherType != "AES-256-CBC" {
+		return nil, fmt.Errorf("unsupported cipher: %s", cipherType)
+	}
+
+	// Decode IV from hex
+	iv, err := hex.DecodeString(dekInfo[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid IV: %v", err)
+	}
+
+	// Generate key from password and IV
+	key := generateKeyFromPassword(password, iv[:8], 32) // AES-256 needs 32 bytes
+
+	// Create cipher
+	block_cipher, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cipher: %v", err)
+	}
+
+	// Decrypt
+	mode := cipher.NewCBCDecrypter(block_cipher, iv)
+	decrypted := make([]byte, len(block.Bytes))
+	mode.CryptBlocks(decrypted, block.Bytes)
+
+	// Remove PKCS7 padding
+	paddingLen := int(decrypted[len(decrypted)-1])
+	decrypted = decrypted[:len(decrypted)-paddingLen]
+
+	// Encode decrypted key in PEM format
+	decryptedBlock := &pem.Block{
+		Type:  block.Type,
+		Bytes: decrypted,
+	}
+
+	// Encode to PEM
+	out := new(bytes.Buffer)
+	err = pem.Encode(out, decryptedBlock)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode decrypted key: %v", err)
+	}
+
+	return out.Bytes(), nil
+}
+
+// Helper function to generate key from password using OpenSSL's EVP_BytesToKey
+func generateKeyFromPassword(password, salt []byte, keyLen int) []byte {
+	var result []byte
+	hash := md5.New()
+
+	// First iteration
+	hash.Write(password)
+	hash.Write(salt)
+	result = hash.Sum(nil)
+
+	// Subsequent iterations
+	for len(result) < keyLen {
+		hash.Reset()
+		hash.Write(result)
+		hash.Write(password)
+		hash.Write(salt)
+		result = append(result, hash.Sum(nil)...)
+	}
+
+	return result[:keyLen]
 }
