@@ -7,7 +7,7 @@ import (
 	contracts_core_claimsprincipal "github.com/fluffy-bunny/fluffycore/contracts/common"
 	services_claimfact "github.com/fluffy-bunny/fluffycore/services/common/claimsprincipal"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/sirupsen/logrus"
 )
 

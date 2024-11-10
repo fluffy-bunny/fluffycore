@@ -29,14 +29,15 @@ type (
 		Y   string `json:"y"`
 	}
 	SigningKey struct {
-		PrivateKey string     `json:"private_key"`
-		PublicKey  string     `json:"public_key"`
-		NotBefore  time.Time  `json:"not_before"`
-		NotAfter   time.Time  `json:"not_after"`
-		Password   string     `json:"password"`
-		Kid        string     `json:"kid"`
-		PublicJwk  PublicJwk  `json:"public_jwk"`
-		PrivateJwk PrivateJwk `json:"private_jwk"`
+		PrivateKey          string     `json:"private_key"`
+		DecryptedPrivateKey string     `json:"decrypted_private_key"`
+		PublicKey           string     `json:"public_key"`
+		NotBefore           time.Time  `json:"not_before"`
+		NotAfter            time.Time  `json:"not_after"`
+		Password            string     `json:"password"`
+		Kid                 string     `json:"kid"`
+		PublicJwk           PublicJwk  `json:"public_jwk"`
+		PrivateJwk          PrivateJwk `json:"private_jwk"`
 	}
 	KeyMaterial struct {
 		SigningKeys []*SigningKey `json:"signing_keys"`
