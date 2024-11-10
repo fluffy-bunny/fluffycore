@@ -8,7 +8,7 @@ import (
 	"time"
 
 	mocks_contracts_oauth2 "github.com/fluffy-bunny/fluffycore/mocks/contracts/oauth2"
-	jwt "github.com/golang-jwt/jwt/v4"
+	jwt "github.com/golang-jwt/jwt/v5"
 	echo "github.com/labstack/echo/v4"
 	jwk "github.com/lestrrat-go/jwx/v2/jwk"
 )
@@ -216,6 +216,7 @@ func NewOAuth2TestServer(config *mocks_contracts_oauth2.MockOAuth2Config) *MockO
 type (
 	Claims  map[string]interface{}
 	IClaims interface {
+		jwt.Claims
 		Valid() error
 		Set(key string, value interface{}) error
 		Delete(key string) error
@@ -235,6 +236,61 @@ func (a *Claims) Valid() error {
 }
 func (a *Claims) Claims() Claims {
 	return *a
+}
+func (a *Claims) GetExpirationTime() (*jwt.NumericDate, error) {
+	exp, ok := (*a)["exp"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("expiration time is not a float64")
+	}
+
+	expTime := time.Unix(int64(exp), 0)
+	return &jwt.NumericDate{
+		Time: expTime,
+	}, nil
+
+}
+func (a *Claims) GetAudience() (jwt.ClaimStrings, error) {
+	aud, ok := (*a)["aud"].([]string)
+	if !ok {
+		return nil, fmt.Errorf("audience is not a string array")
+	}
+	return aud, nil
+}
+func (a *Claims) GetIssuedAt() (*jwt.NumericDate, error) {
+	iat, ok := (*a)["iat"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("issued at time is not a float64")
+	}
+
+	iatTime := time.Unix(int64(iat), 0)
+	return &jwt.NumericDate{
+		Time: iatTime,
+	}, nil
+}
+func (a *Claims) GetNotBefore() (*jwt.NumericDate, error) {
+	nbf, ok := (*a)["nbf"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("not before time is not a float64")
+	}
+
+	nbfTime := time.Unix(int64(nbf), 0)
+	return &jwt.NumericDate{
+		Time: nbfTime,
+	}, nil
+}
+func (a *Claims) GetIssuer() (string, error) {
+	iss, ok := (*a)["iss"].(string)
+	if !ok {
+		return "", fmt.Errorf("issuer is not a string")
+	}
+	return iss, nil
+}
+func (a *Claims) GetSubject() (string, error) {
+	sub, ok := (*a)["sub"].(string)
+	if !ok {
+		return "", fmt.Errorf("subject is not a string")
+	}
+	return sub, nil
 }
 
 func (a *Claims) Set(key string, value interface{}) error {

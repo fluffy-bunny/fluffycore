@@ -8,7 +8,7 @@ import (
 	fluffycore_contracts_claims "github.com/fluffy-bunny/fluffycore/contracts/claims"
 	fluffycore_contracts_jwtminter "github.com/fluffy-bunny/fluffycore/contracts/jwtminter"
 	status "github.com/gogo/status"
-	jwt "github.com/golang-jwt/jwt"
+	jwt "github.com/golang-jwt/jwt/v5"
 	codes "google.golang.org/grpc/codes"
 )
 
@@ -60,7 +60,7 @@ func (s *service) MintToken(ctx context.Context, claims fluffycore_contracts_cla
 		return "", status.Errorf(codes.InvalidArgument, "unsupported signing method: %s", signingKey.PrivateJwk.Alg)
 	}
 	kid := signingKey.Kid
-	signedKey := []byte(signingKey.PrivateKey)
+	signedKey := []byte(signingKey.DecryptedPrivateKey)
 
 	var getKey = func() (interface{}, error) {
 		var key interface{}
