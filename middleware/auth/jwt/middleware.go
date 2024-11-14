@@ -198,14 +198,37 @@ func _loadValidators(rootContainer di.Container) {
 	}
 	_validators = di.Get[[]fluffycore_contracts_middleware_auth_jwt.IValidator](rootContainer)
 }
-func UnaryServerInterceptor(rootContainer di.Container) grpc.UnaryServerInterceptor {
+
+type Validation struct {
+	AnonymousOnFailure bool
+}
+type ValidationOption func(*Validation)
+
+func WithAnonymousOnFailure() ValidationOption {
+	return func(v *Validation) {
+		v.AnonymousOnFailure = true
+	}
+}
+
+func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption) grpc.UnaryServerInterceptor {
 	_loadValidators(rootContainer)
+	validation := &Validation{}
+	for _, opt := range opts {
+		opt(validation)
+	}
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		scopedContainer := dicontext.GetRequestContainer(ctx)
 		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
 
 		rt, err := _validate(ctx)
 		if err != nil {
+			if validation.AnonymousOnFailure {
+				claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
+					Type:  string("sub"),
+					Value: "anonymous",
+				})
+				return handler(ctx, req)
+			}
 			e, ok := status.FromError(err)
 			if ok {
 				if e.Code() == codes.NotFound {
