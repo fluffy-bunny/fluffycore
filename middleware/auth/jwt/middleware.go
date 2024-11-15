@@ -159,10 +159,8 @@ func _validate(ctx context.Context) (*fluffycore_contracts_middleware_auth_jwt.P
 	if tokenPtr == nil {
 		return nil, status.Error(codes.NotFound, "no token found")
 	}
-	token := ""
-	if tokenPtr != nil {
-		token = *tokenPtr
-	}
+	token := *tokenPtr
+
 	rt, err := getRawToken(ctx, token)
 	if err != nil {
 		return nil, err
@@ -179,9 +177,6 @@ func _validate(ctx context.Context) (*fluffycore_contracts_middleware_auth_jwt.P
 	// validate the token
 	for _, validator := range _validators {
 		handled, err := validator.ValidateAccessToken(ctx, rt)
-		if err != nil {
-			log.Error().Msg("ValidateAccessToken")
-		}
 		if handled {
 			if err != nil {
 				return nil, err
