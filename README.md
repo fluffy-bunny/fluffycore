@@ -38,6 +38,13 @@ Note: I had to run bash on windows so I could pass `./api/proto/**/*.proto`
 ```bash
 go mod tidy
 go build .\protoc-gen-go-fluffycore-di\cmd\protoc-gen-go-fluffycore-di\
+go build .\protoc-gen-go-fluffycore-di\cmd\protoc-gen-go-fluffycore-nats\
+
+protoc   --go_out=paths=source_relative:.   ./nats/api/annotations.proto ./nats/api/handler.proto
+mkdir -p ./nats/api/annotations
+cp ./nats/api/*.go ./nats/api/annotations/
+
+protoc --go_out=. --go_opt paths=source_relative --grpc-gateway_out . --grpc-gateway_opt paths=source_relative --go-grpc_out . --go-grpc_opt paths=source_relative --go-fluffycore-di_out .  --go-fluffycore-nats_out .  --go-fluffycore-nats_opt paths=source_relative  --go-fluffycore-di_opt paths=source_relative,grpc_gateway=true  ./proto/helloworld/helloworld.proto
 
 protoc --go_out=. --go_opt paths=source_relative --grpc-gateway_out . --grpc-gateway_opt paths=source_relative --go-grpc_out . --go-grpc_opt paths=source_relative --go-fluffycore-di_out .  --go-fluffycore-di_opt paths=source_relative,grpc_gateway=true  ./proto/helloworld/helloworld.proto
 
