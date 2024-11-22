@@ -209,8 +209,8 @@ func (s *serviceGenContext) genService() {
 	g.P()
 
 	g.P("func AddSingleton", internalServerName, "(cb ", diPackage.Ident("ContainerBuilder"), ") {")
-	g.P("  	", diPackage.Ident("AddSingleton"), "[", contractsNatsMicroServicePackage.Ident("INATSMicroServiceRegisration"), "](cb, ", "stemService", internalServerName, ".Ctor)")
-	g.P("  	", diPackage.Ident("AddSingleton"), "[", interfaceServerName, "](cb, ", "stemService", internalRegistrationServerName, ".Ctor)")
+	g.P("  	", diPackage.Ident("AddSingleton"), "[", contractsNatsMicroServicePackage.Ident("INATSMicroServiceRegisration"), "](cb, ", "stemService", internalRegistrationServerName, ".Ctor)")
+	g.P("  	", diPackage.Ident("AddSingleton"), "[", interfaceServerName, "](cb, ", "stemService", internalServerName, ".Ctor)")
 
 	g.P("}")
 	g.P()

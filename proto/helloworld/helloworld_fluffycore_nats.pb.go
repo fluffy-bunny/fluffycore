@@ -40,8 +40,8 @@ var stemServiceGreeterFluffyCoreServerNATSMicroRegistration = (*GreeterFluffyCor
 var _ nats_micro_service.INATSMicroServiceRegisration = stemServiceGreeterFluffyCoreServerNATSMicroRegistration
 
 func AddSingletonGreeterFluffyCoreServerNATSMicro(cb fluffy_dozm_di.ContainerBuilder) {
-	fluffy_dozm_di.AddSingleton[nats_micro_service.INATSMicroServiceRegisration](cb, stemServiceGreeterFluffyCoreServerNATSMicro.Ctor)
-	fluffy_dozm_di.AddSingleton[IFluffyCoreGreeterServerNATSMicro](cb, stemServiceGreeterFluffyCoreServerNATSMicroRegistration.Ctor)
+	fluffy_dozm_di.AddSingleton[nats_micro_service.INATSMicroServiceRegisration](cb, stemServiceGreeterFluffyCoreServerNATSMicroRegistration.Ctor)
+	fluffy_dozm_di.AddSingleton[IFluffyCoreGreeterServerNATSMicro](cb, stemServiceGreeterFluffyCoreServerNATSMicro.Ctor)
 }
 
 func (s *GreeterFluffyCoreServerNATSMicroRegistration) Ctor(service IFluffyCoreGreeterServerNATSMicro) (nats_micro_service.INATSMicroServiceRegisration, error) {
@@ -190,8 +190,8 @@ var stemServiceGreeter2FluffyCoreServerNATSMicroRegistration = (*Greeter2FluffyC
 var _ nats_micro_service.INATSMicroServiceRegisration = stemServiceGreeter2FluffyCoreServerNATSMicroRegistration
 
 func AddSingletonGreeter2FluffyCoreServerNATSMicro(cb fluffy_dozm_di.ContainerBuilder) {
-	fluffy_dozm_di.AddSingleton[nats_micro_service.INATSMicroServiceRegisration](cb, stemServiceGreeter2FluffyCoreServerNATSMicro.Ctor)
-	fluffy_dozm_di.AddSingleton[IFluffyCoreGreeter2ServerNATSMicro](cb, stemServiceGreeter2FluffyCoreServerNATSMicroRegistration.Ctor)
+	fluffy_dozm_di.AddSingleton[nats_micro_service.INATSMicroServiceRegisration](cb, stemServiceGreeter2FluffyCoreServerNATSMicroRegistration.Ctor)
+	fluffy_dozm_di.AddSingleton[IFluffyCoreGreeter2ServerNATSMicro](cb, stemServiceGreeter2FluffyCoreServerNATSMicro.Ctor)
 }
 
 func (s *Greeter2FluffyCoreServerNATSMicroRegistration) Ctor(service IFluffyCoreGreeter2ServerNATSMicro) (nats_micro_service.INATSMicroServiceRegisration, error) {
@@ -285,8 +285,8 @@ var stemServiceMyStreamServiceFluffyCoreServerNATSMicroRegistration = (*MyStream
 var _ nats_micro_service.INATSMicroServiceRegisration = stemServiceMyStreamServiceFluffyCoreServerNATSMicroRegistration
 
 func AddSingletonMyStreamServiceFluffyCoreServerNATSMicro(cb fluffy_dozm_di.ContainerBuilder) {
-	fluffy_dozm_di.AddSingleton[nats_micro_service.INATSMicroServiceRegisration](cb, stemServiceMyStreamServiceFluffyCoreServerNATSMicro.Ctor)
-	fluffy_dozm_di.AddSingleton[IFluffyCoreMyStreamServiceServerNATSMicro](cb, stemServiceMyStreamServiceFluffyCoreServerNATSMicroRegistration.Ctor)
+	fluffy_dozm_di.AddSingleton[nats_micro_service.INATSMicroServiceRegisration](cb, stemServiceMyStreamServiceFluffyCoreServerNATSMicroRegistration.Ctor)
+	fluffy_dozm_di.AddSingleton[IFluffyCoreMyStreamServiceServerNATSMicro](cb, stemServiceMyStreamServiceFluffyCoreServerNATSMicro.Ctor)
 }
 
 func (s *MyStreamServiceFluffyCoreServerNATSMicroRegistration) Ctor(service IFluffyCoreMyStreamServiceServerNATSMicro) (nats_micro_service.INATSMicroServiceRegisration, error) {
