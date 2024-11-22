@@ -25,6 +25,7 @@ import (
 	services_cookies_insecure "github.com/fluffy-bunny/fluffycore/echo/services/cookies/insecure"
 	services_handler "github.com/fluffy-bunny/fluffycore/echo/services/handler"
 	core_echo_templates "github.com/fluffy-bunny/fluffycore/echo/templates"
+	"github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	fluffycore_runtime "github.com/fluffy-bunny/fluffycore/runtime"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	uuid "github.com/google/uuid"
@@ -353,5 +354,6 @@ func (s *Runtime) addDefaultServices(builder di.ContainerBuilder) error {
 	services_contextaccessor.AddScopedIEchoContextAccessor(builder)
 	services_handler.AddSingletonIHandlerFactory(builder)
 	services_cookies_insecure.AddCookies(builder)
+	nats_micro_service.AddCommonNATSServices(builder)
 	return nil
 }
