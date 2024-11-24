@@ -13,6 +13,7 @@ const (
 	fmtPackage                       = protogen.GoImportPath("fmt")
 	stringsPackage                   = protogen.GoImportPath("strings")
 	errorsPackage                    = protogen.GoImportPath("errors")
+	timePackage                      = protogen.GoImportPath("time")
 	grpcPackage                      = protogen.GoImportPath("google.golang.org/grpc")
 	grpcGatewayRuntimePackage        = protogen.GoImportPath("github.com/grpc-ecosystem/grpc-gateway/v2/runtime")
 	grpcStatusPackage                = protogen.GoImportPath("google.golang.org/grpc/status")
@@ -149,8 +150,149 @@ func (s *genFileContext) generateFileContent() {
 
 		serviceGenCtx := newServiceGenContext(s.packageName, s.uniqueRunID, gen, file, g, service)
 		serviceGenCtx.genService()
+		serviceGenCtx.genClient()
 		//serviceGenCtxs = append(serviceGenCtxs, serviceGenCtx)
 	}
+}
+func (s *serviceGenContext) genClient() {
+	//	gen := s.gen
+	//file := s.file
+	//	proto := file.Proto
+	g := s.g
+	service := s.service
+
+	atLeastOneMethod := false
+	for _, method := range service.Methods {
+		// only do it if it is not streaming
+		if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
+			atLeastOneMethod = true
+			break
+		}
+	}
+	if !atLeastOneMethod {
+		return
+	}
+	interfaceGRPCServerName := fmt.Sprintf("%vServerNATSMicro", service.GoName)
+	interfaceServerName := fmt.Sprintf("IFluffyCore%s", interfaceGRPCServerName)
+	internalClientName := fmt.Sprintf("%vNATSMicroClient", service.GoName)
+
+	/*
+			type (
+			serviceNATSClientServiceClient struct {
+				nc *nats.Conn
+			}
+		)
+	*/
+	g.P("type (")
+	g.P("	", internalClientName, " struct {")
+	g.P("		nc *", natsGoPackage.Ident("Conn"))
+	g.P("		groupName string")
+	g.P("	}")
+	g.P(")")
+
+	/*
+			func NewClient(nc *nats.Conn) (cloud_api_business_nats.NATSClientServiceClient, error) {
+			return &serviceNATSClientServiceClient{
+				nc: nc,
+			}, nil
+		}
+	*/
+	g.P("func New", internalClientName, "(nc *", natsGoPackage.Ident("Conn"), ") (", s.service.GoName, "Client, error) {")
+	g.P("  	pkgPath := ", reflectPackage.Ident("TypeOf"), "((*", interfaceServerName, ")(nil)).Elem().PkgPath()")
+	g.P("  	fullPath := ", fmtPackage.Ident("Sprintf"), "(\"%s/%s\", pkgPath, \"", service.GoName, "\")")
+	g.P("  	groupName := ", stringsPackage.Ident("ReplaceAll"), "(")
+	g.P("  		fullPath,")
+	g.P("  		\"/\",")
+	g.P("  		\".\",")
+	g.P("  	)")
+	g.P("	return &", internalClientName, "{")
+	g.P("		nc: nc,")
+	g.P("		groupName: groupName,")
+
+	g.P("	}, nil")
+	g.P("}")
+
+	/*
+			func (s *serviceNATSClientServiceClient) CreateNATSClient(ctx context.Context, in *cloud_api_business_nats.CreateNATSClientRequest, opts ...grpc.CallOption) (*cloud_api_business_nats.CreateNATSClientResponse, error) {
+
+			response := &cloud_api_business_nats.CreateNATSClientResponse{}
+
+			result, err := HandleNATSRequest(
+				ctx,
+				s.nc,
+				"go.mapped.dev.proto.cloud.api.business.nats.NATSClientService.CreateNATSClient",
+				in,
+				response,
+				2*time.Second,
+			)
+
+			return result, err
+
+		}
+	*/
+
+	for _, method := range service.Methods {
+		serverType := method.Parent.GoName
+		key := "/" + *s.file.Proto.Package + "." + serverType + "/" + method.GoName
+		methodGenCtx := s.MethodMapGenCtx[key]
+		methodGenCtx.generateClientMethodShim()
+	}
+}
+func (s *methodGenContext) grpcClientMethodSignature() string {
+	// 	CreateNATSClient(ctx context.Context, in *CreateNATSClientRequest, opts ...grpc.CallOption) (*CreateNATSClientResponse, error)
+
+	g := s.g
+	method := s.ProtogenMethod
+	var reqArgs []string
+	ret := ""
+	if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
+		reqArgs = append(reqArgs, "ctx "+g.QualifiedGoIdent(contextPackage.Ident("Context")))
+
+		reqArgs = append(reqArgs, "in *"+g.QualifiedGoIdent(method.Input.GoIdent))
+		reqArgs = append(reqArgs, "opts ... "+g.QualifiedGoIdent(grpcPackage.Ident("CallOption")))
+		ret = "(*" + g.QualifiedGoIdent(method.Output.GoIdent) + ", error)"
+
+	}
+
+	return method.GoName + "(" + strings.Join(reqArgs, ", ") + ") " + ret
+}
+func (s *methodGenContext) generateClientMethodShim() {
+	/*
+			func (s *serviceNATSClientServiceClient) CreateNATSClient(ctx context.Context, in *cloud_api_business_nats.CreateNATSClientRequest, opts ...grpc.CallOption) (*cloud_api_business_nats.CreateNATSClientResponse, error) {
+				response := &cloud_api_business_nats.CreateNATSClientResponse{}
+
+		result, err := HandleNATSRequest(
+			ctx,
+			s.nc,
+			"go.mapped.dev.proto.cloud.api.business.nats.NATSClientService.CreateNATSClient",
+			in,
+			response,
+			2*time.Second,
+		)
+
+		return result, err
+			}
+	*/
+	method := s.ProtogenMethod
+
+	g := s.g
+	service := s.service
+	internalClientName := fmt.Sprintf("%vNATSMicroClient", service.GoName)
+	g.P("// ", s.ProtogenMethod.GoName, "...")
+	g.P("func (s *", internalClientName, ") ", s.grpcClientMethodSignature(), "{")
+	g.P("	response := &", method.Output.GoIdent.GoName, "{}")
+	g.P("	result, err := ", serviceNatsMicroServicePackage.Ident("HandleNATSClientRequest"), "(")
+	g.P("		ctx,")
+	g.P("		s.nc,")
+	g.P("		", fmtPackage.Ident("Sprintf"), "(\"%s.", method.GoName, "\",s.groupName),")
+	g.P("		in,")
+	g.P("		response,")
+	g.P("		2*", g.QualifiedGoIdent(timePackage.Ident("Second")), ",")
+	g.P("	)")
+	g.P("   return result, err")
+	g.P("}")
+	g.P()
+
 }
 
 func (s *serviceGenContext) genService() {
@@ -319,8 +461,8 @@ func (s *methodGenContext) generateNATSMethodAddToServiceCall() {
 	g := s.g
 
 	g.P("	m.AddEndpoint(\"", method.GoName, "\",")
-	g.P("		micro.HandlerFunc(s.service.", method.GoName, "),")
-	g.P("		micro.WithEndpointMetadata(map[string]string{")
+	g.P("		", natsGoMicroPackage.Ident("HandlerFunc"), "(s.service.", method.GoName, "),")
+	g.P("		", natsGoMicroPackage.Ident("WithEndpointMetadata"), "(map[string]string{")
 	g.P("			\"description\":     \"", method.GoName, "\",")
 	g.P("			\"format\":          \"application/json\",")
 	g.P("			\"request_schema\": ", fluffyCoreUtilsPackage.Ident("SchemaFor"), "(&", method.Input.GoIdent.GoName, "{}),")
@@ -362,9 +504,7 @@ func (s *methodGenContext) generateNATSMicroMethodShim() {
 
 	g.P("// ", s.ProtogenMethod.GoName, "...")
 	g.P("func (s *", internalServerName, ") ", s.natsMethodSignature(), "{")
-	g.P("	", serviceNatsMicroServicePackage.Ident("HandleRequest"), "[")
-	g.P("		", method.Input.GoIdent.GoName, ",")
-	g.P("		", method.Output.GoIdent.GoName, "](")
+	g.P("	", serviceNatsMicroServicePackage.Ident("HandleRequest"), "(")
 	g.P("		s,")
 	g.P("		req,")
 	g.P("		func(r *", method.Input.GoIdent.GoName, ") error {")
