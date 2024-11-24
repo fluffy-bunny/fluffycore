@@ -167,12 +167,12 @@ func (s *GreeterFluffyCoreServerNATSMicro) SayHelloDownstream(req micro.Request)
 
 type (
 	GreeterNATSMicroClient struct {
-		nc        *nats_go.Conn
+		option    *nats_micro_service1.NATSClientOption
 		groupName string
 	}
 )
 
-func NewGreeterNATSMicroClient(nc *nats_go.Conn) (GreeterClient, error) {
+func NewGreeterNATSMicroClient(option *nats_micro_service1.NATSClientOption) (GreeterClient, error) {
 	pkgPath := reflect.TypeOf((*IFluffyCoreGreeterServerNATSMicro)(nil)).Elem().PkgPath()
 	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter")
 	groupName := strings.ReplaceAll(
@@ -180,8 +180,11 @@ func NewGreeterNATSMicroClient(nc *nats_go.Conn) (GreeterClient, error) {
 		"/",
 		".",
 	)
+	if option.Timeout == 0 {
+		option.Timeout = time.Second * 2
+	}
 	return &GreeterNATSMicroClient{
-		nc:        nc,
+		option:    option,
 		groupName: groupName,
 	}, nil
 }
@@ -191,11 +194,11 @@ func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest,
 	response := &HelloReply{}
 	result, err := nats_micro_service1.HandleNATSClientRequest(
 		ctx,
-		s.nc,
+		s.option.NC,
 		fmt.Sprintf("%s.SayHello", s.groupName),
 		in,
 		response,
-		2*time.Second,
+		s.option.Timeout,
 	)
 	return result, err
 }
@@ -205,11 +208,11 @@ func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequ
 	response := &HelloReply{}
 	result, err := nats_micro_service1.HandleNATSClientRequest(
 		ctx,
-		s.nc,
+		s.option.NC,
 		fmt.Sprintf("%s.SayHelloAuth", s.groupName),
 		in,
 		response,
-		2*time.Second,
+		s.option.Timeout,
 	)
 	return result, err
 }
@@ -219,11 +222,11 @@ func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *Hel
 	response := &HelloReply{}
 	result, err := nats_micro_service1.HandleNATSClientRequest(
 		ctx,
-		s.nc,
+		s.option.NC,
 		fmt.Sprintf("%s.SayHelloDownstream", s.groupName),
 		in,
 		response,
-		2*time.Second,
+		s.option.Timeout,
 	)
 	return result, err
 }
@@ -324,12 +327,12 @@ func (s *Greeter2FluffyCoreServerNATSMicro) SayHello(req micro.Request) {
 
 type (
 	Greeter2NATSMicroClient struct {
-		nc        *nats_go.Conn
+		option    *nats_micro_service1.NATSClientOption
 		groupName string
 	}
 )
 
-func NewGreeter2NATSMicroClient(nc *nats_go.Conn) (Greeter2Client, error) {
+func NewGreeter2NATSMicroClient(option *nats_micro_service1.NATSClientOption) (Greeter2Client, error) {
 	pkgPath := reflect.TypeOf((*IFluffyCoreGreeter2ServerNATSMicro)(nil)).Elem().PkgPath()
 	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter2")
 	groupName := strings.ReplaceAll(
@@ -337,8 +340,11 @@ func NewGreeter2NATSMicroClient(nc *nats_go.Conn) (Greeter2Client, error) {
 		"/",
 		".",
 	)
+	if option.Timeout == 0 {
+		option.Timeout = time.Second * 2
+	}
 	return &Greeter2NATSMicroClient{
-		nc:        nc,
+		option:    option,
 		groupName: groupName,
 	}, nil
 }
@@ -348,11 +354,11 @@ func (s *Greeter2NATSMicroClient) SayHello(ctx context.Context, in *HelloRequest
 	response := &HelloReply2{}
 	result, err := nats_micro_service1.HandleNATSClientRequest(
 		ctx,
-		s.nc,
+		s.option.NC,
 		fmt.Sprintf("%s.SayHello", s.groupName),
 		in,
 		response,
-		2*time.Second,
+		s.option.Timeout,
 	)
 	return result, err
 }

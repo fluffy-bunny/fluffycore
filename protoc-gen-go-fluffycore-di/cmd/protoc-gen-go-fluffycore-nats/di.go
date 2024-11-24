@@ -185,19 +185,19 @@ func (s *serviceGenContext) genClient() {
 	*/
 	g.P("type (")
 	g.P("	", internalClientName, " struct {")
-	g.P("		nc *", natsGoPackage.Ident("Conn"))
+	g.P("		option *", serviceNatsMicroServicePackage.Ident("NATSClientOption"))
 	g.P("		groupName string")
 	g.P("	}")
 	g.P(")")
 
 	/*
-			func NewClient(nc *nats.Conn) (cloud_api_business_nats.NATSClientServiceClient, error) {
+			func NewClient(nc *nats.NATSClientOption) (cloud_api_business_nats.NATSClientServiceClient, error) {
 			return &serviceNATSClientServiceClient{
 				nc: nc,
 			}, nil
 		}
 	*/
-	g.P("func New", internalClientName, "(nc *", natsGoPackage.Ident("Conn"), ") (", s.service.GoName, "Client, error) {")
+	g.P("func New", internalClientName, "(option *", serviceNatsMicroServicePackage.Ident("NATSClientOption"), ") (", s.service.GoName, "Client, error) {")
 	g.P("  	pkgPath := ", reflectPackage.Ident("TypeOf"), "((*", interfaceServerName, ")(nil)).Elem().PkgPath()")
 	g.P("  	fullPath := ", fmtPackage.Ident("Sprintf"), "(\"%s/%s\", pkgPath, \"", service.GoName, "\")")
 	g.P("  	groupName := ", stringsPackage.Ident("ReplaceAll"), "(")
@@ -205,8 +205,9 @@ func (s *serviceGenContext) genClient() {
 	g.P("  		\"/\",")
 	g.P("  		\".\",")
 	g.P("  	)")
+	g.P("  	if option.Timeout == 0 { option.Timeout = ", timePackage.Ident("Second"), " * 2}")
 	g.P("	return &", internalClientName, "{")
-	g.P("		nc: nc,")
+	g.P("		option: option,")
 	g.P("		groupName: groupName,")
 
 	g.P("	}, nil")
@@ -283,11 +284,11 @@ func (s *methodGenContext) generateClientMethodShim() {
 	g.P("	response := &", method.Output.GoIdent.GoName, "{}")
 	g.P("	result, err := ", serviceNatsMicroServicePackage.Ident("HandleNATSClientRequest"), "(")
 	g.P("		ctx,")
-	g.P("		s.nc,")
+	g.P("		s.option.NC,")
 	g.P("		", fmtPackage.Ident("Sprintf"), "(\"%s.", method.GoName, "\",s.groupName),")
 	g.P("		in,")
 	g.P("		response,")
-	g.P("		2*", g.QualifiedGoIdent(timePackage.Ident("Second")), ",")
+	g.P("		s.option.Timeout,")
 	g.P("	)")
 	g.P("   return result, err")
 	g.P("}")

@@ -24,6 +24,10 @@ func AddCommonNATSServices(builder di.ContainerBuilder) {
 type NATSRequestHeaderContainer struct {
 	Header map[string][]string
 }
+type NATSClientOption struct {
+	NC      *nats.Conn
+	Timeout time.Duration
+}
 
 var NATSRequestHeaderContainerKey = &NATSRequestHeaderContainer{}
 
