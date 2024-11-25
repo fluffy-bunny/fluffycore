@@ -3,10 +3,12 @@ package nats_micro_service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
+	fluffycore_contracts_nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
 	interceptor "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service/default/interceptor"
 	status "github.com/gogo/status"
 	nats "github.com/nats-io/nats.go"
@@ -31,15 +33,15 @@ type NATSClientOption struct {
 
 var NATSRequestHeaderContainerKey = &NATSRequestHeaderContainer{}
 
-func WithNATSRequestHeaderContainer(ctx context.Context, headerContainer NATSRequestHeaderContainer) context.Context {
+func WithNATSRequestHeaderContainer(ctx context.Context, headerContainer *NATSRequestHeaderContainer) context.Context {
 	return context.WithValue(ctx, NATSRequestHeaderContainerKey, headerContainer)
 }
-func GetNATSRequestHeaderContainer(ctx context.Context) NATSRequestHeaderContainer {
+func GetNATSRequestHeaderContainer(ctx context.Context) *NATSRequestHeaderContainer {
 	vv := ctx.Value(NATSRequestHeaderContainerKey)
 	if vv == nil {
-		return NATSRequestHeaderContainer{}
+		return &NATSRequestHeaderContainer{}
 	}
-	return vv.(NATSRequestHeaderContainer)
+	return vv.(*NATSRequestHeaderContainer)
 }
 
 // HandleNATSRequest is a standalone generic function to handle GRPC to NATS bridge requests
@@ -125,4 +127,75 @@ func HandleRequest[Req, Resp any](
 		return
 	}
 	req.Respond(pbJsonBytes)
+}
+
+type NATSMicroServicesContainer struct {
+	natsMicroSerivices []micro.Service
+	nc                 *nats.Conn
+	rootContainer      di.Container
+	mutex              sync.Mutex
+	registered         bool
+}
+
+func NewNATSMicroServicesContainer(nc *nats.Conn, rootContainer di.Container) *NATSMicroServicesContainer {
+	return &NATSMicroServicesContainer{
+		nc:            nc,
+		rootContainer: rootContainer,
+	}
+}
+func (s *NATSMicroServicesContainer) Register(ctx context.Context) error {
+	s.mutex.Lock()
+	defer func() {
+		s.mutex.Unlock()
+		s.registered = true
+	}()
+	if s.registered {
+		return nil
+	}
+	log := zerolog.Ctx(ctx).With().Logger()
+
+	natsMicroServiceRegistrations := di.Get[[]fluffycore_contracts_nats_micro_service.INATSMicroServiceRegisration](s.rootContainer)
+	for _, reg := range natsMicroServiceRegistrations {
+		natsMicroService, err := reg.AddService(s.nc,
+			&fluffycore_contracts_nats_micro_service.NATSMicroServiceRegisrationOption{})
+		if err != nil {
+			log.Error().Err(err).Msg("failed to AddService")
+			return err
+		}
+		s.natsMicroSerivices = append(s.natsMicroSerivices, natsMicroService)
+	}
+	return nil
+}
+
+func (s *NATSMicroServicesContainer) Shutdown(ctx context.Context) error {
+	s.mutex.Lock()
+	defer func() {
+		s.mutex.Unlock()
+	}()
+	if !s.registered {
+		return nil
+	}
+	log := zerolog.Ctx(ctx).With().Logger()
+	err := s.stopNATSMicroServices(ctx, s.natsMicroSerivices)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to StopNATSMicroServices")
+	}
+	s.nc.Close()
+	return nil
+}
+
+func (s *NATSMicroServicesContainer) stopNATSMicroServices(ctx context.Context, ms []micro.Service) error {
+	log := zerolog.Ctx(ctx).With().Logger()
+	errs := []error{}
+	for _, m := range ms {
+		err := m.Stop()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to Shutdown")
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to Stop some services %v", errs)
+	}
+	return nil
 }
