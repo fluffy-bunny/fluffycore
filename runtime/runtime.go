@@ -289,12 +289,29 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		panic(err)
 	}
 
+	if lis == nil {
+		if coreConfig.PORT == 0 {
+			panic("port is not set")
+		}
+		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", coreConfig.PORT))
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to listen")
+		}
+	}
+
+	future := asyncServeGRPC(ctx, grpcServer, lis)
+	si.Server = grpcServer
+	si.Future = future
+
+	// pause a bit to let things settle down.
+	time.Sleep(1 * time.Second)
+
 	// now we add NATS
 	if coreConfig.EnableNats {
 		go func() {
 			// special case as the hosting service may also be the nats auth service so
 			// we will wait a bit before the handlers come on line.
-			time.Sleep(5 * time.Second)
+
 			anyNatsHandler := fluffycore_nats_micro_service.IsAnyNatsHandler(si.RootContainer)
 			// no need to do anything if nothing here to be registered
 			if anyNatsHandler {
@@ -319,19 +336,6 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 			}
 		}()
 	}
-	if lis == nil {
-		if coreConfig.PORT == 0 {
-			panic("port is not set")
-		}
-		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", coreConfig.PORT))
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to listen")
-		}
-	}
-
-	future := asyncServeGRPC(ctx, grpcServer, lis)
-	si.Server = grpcServer
-	si.Future = future
 
 	if coreConfig.GRPCGateWayEnabled {
 		// Create a client connection to the gRPC server we just started
