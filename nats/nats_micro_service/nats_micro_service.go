@@ -19,6 +19,16 @@ import (
 	proto "google.golang.org/protobuf/proto"
 )
 
+type NATSMicroConfig struct {
+	NATSUrl         string `json:"natsUrl"`
+	ClientID        string `json:"clientId"`
+	ClientSecret    string `json:"clientSecret"`
+	TimeoutDuration string `json:"timeoutDuration"`
+}
+
+func AddNatsMicroConfig(builder di.ContainerBuilder, config *NATSMicroConfig) {
+	di.AddInstance[*NATSMicroConfig](builder, config)
+}
 func AddCommonNATSServices(builder di.ContainerBuilder) {
 	interceptor.AddSingletonNATSMicroInterceptors(builder)
 }
@@ -142,6 +152,10 @@ func NewNATSMicroServicesContainer(nc *nats.Conn, rootContainer di.Container) *N
 		nc:            nc,
 		rootContainer: rootContainer,
 	}
+}
+func IsAnyNatsHandler(rootContainer di.Container) bool {
+	natsMicroServiceRegistrations := di.Get[[]fluffycore_contracts_nats_micro_service.INATSMicroServiceRegisration](rootContainer)
+	return len(natsMicroServiceRegistrations) > 0
 }
 func (s *NATSMicroServicesContainer) Register(ctx context.Context) error {
 	s.mutex.Lock()

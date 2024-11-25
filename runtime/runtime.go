@@ -27,6 +27,8 @@ import (
 	fluffycore_contracts_tasks "github.com/fluffy-bunny/fluffycore/contracts/tasks"
 	services_health "github.com/fluffy-bunny/fluffycore/internal/services/health"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
+	fluffycore_nats_connect "github.com/fluffy-bunny/fluffycore/nats/nats_connect"
+	fluffycore_nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
@@ -54,6 +56,8 @@ type ServerInstance struct {
 	RootContainer di.Container
 	logSetupOnce  sync.Once
 	Scheduler     fluffycore_contracts_tasks.ISingletonScheduler
+
+	NATSMicroServicesContainer *fluffycore_nats_micro_service.NATSMicroServicesContainer
 }
 type Runtime struct {
 	ServerInstances *ServerInstance
@@ -284,6 +288,37 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		log.Error().Err(err).Msgf("OnPreServerStartup failed")
 		panic(err)
 	}
+
+	// now we add NATS
+	if coreConfig.EnableNats {
+		go func() {
+			// special case as the hosting service may also be the nats auth service so
+			// we will wait a bit before the handlers come on line.
+			time.Sleep(5 * time.Second)
+			anyNatsHandler := fluffycore_nats_micro_service.IsAnyNatsHandler(si.RootContainer)
+			// no need to do anything if nothing here to be registered
+			if anyNatsHandler {
+				natsMicroConfig := di.Get[*fluffycore_nats_micro_service.NATSMicroConfig](si.RootContainer)
+				nc, err := fluffycore_nats_connect.CreateNatsConnectionWithClientCredentials(
+					&fluffycore_nats_connect.NATSConnectTokenClientCredentialsRequest{
+						NATSUrl:      natsMicroConfig.NATSUrl,
+						ClientID:     natsMicroConfig.ClientID,
+						ClientSecret: natsMicroConfig.ClientSecret,
+					},
+				)
+				if err != nil {
+					log.Fatal().Err(err).Msg("Failed to connect to NATS")
+				}
+				si.NATSMicroServicesContainer = fluffycore_nats_micro_service.NewNATSMicroServicesContainer(
+					nc, si.RootContainer,
+				)
+				err = si.NATSMicroServicesContainer.Register(ctx)
+				if err != nil {
+					log.Fatal().Err(err).Msg("failed to RegisterNATSMicroServiceHandlers")
+				}
+			}
+		}()
+	}
 	if lis == nil {
 		if coreConfig.PORT == 0 {
 			panic("port is not set")
@@ -355,8 +390,18 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 	s.Wait()
 	log.Info().Msg("Interupt triggered")
+	if coreConfig.EnableNats {
+		if si.NATSMicroServicesContainer != nil {
+			err = si.NATSMicroServicesContainer.Shutdown(ctx)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to Shutdown NATSMicroServicesContainer")
+			}
+		}
+	}
+
 	startup.OnPreServerShutdown(ctx)
 	if si.ServerGRPCGatewayMux != nil {
+
 		si.ServerGRPCGatewayMux.Shutdown(context.Background())
 	}
 	si.Scheduler.Stop()
@@ -401,6 +446,9 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	if _, ok := rootConfigMap["PORT"]; !ok {
 		rootConfigMap["PORT"] = 0
 	}
+
+	rootConfigMap["ENABLE_NATS"] = fluffycore_utils.BoolEnv("ENABLE_NATS", true)
+
 	if _, ok := rootConfigMap["GRPC_GATEWAY_ENABLED"]; !ok {
 		rootConfigMap["GRPC_GATEWAY_ENABLED"] = true
 	}
