@@ -17,6 +17,9 @@ type (
 	INATSMicroService interface {
 		Interceptors() INATSMicroInterceptors
 	}
+	INATSMicroClientInterceptors interface {
+		Interceptors() INATSMicroInterceptors
+	}
 	INATSMicroInterceptors interface {
 		WithHandler(finalHandler grpc.UnaryHandler) grpc.UnaryHandler
 	}
