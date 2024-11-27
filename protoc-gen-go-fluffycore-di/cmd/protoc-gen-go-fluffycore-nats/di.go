@@ -172,8 +172,7 @@ func (s *serviceGenContext) genClient() {
 	if !atLeastOneMethod {
 		return
 	}
-	interfaceGRPCServerName := fmt.Sprintf("%vServerNATSMicro", service.GoName)
-	interfaceServerName := fmt.Sprintf("IFluffyCore%s", interfaceGRPCServerName)
+	interfaceServerName := fmt.Sprintf("%sServer", service.GoName)
 	internalClientName := fmt.Sprintf("%vNATSMicroClient", service.GoName)
 
 	/*
@@ -304,11 +303,9 @@ func (s *serviceGenContext) genService() {
 	service := s.service
 
 	// IServiceEndpointRegistration
-	interfaceGRPCServerName := fmt.Sprintf("%vServerNATSMicro", service.GoName)
 
-	interfaceServerName := fmt.Sprintf("IFluffyCore%s", interfaceGRPCServerName)
-	internalServerName := fmt.Sprintf("%vFluffyCoreServerNATSMicro", service.GoName)
 	internalRegistrationServerName := fmt.Sprintf("%vFluffyCoreServerNATSMicroRegistration", service.GoName)
+	interfaceServerName := fmt.Sprintf("%sServer", service.GoName)
 
 	for _, method := range service.Methods {
 		serverType := method.Parent.GoName
@@ -316,70 +313,6 @@ func (s *serviceGenContext) genService() {
 		methodGenCtx := newMethodGenContext(s.uniqueRunID, method, gen, file, g, service)
 		s.MethodMapGenCtx[key] = methodGenCtx
 	}
-
-	g.P("// ", interfaceServerName, " defines the nats micro server interface")
-	g.P("type ", interfaceServerName, " interface {")
-	g.P("	", contractsNatsMicroServicePackage.Ident("INATSMicroService"))
-	for _, method := range service.Methods {
-		serverType := method.Parent.GoName
-		key := "/" + *proto.Package + "." + serverType + "/" + method.GoName
-		methodGenCtx := s.MethodMapGenCtx[key]
-		// only do it if it is not streaming
-		if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
-			g.P("  	", methodGenCtx.natsMethodSignature())
-		}
-	}
-	g.P("}")
-	g.P()
-
-	g.P("type ", internalServerName, " struct {")
-	//		natsMicroInterceptors contracts_nats_micro.INATSMicroInterceptors
-	g.P("  	", "natsMicroInterceptors", " ", contractsNatsMicroServicePackage.Ident("INATSMicroInterceptors"))
-	g.P("}")
-	g.P()
-
-	g.P("type ", internalRegistrationServerName, " struct {")
-	g.P("  	", "service", " ", interfaceServerName)
-	g.P("}")
-	g.P()
-
-	g.P("var stemService", internalServerName, " = (*", internalServerName, ") (nil)")
-	g.P("var _ ", interfaceServerName, " = stemService", internalServerName)
-	g.P()
-
-	g.P("var stemService", internalRegistrationServerName, " = (*", internalRegistrationServerName, ") (nil)")
-	g.P("var _ ", contractsNatsMicroServicePackage.Ident("INATSMicroServiceRegisration"), " = stemService", internalRegistrationServerName)
-	g.P()
-
-	g.P("func AddSingleton", internalServerName, "(cb ", diPackage.Ident("ContainerBuilder"), ") {")
-	g.P("  	", diPackage.Ident("AddSingleton"), "[", contractsNatsMicroServicePackage.Ident("INATSMicroServiceRegisration"), "](cb, ", "stemService", internalRegistrationServerName, ".Ctor)")
-	g.P("  	", diPackage.Ident("AddSingleton"), "[", interfaceServerName, "](cb, ", "stemService", internalServerName, ".Ctor)")
-
-	g.P("}")
-	g.P()
-
-	g.P("func (s *", internalRegistrationServerName, ") Ctor(service ", interfaceServerName, ") (", contractsNatsMicroServicePackage.Ident("INATSMicroServiceRegisration"), ", error) {")
-	g.P("  	return &", internalRegistrationServerName, "{")
-	g.P("  		service: service,")
-	g.P("  	}, nil")
-	g.P("}")
-	g.P()
-
-	g.P("func (s *", internalRegistrationServerName, ") AddService(nc *", natsGoPackage.Ident("Conn"), ", option *", contractsNatsMicroServicePackage.Ident("NATSMicroServiceRegisrationOption"), ") (", natsGoMicroPackage.Ident("Service"), ", error) {")
-	g.P("  	defaultConfig := &", natsGoMicroPackage.Ident("Config"), "{")
-	g.P("  		Name:        \"", service.GoName, "\",")
-	g.P("  		Version:     \"0.0.1\",")
-	// we need to pull the Descriptin from the proto service comments.
-
-	g.P("  		Description: \"The ", service.GoName, " nats micro service\",")
-	g.P("  	}")
-	g.P("  	for _, option := range option.NATSMicroConfigOptions {")
-	g.P("  		option(defaultConfig)")
-	g.P("  	}")
-	g.P("  	svc, err := ", natsGoMicroPackage.Ident("AddService"), "(nc, *defaultConfig)")
-	g.P("  	if err != nil {")
-	g.P("  		return nil, err")
-	g.P("  	}")
 	atLeastOneMethod := false
 	for _, method := range service.Methods {
 		// only do it if it is not streaming
@@ -388,7 +321,145 @@ func (s *serviceGenContext) genService() {
 			break
 		}
 	}
+	g.P("type ", internalRegistrationServerName, " struct {")
+	g.P("}")
+	g.P()
 
+	g.P("var stemService", internalRegistrationServerName, " = (*", internalRegistrationServerName, ") (nil)")
+	g.P("var _ ", contractsEndpointPackage.Ident("INATSEndpointRegistration"), " = stemService", internalRegistrationServerName)
+	g.P()
+
+	g.P("func AddSingleton", internalRegistrationServerName, "(cb ", diPackage.Ident("ContainerBuilder"), ") {")
+	g.P("  	", diPackage.Ident("AddSingleton"), "[", contractsEndpointPackage.Ident("INATSEndpointRegistration"), "](cb, ", "stemService", internalRegistrationServerName, ".Ctor)")
+	g.P("}")
+	g.P()
+
+	g.P("func (s *", internalRegistrationServerName, ") Ctor() (", contractsEndpointPackage.Ident("INATSEndpointRegistration"), ", error) {")
+	g.P("  	return &", internalRegistrationServerName, "{")
+	g.P("  	}, nil")
+	g.P("}")
+	g.P()
+
+	g.P("func (s *", internalRegistrationServerName, ") RegisterFluffyCoreNATSHandler(ctx ", contextPackage.Ident("Context"), ",natsConn *", natsGoPackage.Ident("Conn"), ",conn *", grpcPackage.Ident("ClientConn"), ", option *", contractsNatsMicroServicePackage.Ident("NATSMicroServiceRegisrationOption"), ") (", natsGoMicroPackage.Ident("Service"), ", error) {")
+	// 	return RegisterGreeterNATSHandler(ctx,natsCon, conn,option)
+	g.P("  	return Register", service.GoName, "NATSHandler(ctx, natsConn, conn, option)")
+	g.P("}")
+	g.P()
+
+	/*
+			 func RegisterGreeterNATSHandler(ctx context.Context,natsCon *nats.Conn, conn *grpc.ClientConn,option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+			client := NewGreeterClient(conn)
+		   	return RegisterGreeterNATSHandlerClient(ctx,natsCon, client,option)
+		}
+	*/
+	g.P("func Register", service.GoName, "NATSHandler(ctx ", contextPackage.Ident("Context"), ",natsCon *", natsGoPackage.Ident("Conn"), ", conn *", grpcPackage.Ident("ClientConn"), ",option *", contractsNatsMicroServicePackage.Ident("NATSMicroServiceRegisrationOption"), ") (", natsGoMicroPackage.Ident("Service"), ", error) {")
+	g.P("	client := New", service.GoName, "Client(conn)")
+	g.P("  	return Register", service.GoName, "NATSHandlerClient(ctx,natsCon, client,option)")
+	g.P("}")
+	g.P()
+	/*
+	   func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats.Conn, client GreeterClient,option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+	   	defaultConfig := &micro.Config{
+	   		Name:        "Greeter",
+	   		Version:     "0.0.1",
+	   		Description: "The Greeter nats micro service",
+	   	}
+	   	for _, option := range option.NATSMicroConfigOptions {
+	   		option(defaultConfig)
+	   	}
+
+	   	pkgPath := reflect.TypeOf((*GreeterServer)(nil)).Elem().PkgPath()
+	   	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter")
+	   	groupName := strings.ReplaceAll(
+	   		fullPath,
+	   		"/",
+	   		".",
+	   	)
+	   	if utils.IsNotEmptyOrNil(option.GroupName) {
+	   		groupName = option.GroupName
+	   	}
+	   	svc, err := micro.AddService(nc, *defaultConfig)
+	   	if err != nil {
+	   		return nil, err
+	   	}
+
+	   	m := svc.AddGroup(groupName)
+	   //--
+	   	m.AddEndpoint("SayHello",
+	   		micro.HandlerFunc(func(req micro.Request) {
+	   			nats_micro_service1.HandleRequest(
+	   				req,
+	   				func(r *HelloRequest) error {
+	   					return protojson.Unmarshal(req.Data(), r)
+	   				},
+	   				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+	   					return client.SayHello(ctx,request)
+	   				},
+	   			)
+	   		}),
+	   		micro.WithEndpointMetadata(map[string]string{
+	   			"description":     "SayHello",
+	   			"format":          "application/json",
+	   			"request_schema":  utils.SchemaFor(&HelloRequest{}),
+	   			"response_schema": utils.SchemaFor(&HelloReply{}),
+	   		}))
+	   		//--
+	   		m.AddEndpoint("SayHelloAuth",
+	   		micro.HandlerFunc(func(req micro.Request) {
+	   			nats_micro_service1.HandleRequest(
+	   				req,
+	   				func(r *HelloRequest) error {
+	   					return protojson.Unmarshal(req.Data(), r)
+	   				},
+	   				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+	   					return client.SayHelloAuth(ctx,request)
+	   				},
+	   			)
+	   		}),
+	   		micro.WithEndpointMetadata(map[string]string{
+	   			"description":     "SayHelloDownstream",
+	   			"format":          "application/json",
+	   			"request_schema":  utils.SchemaFor(&HelloRequest{}),
+	   			"response_schema": utils.SchemaFor(&HelloReply{}),
+	   		}))
+	   		m.AddEndpoint("SayHelloDownstream",
+	   		micro.HandlerFunc(func(req micro.Request) {
+	   			nats_micro_service1.HandleRequest(
+	   				req,
+	   				func(r *HelloRequest) error {
+	   					return protojson.Unmarshal(req.Data(), r)
+	   				},
+	   				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+	   					return client.SayHelloDownstream(ctx,request)
+	   				},
+	   			)
+	   		}),
+	   		micro.WithEndpointMetadata(map[string]string{
+	   			"description":     "SayHelloDownstream",
+	   			"format":          "application/json",
+	   			"request_schema":  utils.SchemaFor(&HelloRequest{}),
+	   			"response_schema": utils.SchemaFor(&HelloReply{}),
+	   		}))
+	   	return svc,nil
+	   }
+	*/
+	g.P("func Register", service.GoName, "NATSHandlerClient(ctx ", contextPackage.Ident("Context"), ", nc *", natsGoPackage.Ident("Conn"), ", client ", service.GoName, "Client, option *", contractsNatsMicroServicePackage.Ident("NATSMicroServiceRegisrationOption"), ") (", natsGoMicroPackage.Ident("Service"), ", error) {")
+	g.P("  	defaultConfig := &", natsGoMicroPackage.Ident("Config"), "{")
+	g.P("  		Name:        \"", service.GoName, "\",")
+	g.P("  		Version:     \"0.0.1\",")
+	// we need to pull the Descriptin from the proto service comments.
+	g.P("  		Description: \"The ", service.GoName, " nats micro service\",")
+	g.P("  	}")
+	g.P(" ")
+	g.P("  	for _, option := range option.NATSMicroConfigOptions {")
+	g.P("  		option(defaultConfig)")
+	g.P("  	}")
+	g.P(" ")
+	g.P("  	svc, err := ", natsGoMicroPackage.Ident("AddService"), "(nc, *defaultConfig)")
+	g.P("  	if err != nil {")
+	g.P("  		return nil, err")
+	g.P("  	}")
+	g.P(" ")
 	if atLeastOneMethod {
 		g.P("  	pkgPath := ", reflectPackage.Ident("TypeOf"), "((*", interfaceServerName, ")(nil)).Elem().PkgPath()")
 		g.P("  	fullPath := ", fmtPackage.Ident("Sprintf"), "(\"%s/%s\", pkgPath, \"", service.GoName, "\")")
@@ -397,72 +468,65 @@ func (s *serviceGenContext) genService() {
 		g.P("  		\"/\",")
 		g.P("  		\".\",")
 		g.P("  	)")
-
+		g.P(" ")
 		g.P("  	if ", fluffyCoreUtilsPackage.Ident("IsNotEmptyOrNil"), "(option.GroupName) {")
 		g.P("  		groupName = option.GroupName")
 		g.P("  	}")
-
+		g.P(" ")
 		g.P("  	m := svc.AddGroup( groupName )")
-	}
-	for _, method := range service.Methods {
-		serverType := method.Parent.GoName
-		key := "/" + *proto.Package + "." + serverType + "/" + method.GoName
-		methodGenCtx := s.MethodMapGenCtx[key]
-		// only do it if it is not streaming
-		if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
-			methodGenCtx.generateNATSMethodAddToServiceCall()
+		for _, method := range service.Methods {
+			serverType := method.Parent.GoName
+			key := "/" + *proto.Package + "." + serverType + "/" + method.GoName
+			methodGenCtx := s.MethodMapGenCtx[key]
+			// only do it if it is not streaming
+			if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
+				methodGenCtx.generateNATSMethodGRPCGateway()
+			}
 		}
 	}
-	g.P("  	return svc, nil")
-	g.P("}")
-	g.P()
-	/*
-			func (s *NATSMicroService) Interceptors() contracts_nats_micro.INATSMicroInterceptors {
-			return s.natsMicroInterceptors
-		}
-	*/
-	g.P("func (s *", internalServerName, ") Interceptors() ", contractsNatsMicroServicePackage.Ident("INATSMicroInterceptors"), " {")
-	g.P("  	return s.natsMicroInterceptors")
-	g.P("}")
-	g.P()
-
-	g.P("func (s *", internalServerName, ") Ctor(natsMicroInterceptors ", contractsNatsMicroServicePackage.Ident("INATSMicroInterceptors"), ") (", interfaceServerName, ", error) {")
-	g.P("  	ss := &", internalServerName, "{")
-	g.P("  		natsMicroInterceptors: natsMicroInterceptors,")
+	g.P("  	return svc,nil")
 	g.P("  	}")
-	g.P("  	return ss, nil")
-	g.P("}")
-	g.P()
 
-	// Client method implementations.
-	for _, method := range service.Methods {
-		serverType := method.Parent.GoName
-		key := "/" + *proto.Package + "." + serverType + "/" + method.GoName
-		methodGenCtx := s.MethodMapGenCtx[key]
-		if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
-			methodGenCtx.generateNATSMicroMethodShim()
-		}
-	}
 }
 
 /*
-m.AddEndpoint("CreateNATSClient",
+m.AddEndpoint("SayHello",
 
-	micro.HandlerFunc(s.service.CreateNATSClient),
+	micro.HandlerFunc(func(req micro.Request) {
+		nats_micro_service1.HandleRequest(
+			req,
+			func(r *HelloRequest) error {
+				return protojson.Unmarshal(req.Data(), r)
+			},
+			func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+				return client.SayHello(ctx,request)
+			},
+		)
+	}),
 	micro.WithEndpointMetadata(map[string]string{
-		"description":     "CreateNATSClient",
+		"description":     "SayHello",
 		"format":          "application/json",
-		"request_schema":  schemaFor(&cloud_api_business_nats.CreateNATSClientRequest{}),
-		"response_schema": schemaFor(&cloud_api_business_nats.CreateNATSClientResponse{}),
+		"request_schema":  utils.SchemaFor(&HelloRequest{}),
+		"response_schema": utils.SchemaFor(&HelloReply{}),
 	}))
 */
-func (s *methodGenContext) generateNATSMethodAddToServiceCall() {
+func (s *methodGenContext) generateNATSMethodGRPCGateway() {
 
 	method := s.ProtogenMethod
 	g := s.g
 
 	g.P("	m.AddEndpoint(\"", method.GoName, "\",")
-	g.P("		", natsGoMicroPackage.Ident("HandlerFunc"), "(s.service.", method.GoName, "),")
+	g.P("		", natsGoMicroPackage.Ident("HandlerFunc"), "(func(req micro.Request) {")
+	g.P("			", serviceNatsMicroServicePackage.Ident("HandleRequest"), "(")
+	g.P("				req,")
+	g.P("				func(r *", method.Input.GoIdent.GoName, ") error {")
+	g.P("					return ", protojsonPackage.Ident("Unmarshal"), "(req.Data(), r)")
+	g.P("				},")
+	g.P("				func(ctx ", contextPackage.Ident("Context"), ", request *", method.Input.GoIdent.GoName, ") (*", method.Output.GoIdent.GoName, ", error) {")
+	g.P("					return client.", method.GoName, "(ctx,request)")
+	g.P("				},")
+	g.P("			)")
+	g.P("		}),")
 	g.P("		", natsGoMicroPackage.Ident("WithEndpointMetadata"), "(map[string]string{")
 	g.P("			\"description\":     \"", method.GoName, "\",")
 	g.P("			\"format\":          \"application/json\",")
@@ -470,82 +534,4 @@ func (s *methodGenContext) generateNATSMethodAddToServiceCall() {
 	g.P("			\"response_schema\": ", fluffyCoreUtilsPackage.Ident("SchemaFor"), "(&", method.Output.GoIdent.GoName, "{}),")
 	g.P("		}))")
 	g.P()
-
-}
-
-/*
-// this gets directly registred as a handler in the nats micro service
-
-	func (s *NATSMicroService) CreateNATSClient(req micro.Request) {
-		handleRequest[
-			cloud_api_business_nats.CreateNATSClientRequest,
-			cloud_api_business_nats.CreateNATSClientResponse](
-			s,
-			req,
-			func(r *cloud_api_business_nats.CreateNATSClientRequest) error {
-				return protojson.Unmarshal(req.Data(), r)
-			},
-			func(ctx context.Context, request *cloud_api_business_nats.CreateNATSClientRequest) (*cloud_api_business_nats.CreateNATSClientResponse, error) {
-				container := fluffycore_middleware_dicontext.GetRequestContainer(ctx)
-				downstreamService := di.Get[cloud_api_business_nats.IFluffyCoreNATSClientServiceServer](container)
-				return downstreamService.CreateNATSClient(ctx, request)
-			},
-		)
-
-}
-*/
-func (s *methodGenContext) generateNATSMicroMethodShim() {
-
-	method := s.ProtogenMethod
-	g := s.g
-	serverType := method.Parent.GoName
-
-	interfaceServerName := fmt.Sprintf("IFluffyCore%vServer", method.Parent.GoName)
-	internalServerName := fmt.Sprintf("%vFluffyCoreServerNATSMicro", serverType)
-
-	g.P("// ", s.ProtogenMethod.GoName, "...")
-	g.P("func (s *", internalServerName, ") ", s.natsMethodSignature(), "{")
-	g.P("	", serviceNatsMicroServicePackage.Ident("HandleRequest"), "(")
-	g.P("		s,")
-	g.P("		req,")
-	g.P("		func(r *", method.Input.GoIdent.GoName, ") error {")
-	g.P("			return ", protojsonPackage.Ident("Unmarshal"), "(req.Data(), r)")
-	g.P("		},")
-	g.P("		func(ctx ", contextPackage.Ident("Context"), ", request *", method.Input.GoIdent.GoName, ") (*", method.Output.GoIdent.GoName, ", error) {")
-	g.P("			container := ", diContextPackage.Ident("GetRequestContainer(ctx)"))
-	g.P("			downstreamService := ", diPackage.Ident("Get"), "[", interfaceServerName, "](container)")
-	g.P("			return downstreamService.", method.GoName, "(ctx,request)")
-	g.P("		},")
-	g.P("	)")
-	g.P("}")
-	g.P()
-}
-
-func (s *methodGenContext) natsMethodSignature() string {
-
-	g := s.g
-	method := s.ProtogenMethod
-	var reqArgs []string
-
-	if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
-		reqArgs = append(reqArgs, "req "+g.QualifiedGoIdent(natsGoMicroPackage.Ident("Request")))
-	}
-
-	return method.GoName + "(" + strings.Join(reqArgs, ", ") + ") "
-}
-
-func (s *methodGenContext) unaryMethodSignature() string {
-	g := s.g
-	method := s.ProtogenMethod
-	var reqArgs []string
-	ret := "error"
-	if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
-		reqArgs = append(reqArgs, "ctx "+g.QualifiedGoIdent(contextPackage.Ident("Context")))
-		ret = "(*" + g.QualifiedGoIdent(method.Output.GoIdent) + ", error)"
-	}
-	if !method.Desc.IsStreamingClient() {
-		reqArgs = append(reqArgs, "request *"+g.QualifiedGoIdent(method.Input.GoIdent))
-	}
-
-	return method.GoName + "(" + strings.Join(reqArgs, ", ") + ") " + ret
 }

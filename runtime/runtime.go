@@ -303,12 +303,22 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	si.Server = grpcServer
 	si.Future = future
 
-	// pause a bit to let things settle down.
-	time.Sleep(1 * time.Second)
+	// Create a client connection to the gRPC server we just started
+	// This is where the gRPC-Gateway proxies the requests
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+
+	endpoint := fmt.Sprintf("0.0.0.0:%d", coreConfig.PORT)
+	// Create a client connection to the gRPC server we just started
+	// This is where the gRPC-Gateway proxies the requests
+	conn, err := grpc.NewClient(endpoint, opts...)
 
 	// now we add NATS
-	if coreConfig.EnableNats {
+	if coreConfig.NATSEnabled {
 		go func() {
+			// pause a bit to let things settle down.
+			time.Sleep(1 * time.Second)
 			// special case as the hosting service may also be the nats auth service so
 			// we will wait a bit before the handlers come on line.
 
@@ -329,7 +339,8 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 				si.NATSMicroServicesContainer = fluffycore_nats_micro_service.NewNATSMicroServicesContainer(
 					nc, si.RootContainer,
 				)
-				err = si.NATSMicroServicesContainer.Register(ctx)
+
+				err = si.NATSMicroServicesContainer.Register(ctx, conn)
 				if err != nil {
 					log.Fatal().Err(err).Msg("failed to RegisterNATSMicroServiceHandlers")
 				}
@@ -338,16 +349,6 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 
 	if coreConfig.GRPCGateWayEnabled {
-		// Create a client connection to the gRPC server we just started
-		// This is where the gRPC-Gateway proxies the requests
-		opts := []grpc.DialOption{
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		}
-
-		endpoint := fmt.Sprintf("0.0.0.0:%d", coreConfig.PORT)
-		// Create a client connection to the gRPC server we just started
-		// This is where the gRPC-Gateway proxies the requests
-		conn, err := grpc.NewClient(endpoint, opts...)
 
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to dial server")
@@ -394,7 +395,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 	s.Wait()
 	log.Info().Msg("Interupt triggered")
-	if coreConfig.EnableNats {
+	if coreConfig.NATSEnabled {
 		if si.NATSMicroServicesContainer != nil {
 			err = si.NATSMicroServicesContainer.Shutdown(ctx)
 			if err != nil {
@@ -451,7 +452,7 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 		rootConfigMap["PORT"] = 0
 	}
 
-	rootConfigMap["ENABLE_NATS"] = fluffycore_utils.BoolEnv("ENABLE_NATS", true)
+	rootConfigMap["NATS_ENABLED"] = fluffycore_utils.BoolEnv("NATS_ENABLED", true)
 
 	if _, ok := rootConfigMap["GRPC_GATEWAY_ENABLED"]; !ok {
 		rootConfigMap["GRPC_GATEWAY_ENABLED"] = true

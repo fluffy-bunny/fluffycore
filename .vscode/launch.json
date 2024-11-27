@@ -46,7 +46,7 @@
         "EXAMPLE_otelConfig__metricConfig__endpointType": "http",
         "EXAMPLE_otelConfig__metricConfig__runtimeEnabled": "true",
         "EXAMPLE_otelConfig__metricConfig__hostEnabled": "true",
-   //     "ENABLE_NATS": "false",
+   //     "NATS_ENABLED": "false",
 
 
       },
