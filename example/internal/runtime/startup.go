@@ -26,6 +26,7 @@ import (
 	fluffycore_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/middleware/auth/jwt"
 	mocks_contracts_oauth2 "github.com/fluffy-bunny/fluffycore/mocks/contracts/oauth2"
 	mocks_oauth2_echo "github.com/fluffy-bunny/fluffycore/mocks/oauth2/echo"
+	fluffycore_nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	fluffycore_runtime_otel "github.com/fluffy-bunny/fluffycore/runtime/otel"
 	fluffycore_services_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/services/GRPCClientFactory"
 	services_auth_FinalAuthVerificationServerOptionAccessor_claimsprincipal "github.com/fluffy-bunny/fluffycore/services/auth/FinalAuthVerificationServerOptionAccessor/claimsprincipal"
@@ -114,6 +115,7 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 
 	services_auth_FinalAuthVerificationServerOptionAccessor_claimsprincipal.AddFinalAuthVerificationServerOptionAccessor(builder, internal_auth.BuildGrpcEntrypointPermissionsClaimsMap())
 
+	fluffycore_nats_micro_service.AddNatsMicroConfig(builder, config.NATSMicroConfig)
 }
 
 type taskTracker struct {

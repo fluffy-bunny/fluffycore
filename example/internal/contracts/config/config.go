@@ -5,6 +5,7 @@ import (
 	fluffycore_contracts_config "github.com/fluffy-bunny/fluffycore/contracts/config"
 	fluffycore_contracts_ddprofiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
 	fluffycore_contracts_otel "github.com/fluffy-bunny/fluffycore/contracts/otel"
+	fluffycore_nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 )
 
 type (
@@ -19,13 +20,14 @@ type (
 type Config struct {
 	fluffycore_contracts_config.CoreConfig `mapstructure:",squash"`
 
-	ConfigFiles   ConfigFiles                             `json:"configFiles"`
-	CustomString  string                                  `json:"customString"`
-	SomeSecret    string                                  `json:"someSecret" redact:"true"`
-	OAuth2Port    int                                     `json:"oauth2Port"`
-	JWTValidators JWTValidators                           `json:"jwtValidators"`
-	DDConfig      *fluffycore_contracts_ddprofiler.Config `json:"ddConfig"`
-	OTELConfig    *fluffycore_contracts_otel.OTELConfig   `json:"otelConfig"`
+	ConfigFiles     ConfigFiles                                    `json:"configFiles"`
+	CustomString    string                                         `json:"customString"`
+	SomeSecret      string                                         `json:"someSecret" redact:"true"`
+	OAuth2Port      int                                            `json:"oauth2Port"`
+	JWTValidators   JWTValidators                                  `json:"jwtValidators"`
+	DDConfig        *fluffycore_contracts_ddprofiler.Config        `json:"ddConfig"`
+	OTELConfig      *fluffycore_contracts_otel.OTELConfig          `json:"otelConfig"`
+	NATSMicroConfig *fluffycore_nats_micro_service.NATSMicroConfig `json:"natsMicroConfig"`
 }
 
 func AddConfig(builder di.ContainerBuilder, config *Config) {
@@ -57,6 +59,12 @@ var ConfigDefaultJSON = []byte(`
         "serviceName": "in-environment",
         "applicationEnvironment": "in-environment",
         "version": "1.0.0"
+    },
+    "natsMicroConfig":{
+        "natsUrl": "nats://127.0.0.1:4222",
+        "clientId": "nats-micro-god",
+        "clientSecret": "secret",
+        "timeoutDuration": "5s"
     },
     "otelConfig": {
         "serviceName": "in-environment",

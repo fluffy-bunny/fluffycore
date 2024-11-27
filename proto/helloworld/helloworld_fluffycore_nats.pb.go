@@ -6,8 +6,8 @@ import (
 	context "context"
 	fmt "fmt"
 	fluffy_dozm_di "github.com/fluffy-bunny/fluffy-dozm-di"
+	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
-	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	nats_micro_service1 "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	utils "github.com/fluffy-bunny/fluffycore/utils"
 	nats_go "github.com/nats-io/nats.go"
@@ -19,65 +19,70 @@ import (
 	time "time"
 )
 
-// IFluffyCoreGreeterServerNATSMicro defines the nats micro server interface
-type IFluffyCoreGreeterServerNATSMicro interface {
-	nats_micro_service.INATSMicroService
-	SayHello(req micro.Request)
-	SayHelloAuth(req micro.Request)
-	SayHelloDownstream(req micro.Request)
-}
-
-type GreeterFluffyCoreServerNATSMicro struct {
-	natsMicroInterceptors nats_micro_service.INATSMicroInterceptors
-}
-
 type GreeterFluffyCoreServerNATSMicroRegistration struct {
-	service IFluffyCoreGreeterServerNATSMicro
 }
-
-var stemServiceGreeterFluffyCoreServerNATSMicro = (*GreeterFluffyCoreServerNATSMicro)(nil)
-var _ IFluffyCoreGreeterServerNATSMicro = stemServiceGreeterFluffyCoreServerNATSMicro
 
 var stemServiceGreeterFluffyCoreServerNATSMicroRegistration = (*GreeterFluffyCoreServerNATSMicroRegistration)(nil)
-var _ nats_micro_service.INATSMicroServiceRegisration = stemServiceGreeterFluffyCoreServerNATSMicroRegistration
+var _ endpoint.INATSEndpointRegistration = stemServiceGreeterFluffyCoreServerNATSMicroRegistration
 
-func AddSingletonGreeterFluffyCoreServerNATSMicro(cb fluffy_dozm_di.ContainerBuilder) {
-	fluffy_dozm_di.AddSingleton[nats_micro_service.INATSMicroServiceRegisration](cb, stemServiceGreeterFluffyCoreServerNATSMicroRegistration.Ctor)
-	fluffy_dozm_di.AddSingleton[IFluffyCoreGreeterServerNATSMicro](cb, stemServiceGreeterFluffyCoreServerNATSMicro.Ctor)
+func AddSingletonGreeterFluffyCoreServerNATSMicroRegistration(cb fluffy_dozm_di.ContainerBuilder) {
+	fluffy_dozm_di.AddSingleton[endpoint.INATSEndpointRegistration](cb, stemServiceGreeterFluffyCoreServerNATSMicroRegistration.Ctor)
 }
 
-func (s *GreeterFluffyCoreServerNATSMicroRegistration) Ctor(service IFluffyCoreGreeterServerNATSMicro) (nats_micro_service.INATSMicroServiceRegisration, error) {
-	return &GreeterFluffyCoreServerNATSMicroRegistration{
-		service: service,
-	}, nil
+func (s *GreeterFluffyCoreServerNATSMicroRegistration) Ctor() (endpoint.INATSEndpointRegistration, error) {
+	return &GreeterFluffyCoreServerNATSMicroRegistration{}, nil
 }
 
-func (s *GreeterFluffyCoreServerNATSMicroRegistration) AddService(nc *nats_go.Conn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func (s *GreeterFluffyCoreServerNATSMicroRegistration) RegisterFluffyCoreNATSHandler(ctx context.Context, natsConn *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+	return RegisterGreeterNATSHandler(ctx, natsConn, conn, option)
+}
+
+func RegisterGreeterNATSHandler(ctx context.Context, natsCon *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+	client := NewGreeterClient(conn)
+	return RegisterGreeterNATSHandlerClient(ctx, natsCon, client, option)
+}
+
+func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client GreeterClient, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	defaultConfig := &micro.Config{
 		Name:        "Greeter",
 		Version:     "0.0.1",
 		Description: "The Greeter nats micro service",
 	}
+
 	for _, option := range option.NATSMicroConfigOptions {
 		option(defaultConfig)
 	}
+
 	svc, err := micro.AddService(nc, *defaultConfig)
 	if err != nil {
 		return nil, err
 	}
-	pkgPath := reflect.TypeOf((*IFluffyCoreGreeterServerNATSMicro)(nil)).Elem().PkgPath()
+
+	pkgPath := reflect.TypeOf((*GreeterServer)(nil)).Elem().PkgPath()
 	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter")
 	groupName := strings.ReplaceAll(
 		fullPath,
 		"/",
 		".",
 	)
+
 	if utils.IsNotEmptyOrNil(option.GroupName) {
 		groupName = option.GroupName
 	}
+
 	m := svc.AddGroup(groupName)
 	m.AddEndpoint("SayHello",
-		micro.HandlerFunc(s.service.SayHello),
+		micro.HandlerFunc(func(req micro.Request) {
+			nats_micro_service1.HandleRequest(
+				req,
+				func(r *HelloRequest) error {
+					return protojson.Unmarshal(req.Data(), r)
+				},
+				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+					return client.SayHello(ctx, request)
+				},
+			)
+		}),
 		micro.WithEndpointMetadata(map[string]string{
 			"description":     "SayHello",
 			"format":          "application/json",
@@ -86,7 +91,17 @@ func (s *GreeterFluffyCoreServerNATSMicroRegistration) AddService(nc *nats_go.Co
 		}))
 
 	m.AddEndpoint("SayHelloAuth",
-		micro.HandlerFunc(s.service.SayHelloAuth),
+		micro.HandlerFunc(func(req micro.Request) {
+			nats_micro_service1.HandleRequest(
+				req,
+				func(r *HelloRequest) error {
+					return protojson.Unmarshal(req.Data(), r)
+				},
+				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+					return client.SayHelloAuth(ctx, request)
+				},
+			)
+		}),
 		micro.WithEndpointMetadata(map[string]string{
 			"description":     "SayHelloAuth",
 			"format":          "application/json",
@@ -95,7 +110,17 @@ func (s *GreeterFluffyCoreServerNATSMicroRegistration) AddService(nc *nats_go.Co
 		}))
 
 	m.AddEndpoint("SayHelloDownstream",
-		micro.HandlerFunc(s.service.SayHelloDownstream),
+		micro.HandlerFunc(func(req micro.Request) {
+			nats_micro_service1.HandleRequest(
+				req,
+				func(r *HelloRequest) error {
+					return protojson.Unmarshal(req.Data(), r)
+				},
+				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+					return client.SayHelloDownstream(ctx, request)
+				},
+			)
+		}),
 		micro.WithEndpointMetadata(map[string]string{
 			"description":     "SayHelloDownstream",
 			"format":          "application/json",
@@ -106,65 +131,6 @@ func (s *GreeterFluffyCoreServerNATSMicroRegistration) AddService(nc *nats_go.Co
 	return svc, nil
 }
 
-func (s *GreeterFluffyCoreServerNATSMicro) Interceptors() nats_micro_service.INATSMicroInterceptors {
-	return s.natsMicroInterceptors
-}
-
-func (s *GreeterFluffyCoreServerNATSMicro) Ctor(natsMicroInterceptors nats_micro_service.INATSMicroInterceptors) (IFluffyCoreGreeterServerNATSMicro, error) {
-	ss := &GreeterFluffyCoreServerNATSMicro{
-		natsMicroInterceptors: natsMicroInterceptors,
-	}
-	return ss, nil
-}
-
-// SayHello...
-func (s *GreeterFluffyCoreServerNATSMicro) SayHello(req micro.Request) {
-	nats_micro_service1.HandleRequest(
-		s,
-		req,
-		func(r *HelloRequest) error {
-			return protojson.Unmarshal(req.Data(), r)
-		},
-		func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
-			container := dicontext.GetRequestContainer(ctx)
-			downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](container)
-			return downstreamService.SayHello(ctx, request)
-		},
-	)
-}
-
-// SayHelloAuth...
-func (s *GreeterFluffyCoreServerNATSMicro) SayHelloAuth(req micro.Request) {
-	nats_micro_service1.HandleRequest(
-		s,
-		req,
-		func(r *HelloRequest) error {
-			return protojson.Unmarshal(req.Data(), r)
-		},
-		func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
-			container := dicontext.GetRequestContainer(ctx)
-			downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](container)
-			return downstreamService.SayHelloAuth(ctx, request)
-		},
-	)
-}
-
-// SayHelloDownstream...
-func (s *GreeterFluffyCoreServerNATSMicro) SayHelloDownstream(req micro.Request) {
-	nats_micro_service1.HandleRequest(
-		s,
-		req,
-		func(r *HelloRequest) error {
-			return protojson.Unmarshal(req.Data(), r)
-		},
-		func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
-			container := dicontext.GetRequestContainer(ctx)
-			downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](container)
-			return downstreamService.SayHelloDownstream(ctx, request)
-		},
-	)
-}
-
 type (
 	GreeterNATSMicroClient struct {
 		option    *nats_micro_service1.NATSClientOption
@@ -173,7 +139,7 @@ type (
 )
 
 func NewGreeterNATSMicroClient(option *nats_micro_service1.NATSClientOption) (GreeterClient, error) {
-	pkgPath := reflect.TypeOf((*IFluffyCoreGreeterServerNATSMicro)(nil)).Elem().PkgPath()
+	pkgPath := reflect.TypeOf((*GreeterServer)(nil)).Elem().PkgPath()
 	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter")
 	groupName := strings.ReplaceAll(
 		fullPath,
@@ -231,63 +197,70 @@ func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *Hel
 	return result, err
 }
 
-// IFluffyCoreGreeter2ServerNATSMicro defines the nats micro server interface
-type IFluffyCoreGreeter2ServerNATSMicro interface {
-	nats_micro_service.INATSMicroService
-	SayHello(req micro.Request)
-}
-
-type Greeter2FluffyCoreServerNATSMicro struct {
-	natsMicroInterceptors nats_micro_service.INATSMicroInterceptors
-}
-
 type Greeter2FluffyCoreServerNATSMicroRegistration struct {
-	service IFluffyCoreGreeter2ServerNATSMicro
 }
-
-var stemServiceGreeter2FluffyCoreServerNATSMicro = (*Greeter2FluffyCoreServerNATSMicro)(nil)
-var _ IFluffyCoreGreeter2ServerNATSMicro = stemServiceGreeter2FluffyCoreServerNATSMicro
 
 var stemServiceGreeter2FluffyCoreServerNATSMicroRegistration = (*Greeter2FluffyCoreServerNATSMicroRegistration)(nil)
-var _ nats_micro_service.INATSMicroServiceRegisration = stemServiceGreeter2FluffyCoreServerNATSMicroRegistration
+var _ endpoint.INATSEndpointRegistration = stemServiceGreeter2FluffyCoreServerNATSMicroRegistration
 
-func AddSingletonGreeter2FluffyCoreServerNATSMicro(cb fluffy_dozm_di.ContainerBuilder) {
-	fluffy_dozm_di.AddSingleton[nats_micro_service.INATSMicroServiceRegisration](cb, stemServiceGreeter2FluffyCoreServerNATSMicroRegistration.Ctor)
-	fluffy_dozm_di.AddSingleton[IFluffyCoreGreeter2ServerNATSMicro](cb, stemServiceGreeter2FluffyCoreServerNATSMicro.Ctor)
+func AddSingletonGreeter2FluffyCoreServerNATSMicroRegistration(cb fluffy_dozm_di.ContainerBuilder) {
+	fluffy_dozm_di.AddSingleton[endpoint.INATSEndpointRegistration](cb, stemServiceGreeter2FluffyCoreServerNATSMicroRegistration.Ctor)
 }
 
-func (s *Greeter2FluffyCoreServerNATSMicroRegistration) Ctor(service IFluffyCoreGreeter2ServerNATSMicro) (nats_micro_service.INATSMicroServiceRegisration, error) {
-	return &Greeter2FluffyCoreServerNATSMicroRegistration{
-		service: service,
-	}, nil
+func (s *Greeter2FluffyCoreServerNATSMicroRegistration) Ctor() (endpoint.INATSEndpointRegistration, error) {
+	return &Greeter2FluffyCoreServerNATSMicroRegistration{}, nil
 }
 
-func (s *Greeter2FluffyCoreServerNATSMicroRegistration) AddService(nc *nats_go.Conn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func (s *Greeter2FluffyCoreServerNATSMicroRegistration) RegisterFluffyCoreNATSHandler(ctx context.Context, natsConn *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+	return RegisterGreeter2NATSHandler(ctx, natsConn, conn, option)
+}
+
+func RegisterGreeter2NATSHandler(ctx context.Context, natsCon *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+	client := NewGreeter2Client(conn)
+	return RegisterGreeter2NATSHandlerClient(ctx, natsCon, client, option)
+}
+
+func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client Greeter2Client, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	defaultConfig := &micro.Config{
 		Name:        "Greeter2",
 		Version:     "0.0.1",
 		Description: "The Greeter2 nats micro service",
 	}
+
 	for _, option := range option.NATSMicroConfigOptions {
 		option(defaultConfig)
 	}
+
 	svc, err := micro.AddService(nc, *defaultConfig)
 	if err != nil {
 		return nil, err
 	}
-	pkgPath := reflect.TypeOf((*IFluffyCoreGreeter2ServerNATSMicro)(nil)).Elem().PkgPath()
+
+	pkgPath := reflect.TypeOf((*Greeter2Server)(nil)).Elem().PkgPath()
 	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter2")
 	groupName := strings.ReplaceAll(
 		fullPath,
 		"/",
 		".",
 	)
+
 	if utils.IsNotEmptyOrNil(option.GroupName) {
 		groupName = option.GroupName
 	}
+
 	m := svc.AddGroup(groupName)
 	m.AddEndpoint("SayHello",
-		micro.HandlerFunc(s.service.SayHello),
+		micro.HandlerFunc(func(req micro.Request) {
+			nats_micro_service1.HandleRequest(
+				req,
+				func(r *HelloRequest) error {
+					return protojson.Unmarshal(req.Data(), r)
+				},
+				func(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
+					return client.SayHello(ctx, request)
+				},
+			)
+		}),
 		micro.WithEndpointMetadata(map[string]string{
 			"description":     "SayHello",
 			"format":          "application/json",
@@ -298,33 +271,6 @@ func (s *Greeter2FluffyCoreServerNATSMicroRegistration) AddService(nc *nats_go.C
 	return svc, nil
 }
 
-func (s *Greeter2FluffyCoreServerNATSMicro) Interceptors() nats_micro_service.INATSMicroInterceptors {
-	return s.natsMicroInterceptors
-}
-
-func (s *Greeter2FluffyCoreServerNATSMicro) Ctor(natsMicroInterceptors nats_micro_service.INATSMicroInterceptors) (IFluffyCoreGreeter2ServerNATSMicro, error) {
-	ss := &Greeter2FluffyCoreServerNATSMicro{
-		natsMicroInterceptors: natsMicroInterceptors,
-	}
-	return ss, nil
-}
-
-// SayHello...
-func (s *Greeter2FluffyCoreServerNATSMicro) SayHello(req micro.Request) {
-	nats_micro_service1.HandleRequest(
-		s,
-		req,
-		func(r *HelloRequest) error {
-			return protojson.Unmarshal(req.Data(), r)
-		},
-		func(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
-			container := dicontext.GetRequestContainer(ctx)
-			downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeter2Server](container)
-			return downstreamService.SayHello(ctx, request)
-		},
-	)
-}
-
 type (
 	Greeter2NATSMicroClient struct {
 		option    *nats_micro_service1.NATSClientOption
@@ -333,7 +279,7 @@ type (
 )
 
 func NewGreeter2NATSMicroClient(option *nats_micro_service1.NATSClientOption) (Greeter2Client, error) {
-	pkgPath := reflect.TypeOf((*IFluffyCoreGreeter2ServerNATSMicro)(nil)).Elem().PkgPath()
+	pkgPath := reflect.TypeOf((*Greeter2Server)(nil)).Elem().PkgPath()
 	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter2")
 	groupName := strings.ReplaceAll(
 		fullPath,
@@ -363,59 +309,44 @@ func (s *Greeter2NATSMicroClient) SayHello(ctx context.Context, in *HelloRequest
 	return result, err
 }
 
-// IFluffyCoreMyStreamServiceServerNATSMicro defines the nats micro server interface
-type IFluffyCoreMyStreamServiceServerNATSMicro interface {
-	nats_micro_service.INATSMicroService
-}
-
-type MyStreamServiceFluffyCoreServerNATSMicro struct {
-	natsMicroInterceptors nats_micro_service.INATSMicroInterceptors
-}
-
 type MyStreamServiceFluffyCoreServerNATSMicroRegistration struct {
-	service IFluffyCoreMyStreamServiceServerNATSMicro
 }
-
-var stemServiceMyStreamServiceFluffyCoreServerNATSMicro = (*MyStreamServiceFluffyCoreServerNATSMicro)(nil)
-var _ IFluffyCoreMyStreamServiceServerNATSMicro = stemServiceMyStreamServiceFluffyCoreServerNATSMicro
 
 var stemServiceMyStreamServiceFluffyCoreServerNATSMicroRegistration = (*MyStreamServiceFluffyCoreServerNATSMicroRegistration)(nil)
-var _ nats_micro_service.INATSMicroServiceRegisration = stemServiceMyStreamServiceFluffyCoreServerNATSMicroRegistration
+var _ endpoint.INATSEndpointRegistration = stemServiceMyStreamServiceFluffyCoreServerNATSMicroRegistration
 
-func AddSingletonMyStreamServiceFluffyCoreServerNATSMicro(cb fluffy_dozm_di.ContainerBuilder) {
-	fluffy_dozm_di.AddSingleton[nats_micro_service.INATSMicroServiceRegisration](cb, stemServiceMyStreamServiceFluffyCoreServerNATSMicroRegistration.Ctor)
-	fluffy_dozm_di.AddSingleton[IFluffyCoreMyStreamServiceServerNATSMicro](cb, stemServiceMyStreamServiceFluffyCoreServerNATSMicro.Ctor)
+func AddSingletonMyStreamServiceFluffyCoreServerNATSMicroRegistration(cb fluffy_dozm_di.ContainerBuilder) {
+	fluffy_dozm_di.AddSingleton[endpoint.INATSEndpointRegistration](cb, stemServiceMyStreamServiceFluffyCoreServerNATSMicroRegistration.Ctor)
 }
 
-func (s *MyStreamServiceFluffyCoreServerNATSMicroRegistration) Ctor(service IFluffyCoreMyStreamServiceServerNATSMicro) (nats_micro_service.INATSMicroServiceRegisration, error) {
-	return &MyStreamServiceFluffyCoreServerNATSMicroRegistration{
-		service: service,
-	}, nil
+func (s *MyStreamServiceFluffyCoreServerNATSMicroRegistration) Ctor() (endpoint.INATSEndpointRegistration, error) {
+	return &MyStreamServiceFluffyCoreServerNATSMicroRegistration{}, nil
 }
 
-func (s *MyStreamServiceFluffyCoreServerNATSMicroRegistration) AddService(nc *nats_go.Conn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func (s *MyStreamServiceFluffyCoreServerNATSMicroRegistration) RegisterFluffyCoreNATSHandler(ctx context.Context, natsConn *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+	return RegisterMyStreamServiceNATSHandler(ctx, natsConn, conn, option)
+}
+
+func RegisterMyStreamServiceNATSHandler(ctx context.Context, natsCon *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+	client := NewMyStreamServiceClient(conn)
+	return RegisterMyStreamServiceNATSHandlerClient(ctx, natsCon, client, option)
+}
+
+func RegisterMyStreamServiceNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client MyStreamServiceClient, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	defaultConfig := &micro.Config{
 		Name:        "MyStreamService",
 		Version:     "0.0.1",
 		Description: "The MyStreamService nats micro service",
 	}
+
 	for _, option := range option.NATSMicroConfigOptions {
 		option(defaultConfig)
 	}
+
 	svc, err := micro.AddService(nc, *defaultConfig)
 	if err != nil {
 		return nil, err
 	}
+
 	return svc, nil
-}
-
-func (s *MyStreamServiceFluffyCoreServerNATSMicro) Interceptors() nats_micro_service.INATSMicroInterceptors {
-	return s.natsMicroInterceptors
-}
-
-func (s *MyStreamServiceFluffyCoreServerNATSMicro) Ctor(natsMicroInterceptors nats_micro_service.INATSMicroInterceptors) (IFluffyCoreMyStreamServiceServerNATSMicro, error) {
-	ss := &MyStreamServiceFluffyCoreServerNATSMicro{
-		natsMicroInterceptors: natsMicroInterceptors,
-	}
-	return ss, nil
 }

@@ -7,14 +7,13 @@ import (
 	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
+	contracts_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	contracts_nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
-	fluffycore_contracts_nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
 	interceptor "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service/default/interceptor"
-	status "github.com/gogo/status"
 	nats "github.com/nats-io/nats.go"
 	micro "github.com/nats-io/nats.go/micro"
 	zerolog "github.com/rs/zerolog"
-	codes "google.golang.org/grpc/codes"
+	grpc "google.golang.org/grpc"
 	protojson "google.golang.org/protobuf/encoding/protojson"
 	proto "google.golang.org/protobuf/proto"
 )
@@ -97,46 +96,37 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 }
 
 func HandleRequest[Req, Resp any](
-	s contracts_nats_micro_service.INATSMicroService,
 	req micro.Request,
 	unmarshaler func(*Req) error,
 	serviceMethod func(context.Context, *Req) (*Resp, error),
 ) {
-	ctx := context.Background()
-	log := zerolog.Ctx(ctx).With().Logger()
+	var innerRequest Req
+	if err := unmarshaler(&innerRequest); err != nil {
+		req.Error("400", err.Error(), nil)
+		return
+	}
 
-	handler := s.Interceptors().WithHandler(func(ctx context.Context, req interface{}) (interface{}, error) {
-		var innerRequest Req
-		if err := unmarshaler(&innerRequest); err != nil {
-			log.Error().Err(err).Msg("unable to parse request")
-			err := status.Error(codes.InvalidArgument, "unable to parse request")
-			return nil, err
-		}
-		return serviceMethod(ctx, &innerRequest)
-	})
-
-	resp, err := handler(ctx, req)
+	resp, err := serviceMethod(context.Background(), &innerRequest)
 	if err != nil {
-		log.Error().Err(err).Msg("error")
 		req.Error("500", err.Error(), nil)
 		return
 	}
-	// typecase resp to a protomessage
-	respProto, ok := resp.(proto.Message)
+
+	// Type assert resp to proto.Message
+	respProto, ok := any(resp).(proto.Message)
 	if !ok {
-		log.Error().Msg("response is not a proto.Message")
-		err := status.Error(codes.Internal, "response is not a proto.Message")
-		req.Error("500", err.Error(), nil)
+		req.Error("500", "response is not a proto.Message", nil)
 		return
 	}
-	pbJsonBytes, err := protojson.Marshal(respProto)
+
+	// Marshal proto message to JSON
+	respBytes, err := protojson.Marshal(respProto)
 	if err != nil {
-		log.Error().Err(err).Msg("unable to marshal response")
-		err := status.Error(codes.Internal, "unable to marshal response")
 		req.Error("500", err.Error(), nil)
 		return
 	}
-	req.Respond(pbJsonBytes)
+
+	req.Respond(respBytes)
 }
 
 type NATSMicroServicesContainer struct {
@@ -154,10 +144,10 @@ func NewNATSMicroServicesContainer(nc *nats.Conn, rootContainer di.Container) *N
 	}
 }
 func IsAnyNatsHandler(rootContainer di.Container) bool {
-	natsMicroServiceRegistrations := di.Get[[]fluffycore_contracts_nats_micro_service.INATSMicroServiceRegisration](rootContainer)
+	natsMicroServiceRegistrations := di.Get[[]contracts_endpoint.INATSEndpointRegistration](rootContainer)
 	return len(natsMicroServiceRegistrations) > 0
 }
-func (s *NATSMicroServicesContainer) Register(ctx context.Context) error {
+func (s *NATSMicroServicesContainer) Register(ctx context.Context, conn *grpc.ClientConn) error {
 	s.mutex.Lock()
 	defer func() {
 		s.mutex.Unlock()
@@ -168,10 +158,10 @@ func (s *NATSMicroServicesContainer) Register(ctx context.Context) error {
 	}
 	log := zerolog.Ctx(ctx).With().Logger()
 
-	natsMicroServiceRegistrations := di.Get[[]fluffycore_contracts_nats_micro_service.INATSMicroServiceRegisration](s.rootContainer)
+	natsMicroServiceRegistrations := di.Get[[]contracts_endpoint.INATSEndpointRegistration](s.rootContainer)
 	for _, reg := range natsMicroServiceRegistrations {
-		natsMicroService, err := reg.AddService(s.nc,
-			&fluffycore_contracts_nats_micro_service.NATSMicroServiceRegisrationOption{})
+		natsMicroService, err := reg.RegisterFluffyCoreNATSHandler(ctx, s.nc, conn,
+			&contracts_nats_micro_service.NATSMicroServiceRegisrationOption{})
 		if err != nil {
 			log.Error().Err(err).Msg("failed to AddService")
 			return err
@@ -212,4 +202,13 @@ func (s *NATSMicroServicesContainer) stopNATSMicroServices(ctx context.Context, 
 		return fmt.Errorf("failed to Stop some services %v", errs)
 	}
 	return nil
+}
+func ConvertToStringMap(h micro.Headers) map[string]string {
+	result := make(map[string]string)
+	for key, values := range h {
+		if len(values) > 0 {
+			result[key] = values[0]
+		}
+	}
+	return result
 }
