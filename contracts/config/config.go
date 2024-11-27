@@ -9,6 +9,6 @@ type (
 		RESTPort               int    `json:"restPort" mapstructure:"REST_PORT"`
 		PrettyLog              bool   `json:"prettyLog" mapstructure:"PRETTY_LOG"`
 		LogLevel               string `json:"logLevel" mapstructure:"LOG_LEVEL"`
-		EnableNats             bool   `json:"enableNats" mapstructure:"ENABLE_NATS"`
+		NATSEnabled            bool   `json:"enableNats" mapstructure:"NATS_ENABLED"`
 	}
 )
