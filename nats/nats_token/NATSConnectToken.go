@@ -1,4 +1,4 @@
-package nats_connect
+package nats_token
 
 import (
 	"encoding/json"

@@ -28,6 +28,7 @@ const (
 	fluffyCoreUtilsPackage           = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/utils")
 	serviceNatsMicroServicePackage   = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/nats/nats_micro_service")
 	protojsonPackage                 = protogen.GoImportPath("google.golang.org/protobuf/encoding/protojson")
+	natsClientPackage                = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/nats/client")
 )
 
 type genFileContext struct {
@@ -184,19 +185,39 @@ func (s *serviceGenContext) genClient() {
 	*/
 	g.P("type (")
 	g.P("	", internalClientName, " struct {")
-	g.P("		option *", serviceNatsMicroServicePackage.Ident("NATSClientOption"))
+	g.P("		client *", natsClientPackage.Ident("NATSClient"))
 	g.P("		groupName string")
 	g.P("	}")
 	g.P(")")
 
 	/*
-			func NewClient(nc *nats.NATSClientOption) (cloud_api_business_nats.NATSClientServiceClient, error) {
-			return &serviceNATSClientServiceClient{
-				nc: nc,
+		func NewGreeterNATSMicroClient(  opt ...nats_client.NATSClientOption) (GreeterClient, error) {
+			client,err := nats_client.NewNATSClient(opt...)
+			if err != nil {
+				return nil, err
+			}
+
+			pkgPath := reflect.TypeOf((*GreeterServer)(nil)).Elem().PkgPath()
+			fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter")
+			groupName := strings.ReplaceAll(
+				fullPath,
+				"/",
+				".",
+			)
+
+			return &GreeterNATSMicroClient{
+				client: client,
+		 		groupName: groupName,
 			}, nil
 		}
+
 	*/
-	g.P("func New", internalClientName, "(option *", serviceNatsMicroServicePackage.Ident("NATSClientOption"), ") (", s.service.GoName, "Client, error) {")
+	g.P("func New", internalClientName, "(opts ...", natsClientPackage.Ident("NATSClientOption"), ") (", s.service.GoName, "Client, error) {")
+	g.P("	client,err := ", natsClientPackage.Ident("NewNATSClient"), "(opts...)")
+	g.P("	if err != nil {")
+	g.P("		return nil, err")
+	g.P("	}")
+	g.P(" 	")
 	g.P("  	pkgPath := ", reflectPackage.Ident("TypeOf"), "((*", interfaceServerName, ")(nil)).Elem().PkgPath()")
 	g.P("  	fullPath := ", fmtPackage.Ident("Sprintf"), "(\"%s/%s\", pkgPath, \"", service.GoName, "\")")
 	g.P("  	groupName := ", stringsPackage.Ident("ReplaceAll"), "(")
@@ -204,11 +225,9 @@ func (s *serviceGenContext) genClient() {
 	g.P("  		\"/\",")
 	g.P("  		\".\",")
 	g.P("  	)")
-	g.P("  	if option.Timeout == 0 { option.Timeout = ", timePackage.Ident("Second"), " * 2}")
 	g.P("	return &", internalClientName, "{")
-	g.P("		option: option,")
+	g.P("		client: client,")
 	g.P("		groupName: groupName,")
-
 	g.P("	}, nil")
 	g.P("}")
 
@@ -258,20 +277,17 @@ func (s *methodGenContext) grpcClientMethodSignature() string {
 }
 func (s *methodGenContext) generateClientMethodShim() {
 	/*
-			func (s *serviceNATSClientServiceClient) CreateNATSClient(ctx context.Context, in *cloud_api_business_nats.CreateNATSClientRequest, opts ...grpc.CallOption) (*cloud_api_business_nats.CreateNATSClientResponse, error) {
-				response := &cloud_api_business_nats.CreateNATSClientResponse{}
-
-		result, err := HandleNATSRequest(
-			ctx,
-			s.nc,
-			"go.mapped.dev.proto.cloud.api.business.nats.NATSClientService.CreateNATSClient",
-			in,
-			response,
-			2*time.Second,
-		)
-
-		return result, err
-			}
+		func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
+			response := &HelloReply{}
+			result, err := nats_micro_service1.HandleNATSClientRequestV2(
+				ctx,
+				s.client,
+				fmt.Sprintf("%s.SayHello", s.groupName),
+				in,
+				response,
+			)
+			return result, err
+		}
 	*/
 	method := s.ProtogenMethod
 
@@ -281,13 +297,12 @@ func (s *methodGenContext) generateClientMethodShim() {
 	g.P("// ", s.ProtogenMethod.GoName, "...")
 	g.P("func (s *", internalClientName, ") ", s.grpcClientMethodSignature(), "{")
 	g.P("	response := &", method.Output.GoIdent.GoName, "{}")
-	g.P("	result, err := ", serviceNatsMicroServicePackage.Ident("HandleNATSClientRequest"), "(")
+	g.P("	result, err := ", serviceNatsMicroServicePackage.Ident("HandleNATSClientRequestV2"), "(")
 	g.P("		ctx,")
-	g.P("		s.option.NC,")
+	g.P("		s.client,")
 	g.P("		", fmtPackage.Ident("Sprintf"), "(\"%s.", method.GoName, "\",s.groupName),")
 	g.P("		in,")
 	g.P("		response,")
-	g.P("		s.option.Timeout,")
 	g.P("	)")
 	g.P("   return result, err")
 	g.P("}")
