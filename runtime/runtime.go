@@ -324,8 +324,14 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 			anyNatsHandler := fluffycore_nats_micro_service.IsAnyNatsHandler(si.RootContainer)
 			// no need to do anything if nothing here to be registered
-			if anyNatsHandler {
-				natsMicroConfig := di.Get[*fluffycore_nats_micro_service.NATSMicroConfig](si.RootContainer)
+			natsMicroConfig, err := di.TryGet[*fluffycore_nats_micro_service.NATSMicroConfig](si.RootContainer)
+			if err != nil {
+				log.Error().Err(err).Msg("Could not get *NATSMicroConfig.  You get no nats micros.")
+			}
+			if err == nil &&
+				anyNatsHandler &&
+				natsMicroConfig != nil {
+
 				nc, err := fluffycore_nats_connect.CreateNatsConnectionWithClientCredentials(
 					&fluffycore_nats_connect.NATSConnectTokenClientCredentialsRequest{
 						NATSUrl:      natsMicroConfig.NATSUrl,
