@@ -17,6 +17,8 @@ import (
 	reflect "reflect"
 	strings "strings"
 	time "time"
+	nats_client "github.com/fluffy-bunny/fluffycore/nats/client"
+
 )
 
 type GreeterFluffyCoreServerNATSMicroRegistration struct {
@@ -133,12 +135,17 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 
 type (
 	GreeterNATSMicroClient struct {
-		option    *nats_micro_service1.NATSClientOption
-		groupName string
+		client *nats_client.NATSClient
+ 		groupName string
 	}
 )
 
-func NewGreeterNATSMicroClient(option *nats_micro_service1.NATSClientOption) (GreeterClient, error) {
+func NewGreeterNATSMicroClient(  opt ...nats_client.NATSClientOption) (GreeterClient, error) {
+	client,err := nats_client.NewNATSClient(opt...)
+	if err != nil {
+		return nil, err
+	}
+
 	pkgPath := reflect.TypeOf((*GreeterServer)(nil)).Elem().PkgPath()
 	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter")
 	groupName := strings.ReplaceAll(
@@ -146,25 +153,22 @@ func NewGreeterNATSMicroClient(option *nats_micro_service1.NATSClientOption) (Gr
 		"/",
 		".",
 	)
-	if option.Timeout == 0 {
-		option.Timeout = time.Second * 2
-	}
+	 
 	return &GreeterNATSMicroClient{
-		option:    option,
-		groupName: groupName,
+		client: client,
+ 		groupName: groupName,
 	}, nil
 }
 
 // SayHello...
 func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 	response := &HelloReply{}
-	result, err := nats_micro_service1.HandleNATSClientRequest(
+	result, err := nats_micro_service1.HandleNATSClientRequestV2(
 		ctx,
-		s.option.NC,
+		s.client,
 		fmt.Sprintf("%s.SayHello", s.groupName),
 		in,
 		response,
-		s.option.Timeout,
 	)
 	return result, err
 }
@@ -172,27 +176,25 @@ func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest,
 // SayHelloAuth...
 func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 	response := &HelloReply{}
-	result, err := nats_micro_service1.HandleNATSClientRequest(
+	result, err := nats_micro_service1.HandleNATSClientRequestV2(
 		ctx,
-		s.option.NC,
+		s.client,
 		fmt.Sprintf("%s.SayHelloAuth", s.groupName),
 		in,
 		response,
-		s.option.Timeout,
-	)
+ 	)
 	return result, err
 }
 
 // SayHelloDownstream...
 func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 	response := &HelloReply{}
-	result, err := nats_micro_service1.HandleNATSClientRequest(
+	result, err := nats_micro_service1.HandleNATSClientRequestV2(
 		ctx,
-		s.option.NC,
+		s.client,
 		fmt.Sprintf("%s.SayHelloDownstream", s.groupName),
 		in,
 		response,
-		s.option.Timeout,
 	)
 	return result, err
 }

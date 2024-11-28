@@ -9,6 +9,7 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	contracts_nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
+	nats_client "github.com/fluffy-bunny/fluffycore/nats/client"
 	nats "github.com/nats-io/nats.go"
 	micro "github.com/nats-io/nats.go/micro"
 	zerolog "github.com/rs/zerolog"
@@ -49,6 +50,31 @@ func GetNATSRequestHeaderContainer(ctx context.Context) *NATSRequestHeaderContai
 		return &NATSRequestHeaderContainer{}
 	}
 	return vv.(*NATSRequestHeaderContainer)
+}
+
+func HandleNATSClientRequestV2[Req proto.Message, Resp proto.Message](
+	ctx context.Context,
+	client *nats_client.NATSClient,
+	subject string,
+	request Req,
+	response Resp,
+) (Resp, error) {
+	// Marshal the request
+	msg, err := protojson.Marshal(request)
+	if err != nil {
+		return response, fmt.Errorf("failed to marshal request: %w", err)
+	}
+	natsResponse, err := client.RequestWithContext(ctx, subject, msg)
+	if err != nil {
+		return response, fmt.Errorf("NATS request failed: %w", err)
+	}
+
+	// Unmarshal response
+	err = protojson.Unmarshal(natsResponse.Data, response)
+	if err != nil {
+		return response, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	return response, nil
 }
 
 // HandleNATSRequest is a standalone generic function to handle GRPC to NATS bridge requests
