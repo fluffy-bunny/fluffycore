@@ -9,7 +9,6 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	contracts_nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
-	interceptor "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service/default/interceptor"
 	nats "github.com/nats-io/nats.go"
 	micro "github.com/nats-io/nats.go/micro"
 	zerolog "github.com/rs/zerolog"
@@ -29,7 +28,6 @@ func AddNatsMicroConfig(builder di.ContainerBuilder, config *NATSMicroConfig) {
 	di.AddInstance[*NATSMicroConfig](builder, config)
 }
 func AddCommonNATSServices(builder di.ContainerBuilder) {
-	interceptor.AddSingletonNATSMicroInterceptors(builder)
 }
 
 type NATSRequestHeaderContainer struct {
