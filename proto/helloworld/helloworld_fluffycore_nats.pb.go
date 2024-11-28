@@ -8,6 +8,7 @@ import (
 	fluffy_dozm_di "github.com/fluffy-bunny/fluffy-dozm-di"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
+	client "github.com/fluffy-bunny/fluffycore/nats/client"
 	nats_micro_service1 "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	utils "github.com/fluffy-bunny/fluffycore/utils"
 	nats_go "github.com/nats-io/nats.go"
@@ -16,9 +17,6 @@ import (
 	protojson "google.golang.org/protobuf/encoding/protojson"
 	reflect "reflect"
 	strings "strings"
-	time "time"
-	nats_client "github.com/fluffy-bunny/fluffycore/nats/client"
-
 )
 
 type GreeterFluffyCoreServerNATSMicroRegistration struct {
@@ -135,13 +133,13 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 
 type (
 	GreeterNATSMicroClient struct {
-		client *nats_client.NATSClient
- 		groupName string
+		client    *client.NATSClient
+		groupName string
 	}
 )
 
-func NewGreeterNATSMicroClient(  opt ...nats_client.NATSClientOption) (GreeterClient, error) {
-	client,err := nats_client.NewNATSClient(opt...)
+func NewGreeterNATSMicroClient(opts ...client.NATSClientOption) (GreeterClient, error) {
+	client, err := client.NewNATSClient(opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -153,10 +151,9 @@ func NewGreeterNATSMicroClient(  opt ...nats_client.NATSClientOption) (GreeterCl
 		"/",
 		".",
 	)
-	 
 	return &GreeterNATSMicroClient{
-		client: client,
- 		groupName: groupName,
+		client:    client,
+		groupName: groupName,
 	}, nil
 }
 
@@ -182,7 +179,7 @@ func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequ
 		fmt.Sprintf("%s.SayHelloAuth", s.groupName),
 		in,
 		response,
- 	)
+	)
 	return result, err
 }
 
@@ -275,12 +272,17 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 
 type (
 	Greeter2NATSMicroClient struct {
-		option    *nats_micro_service1.NATSClientOption
+		client    *client.NATSClient
 		groupName string
 	}
 )
 
-func NewGreeter2NATSMicroClient(option *nats_micro_service1.NATSClientOption) (Greeter2Client, error) {
+func NewGreeter2NATSMicroClient(opts ...client.NATSClientOption) (Greeter2Client, error) {
+	client, err := client.NewNATSClient(opts...)
+	if err != nil {
+		return nil, err
+	}
+
 	pkgPath := reflect.TypeOf((*Greeter2Server)(nil)).Elem().PkgPath()
 	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter2")
 	groupName := strings.ReplaceAll(
@@ -288,11 +290,8 @@ func NewGreeter2NATSMicroClient(option *nats_micro_service1.NATSClientOption) (G
 		"/",
 		".",
 	)
-	if option.Timeout == 0 {
-		option.Timeout = time.Second * 2
-	}
 	return &Greeter2NATSMicroClient{
-		option:    option,
+		client:    client,
 		groupName: groupName,
 	}, nil
 }
@@ -300,13 +299,12 @@ func NewGreeter2NATSMicroClient(option *nats_micro_service1.NATSClientOption) (G
 // SayHello...
 func (s *Greeter2NATSMicroClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply2, error) {
 	response := &HelloReply2{}
-	result, err := nats_micro_service1.HandleNATSClientRequest(
+	result, err := nats_micro_service1.HandleNATSClientRequestV2(
 		ctx,
-		s.option.NC,
+		s.client,
 		fmt.Sprintf("%s.SayHello", s.groupName),
 		in,
 		response,
-		s.option.Timeout,
 	)
 	return result, err
 }
