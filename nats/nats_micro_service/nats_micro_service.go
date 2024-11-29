@@ -14,6 +14,7 @@ import (
 	micro "github.com/nats-io/nats.go/micro"
 	zerolog "github.com/rs/zerolog"
 	grpc "google.golang.org/grpc"
+	metadata "google.golang.org/grpc/metadata"
 	protojson "google.golang.org/protobuf/encoding/protojson"
 	proto "google.golang.org/protobuf/proto"
 )
@@ -124,13 +125,18 @@ func HandleRequest[Req, Resp any](
 	unmarshaler func(*Req) error,
 	serviceMethod func(context.Context, *Req) (*Resp, error),
 ) {
+	ctx := context.Background()
+	// propegate all req.Headers to the grpc metadata
+	dd := ConvertToStringMap(req.Headers())
+	md := metadata.New(dd)
+	ctx = metadata.NewOutgoingContext(ctx, md)
 	var innerRequest Req
 	if err := unmarshaler(&innerRequest); err != nil {
 		req.Error("400", err.Error(), nil)
 		return
 	}
 
-	resp, err := serviceMethod(context.Background(), &innerRequest)
+	resp, err := serviceMethod(ctx, &innerRequest)
 	if err != nil {
 		req.Error("500", err.Error(), nil)
 		return

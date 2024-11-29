@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
+	wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	nats "github.com/nats-io/nats.go"
 	oauth2 "golang.org/x/oauth2"
 	metadata "google.golang.org/grpc/metadata"
@@ -11,11 +13,11 @@ import (
 
 type (
 	NATSClient struct {
-		conn           *nats.Conn
-		tokenSource    oauth2.TokenSource
-		timeout        time.Duration
-		mdInterceptors []MetadataInterceptor
-		callOptions    []CallOption
+		conn         *nats.Conn
+		tokenSource  oauth2.TokenSource
+		timeout      time.Duration
+		ctxModifiers []ContextModifier
+		callOptions  []CallOption
 	}
 	CallInfo struct {
 		Ctx     context.Context
@@ -26,7 +28,32 @@ type (
 		after(*CallInfo) error
 	}
 )
-type MetadataInterceptor func(md metadata.MD, subject string) error
+type ContextModifier func(ctx context.Context, subject string) (context.Context, error)
+
+func EnsureOutboundSpanTracing(ctx context.Context, subject string) (context.Context, error) {
+	// try to pull the correlation id .  wellknown.XCorrelationIDName
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		md = metadata.Pairs()
+	}
+	xData := md.Get(wellknown.XCorrelationIDName)
+	if fluffycore_utils.IsEmptyOrNil(xData) {
+		correlationID := fluffycore_utils.GenerateUniqueID()
+		md.Set(wellknown.XCorrelationIDName, correlationID)
+	}
+	// turn x-span into x-parent
+	xData = md.Get(wellknown.XSpanName)
+	if fluffycore_utils.IsNotEmptyOrNil(xData) {
+		md.Delete(wellknown.XParentName)
+		md.Set(wellknown.XParentName, xData...)
+		md.Delete(wellknown.XSpanName)
+	}
+	xSpan := fluffycore_utils.GenerateUniqueID()
+	md.Set(wellknown.XSpanName, xSpan)
+
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	return ctx, nil
+}
 
 // NATSClientOption is used for option pattern calling
 type NATSClientOption func(*NATSClient) error
@@ -58,10 +85,10 @@ func WithCallOptions(callOptions []CallOption) NATSClientOption {
 	}
 }
 
-// WithMetadataInterceptors is a list of context interceptors that should only mutate
-func WithMetadataInterceptors(mdInterceptors []MetadataInterceptor) NATSClientOption {
+// WithContextModifiers is a list of context interceptors
+func WithContextModifiers(ctxModifiers ...ContextModifier) NATSClientOption {
 	return func(c *NATSClient) error {
-		c.mdInterceptors = mdInterceptors
+		c.ctxModifiers = ctxModifiers
 		return nil
 	}
 }
@@ -74,8 +101,8 @@ func WithTimeout(timeout time.Duration) NATSClientOption {
 	}
 }
 
-// WithMicroServiceTokenSource is the token needed to talk to the nats micro service handlers.
-func WithMicroServiceTokenSource(tokenSource oauth2.TokenSource) NATSClientOption {
+// WithTokenSource is the token needed to talk to the nats micro service handlers.
+func WithTokenSource(tokenSource oauth2.TokenSource) NATSClientOption {
 	return func(c *NATSClient) error {
 		c.tokenSource = tokenSource
 		return nil
@@ -84,12 +111,15 @@ func WithMicroServiceTokenSource(tokenSource oauth2.TokenSource) NATSClientOptio
 
 func (s *NATSClient) createNATSRequestHeaders(ctx context.Context) (nats.Header, error) {
 
-	md, ok := metadata.FromIncomingContext(ctx)
+	// we are a client so the metadata here is outgoing.  we just need to propogate that to
+	// the nats headers
+	md, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
 		md = metadata.Pairs()
 	}
-	for _, interceptor := range s.mdInterceptors {
-		err := interceptor(md, "")
+	var err error
+	for _, ctxModifier := range s.ctxModifiers {
+		ctx, err = ctxModifier(ctx, "")
 		if err != nil {
 			return nil, err
 		}
