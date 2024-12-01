@@ -7,9 +7,9 @@ import (
 	fmt "fmt"
 	fluffy_dozm_di "github.com/fluffy-bunny/fluffy-dozm-di"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
-	nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
+	nats_micro_service1 "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
 	client "github.com/fluffy-bunny/fluffycore/nats/client"
-	nats_micro_service1 "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
+	nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	utils "github.com/fluffy-bunny/fluffycore/utils"
 	nats_go "github.com/nats-io/nats.go"
 	micro "github.com/nats-io/nats.go/micro"
@@ -18,6 +18,36 @@ import (
 	reflect "reflect"
 	strings "strings"
 )
+
+func MethodToSubject_Greeter(method string) (string, bool) {
+	pkgPath := reflect.TypeOf((*GreeterServer)(nil)).Elem().PkgPath()
+	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter")
+	groupName := strings.ReplaceAll(
+		fullPath,
+		"/",
+		".",
+	)
+	var methodMap = map[string]func() string{
+		"/helloworld.Greeter/SayHello": func() string {
+			return fmt.Sprintf("%s.SayHello", groupName)
+		},
+		"/helloworld.Greeter/SayHelloAuth": func() string {
+			return fmt.Sprintf("%s.SayHelloAuth", groupName)
+		},
+		"/helloworld.Greeter/SayHelloDownstream": func() string {
+			return fmt.Sprintf("%s.SayHelloDownstream", groupName)
+		},
+	}
+	ret, ok := methodMap[method]
+	if !ok {
+		return "", false
+	}
+	return ret(), true
+}
+
+func SendNATSRequestUnaryClientInterceptor_Greeter(natsClient *client.NATSClient) grpc.UnaryClientInterceptor {
+	return nats_micro_service.SendNATSRequestInterceptor(natsClient, MethodToSubject_Greeter)
+}
 
 type GreeterFluffyCoreServerNATSMicroRegistration struct {
 }
@@ -33,16 +63,16 @@ func (s *GreeterFluffyCoreServerNATSMicroRegistration) Ctor() (endpoint.INATSEnd
 	return &GreeterFluffyCoreServerNATSMicroRegistration{}, nil
 }
 
-func (s *GreeterFluffyCoreServerNATSMicroRegistration) RegisterFluffyCoreNATSHandler(ctx context.Context, natsConn *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func (s *GreeterFluffyCoreServerNATSMicroRegistration) RegisterFluffyCoreNATSHandler(ctx context.Context, natsConn *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	return RegisterGreeterNATSHandler(ctx, natsConn, conn, option)
 }
 
-func RegisterGreeterNATSHandler(ctx context.Context, natsCon *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func RegisterGreeterNATSHandler(ctx context.Context, natsCon *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	client := NewGreeterClient(conn)
 	return RegisterGreeterNATSHandlerClient(ctx, natsCon, client, option)
 }
 
-func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client GreeterClient, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client GreeterClient, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	defaultConfig := &micro.Config{
 		Name:        "Greeter",
 		Version:     "0.0.1",
@@ -73,7 +103,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 	m := svc.AddGroup(groupName)
 	m.AddEndpoint("SayHello",
 		micro.HandlerFunc(func(req micro.Request) {
-			nats_micro_service1.HandleRequest(
+			nats_micro_service.HandleRequest(
 				req,
 				func(r *HelloRequest) error {
 					return protojson.Unmarshal(req.Data(), r)
@@ -92,7 +122,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 
 	m.AddEndpoint("SayHelloAuth",
 		micro.HandlerFunc(func(req micro.Request) {
-			nats_micro_service1.HandleRequest(
+			nats_micro_service.HandleRequest(
 				req,
 				func(r *HelloRequest) error {
 					return protojson.Unmarshal(req.Data(), r)
@@ -111,7 +141,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 
 	m.AddEndpoint("SayHelloDownstream",
 		micro.HandlerFunc(func(req micro.Request) {
-			nats_micro_service1.HandleRequest(
+			nats_micro_service.HandleRequest(
 				req,
 				func(r *HelloRequest) error {
 					return protojson.Unmarshal(req.Data(), r)
@@ -160,7 +190,7 @@ func NewGreeterNATSMicroClient(opts ...client.NATSClientOption) (GreeterClient, 
 // SayHello...
 func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 	response := &HelloReply{}
-	result, err := nats_micro_service1.HandleNATSClientRequestV2(
+	result, err := nats_micro_service.HandleNATSClientRequestV2(
 		ctx,
 		s.client,
 		fmt.Sprintf("%s.SayHello", s.groupName),
@@ -173,7 +203,7 @@ func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest,
 // SayHelloAuth...
 func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 	response := &HelloReply{}
-	result, err := nats_micro_service1.HandleNATSClientRequestV2(
+	result, err := nats_micro_service.HandleNATSClientRequestV2(
 		ctx,
 		s.client,
 		fmt.Sprintf("%s.SayHelloAuth", s.groupName),
@@ -186,7 +216,7 @@ func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequ
 // SayHelloDownstream...
 func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 	response := &HelloReply{}
-	result, err := nats_micro_service1.HandleNATSClientRequestV2(
+	result, err := nats_micro_service.HandleNATSClientRequestV2(
 		ctx,
 		s.client,
 		fmt.Sprintf("%s.SayHelloDownstream", s.groupName),
@@ -194,6 +224,30 @@ func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *Hel
 		response,
 	)
 	return result, err
+}
+
+func MethodToSubject_Greeter2(method string) (string, bool) {
+	pkgPath := reflect.TypeOf((*Greeter2Server)(nil)).Elem().PkgPath()
+	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter2")
+	groupName := strings.ReplaceAll(
+		fullPath,
+		"/",
+		".",
+	)
+	var methodMap = map[string]func() string{
+		"/helloworld.Greeter2/SayHello": func() string {
+			return fmt.Sprintf("%s.SayHello", groupName)
+		},
+	}
+	ret, ok := methodMap[method]
+	if !ok {
+		return "", false
+	}
+	return ret(), true
+}
+
+func SendNATSRequestUnaryClientInterceptor_Greeter2(natsClient *client.NATSClient) grpc.UnaryClientInterceptor {
+	return nats_micro_service.SendNATSRequestInterceptor(natsClient, MethodToSubject_Greeter2)
 }
 
 type Greeter2FluffyCoreServerNATSMicroRegistration struct {
@@ -210,16 +264,16 @@ func (s *Greeter2FluffyCoreServerNATSMicroRegistration) Ctor() (endpoint.INATSEn
 	return &Greeter2FluffyCoreServerNATSMicroRegistration{}, nil
 }
 
-func (s *Greeter2FluffyCoreServerNATSMicroRegistration) RegisterFluffyCoreNATSHandler(ctx context.Context, natsConn *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func (s *Greeter2FluffyCoreServerNATSMicroRegistration) RegisterFluffyCoreNATSHandler(ctx context.Context, natsConn *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	return RegisterGreeter2NATSHandler(ctx, natsConn, conn, option)
 }
 
-func RegisterGreeter2NATSHandler(ctx context.Context, natsCon *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func RegisterGreeter2NATSHandler(ctx context.Context, natsCon *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	client := NewGreeter2Client(conn)
 	return RegisterGreeter2NATSHandlerClient(ctx, natsCon, client, option)
 }
 
-func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client Greeter2Client, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client Greeter2Client, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	defaultConfig := &micro.Config{
 		Name:        "Greeter2",
 		Version:     "0.0.1",
@@ -250,7 +304,7 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 	m := svc.AddGroup(groupName)
 	m.AddEndpoint("SayHello",
 		micro.HandlerFunc(func(req micro.Request) {
-			nats_micro_service1.HandleRequest(
+			nats_micro_service.HandleRequest(
 				req,
 				func(r *HelloRequest) error {
 					return protojson.Unmarshal(req.Data(), r)
@@ -299,7 +353,7 @@ func NewGreeter2NATSMicroClient(opts ...client.NATSClientOption) (Greeter2Client
 // SayHello...
 func (s *Greeter2NATSMicroClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply2, error) {
 	response := &HelloReply2{}
-	result, err := nats_micro_service1.HandleNATSClientRequestV2(
+	result, err := nats_micro_service.HandleNATSClientRequestV2(
 		ctx,
 		s.client,
 		fmt.Sprintf("%s.SayHello", s.groupName),
@@ -323,16 +377,16 @@ func (s *MyStreamServiceFluffyCoreServerNATSMicroRegistration) Ctor() (endpoint.
 	return &MyStreamServiceFluffyCoreServerNATSMicroRegistration{}, nil
 }
 
-func (s *MyStreamServiceFluffyCoreServerNATSMicroRegistration) RegisterFluffyCoreNATSHandler(ctx context.Context, natsConn *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func (s *MyStreamServiceFluffyCoreServerNATSMicroRegistration) RegisterFluffyCoreNATSHandler(ctx context.Context, natsConn *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	return RegisterMyStreamServiceNATSHandler(ctx, natsConn, conn, option)
 }
 
-func RegisterMyStreamServiceNATSHandler(ctx context.Context, natsCon *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func RegisterMyStreamServiceNATSHandler(ctx context.Context, natsCon *nats_go.Conn, conn *grpc.ClientConn, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	client := NewMyStreamServiceClient(conn)
 	return RegisterMyStreamServiceNATSHandlerClient(ctx, natsCon, client, option)
 }
 
-func RegisterMyStreamServiceNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client MyStreamServiceClient, option *nats_micro_service.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+func RegisterMyStreamServiceNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client MyStreamServiceClient, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
 	defaultConfig := &micro.Config{
 		Name:        "MyStreamService",
 		Version:     "0.0.1",

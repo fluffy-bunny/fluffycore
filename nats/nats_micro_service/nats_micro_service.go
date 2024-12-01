@@ -10,13 +10,16 @@ import (
 	contracts_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	contracts_nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
 	nats_client "github.com/fluffy-bunny/fluffycore/nats/client"
+	"github.com/gogo/status"
 	nats "github.com/nats-io/nats.go"
 	micro "github.com/nats-io/nats.go/micro"
 	zerolog "github.com/rs/zerolog"
 	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	metadata "google.golang.org/grpc/metadata"
 	protojson "google.golang.org/protobuf/encoding/protojson"
 	proto "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type NATSMicroConfig struct {
@@ -241,4 +244,39 @@ func ConvertToStringMap(h micro.Headers) map[string]string {
 		}
 	}
 	return result
+}
+
+func SendNATSRequestInterceptor(natsClient *nats_client.NATSClient,
+	methodToSubject func(string) (string, bool)) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+
+		subject, ok := methodToSubject(method)
+		if !ok {
+			return status.Error(codes.Internal, "methodToSubject failed")
+		}
+		// propegate all grpc metadata to the nats headers
+		md, ok := metadata.FromOutgoingContext(ctx)
+		if ok {
+			headers := nats.Header{}
+			for k, v := range md {
+				headers[k] = v
+			}
+		}
+		// typecase req to a protomessage
+		reqProto, ok := req.(protoreflect.ProtoMessage)
+		if !ok {
+			return status.Error(codes.Internal, "req is not a protoreflect.ProtoMessage")
+		}
+		// typecase reply to a protomessage
+		replyProto, ok := reply.(protoreflect.ProtoMessage)
+		if !ok {
+			return status.Error(codes.Internal, "reply is not a protoreflect.ProtoMessage")
+		}
+		// "go.mapped.dev.proto.cloud.api.business.nats.NATSClientService.ListNATSClient"
+		// "go.mapped.dev.proto.mapped.cloud.api.business.nats.NATSClientService.ListNATSClient"
+
+		_, err := HandleNATSClientRequestV2(ctx, natsClient, subject, reqProto, replyProto)
+
+		return err
+	}
 }
