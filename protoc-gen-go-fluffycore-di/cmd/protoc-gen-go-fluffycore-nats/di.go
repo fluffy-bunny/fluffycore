@@ -279,7 +279,7 @@ func (s *methodGenContext) generateClientMethodShim() {
 	/*
 		func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 			response := &HelloReply{}
-			result, err := nats_micro_service1.HandleNATSClientRequestV2(
+			result, err := nats_micro_service1.HandleNATSClientRequest(
 				ctx,
 				s.client,
 				fmt.Sprintf("%s.SayHello", s.groupName),
@@ -297,7 +297,7 @@ func (s *methodGenContext) generateClientMethodShim() {
 	g.P("// ", s.ProtogenMethod.GoName, "...")
 	g.P("func (s *", internalClientName, ") ", s.grpcClientMethodSignature(), "{")
 	g.P("	response := &", method.Output.GoIdent.GoName, "{}")
-	g.P("	result, err := ", serviceNatsMicroServicePackage.Ident("HandleNATSClientRequestV2"), "(")
+	g.P("	result, err := ", serviceNatsMicroServicePackage.Ident("HandleNATSClientRequest"), "(")
 	g.P("		ctx,")
 	g.P("		s.client,")
 	g.P("		", fmtPackage.Ident("Sprintf"), "(\"%s.", method.GoName, "\",s.groupName),")

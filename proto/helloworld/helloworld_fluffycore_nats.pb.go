@@ -190,7 +190,7 @@ func NewGreeterNATSMicroClient(opts ...client.NATSClientOption) (GreeterClient, 
 // SayHello...
 func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 	response := &HelloReply{}
-	result, err := nats_micro_service.HandleNATSClientRequestV2(
+	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
 		fmt.Sprintf("%s.SayHello", s.groupName),
@@ -203,7 +203,7 @@ func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest,
 // SayHelloAuth...
 func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 	response := &HelloReply{}
-	result, err := nats_micro_service.HandleNATSClientRequestV2(
+	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
 		fmt.Sprintf("%s.SayHelloAuth", s.groupName),
@@ -216,7 +216,7 @@ func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequ
 // SayHelloDownstream...
 func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 	response := &HelloReply{}
-	result, err := nats_micro_service.HandleNATSClientRequestV2(
+	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
 		fmt.Sprintf("%s.SayHelloDownstream", s.groupName),
@@ -353,7 +353,7 @@ func NewGreeter2NATSMicroClient(opts ...client.NATSClientOption) (Greeter2Client
 // SayHello...
 func (s *Greeter2NATSMicroClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply2, error) {
 	response := &HelloReply2{}
-	result, err := nats_micro_service.HandleNATSClientRequestV2(
+	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
 		fmt.Sprintf("%s.SayHello", s.groupName),

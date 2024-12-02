@@ -43,20 +43,7 @@ type NATSClientOption struct {
 	Timeout time.Duration
 }
 
-var NATSRequestHeaderContainerKey = &NATSRequestHeaderContainer{}
-
-func WithNATSRequestHeaderContainer(ctx context.Context, headerContainer *NATSRequestHeaderContainer) context.Context {
-	return context.WithValue(ctx, NATSRequestHeaderContainerKey, headerContainer)
-}
-func GetNATSRequestHeaderContainer(ctx context.Context) *NATSRequestHeaderContainer {
-	vv := ctx.Value(NATSRequestHeaderContainerKey)
-	if vv == nil {
-		return &NATSRequestHeaderContainer{}
-	}
-	return vv.(*NATSRequestHeaderContainer)
-}
-
-func HandleNATSClientRequestV2[Req proto.Message, Resp proto.Message](
+func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 	ctx context.Context,
 	client *nats_client.NATSClient,
 	subject string,
@@ -78,48 +65,6 @@ func HandleNATSClientRequestV2[Req proto.Message, Resp proto.Message](
 	if err != nil {
 		return response, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	return response, nil
-}
-
-// HandleNATSRequest is a standalone generic function to handle GRPC to NATS bridge requests
-func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
-	ctx context.Context,
-	nc *nats.Conn,
-	subject string,
-	request Req,
-	response Resp,
-	timeout time.Duration,
-) (Resp, error) {
-
-	natsRequestHeaderContainer := GetNATSRequestHeaderContainer(ctx)
-	// Pull header from context
-	hdr := natsRequestHeaderContainer.Header
-
-	// Marshal the request
-	msg, err := protojson.Marshal(request)
-	if err != nil {
-		return response, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	// Prepare NATS message
-	natsMessage := &nats.Msg{
-		Subject: subject,
-		Data:    msg,
-		Header:  hdr,
-	}
-
-	// Send request and wait for response
-	natsResponse, err := nc.RequestMsg(natsMessage, timeout)
-	if err != nil {
-		return response, fmt.Errorf("NATS request failed: %w", err)
-	}
-
-	// Unmarshal response
-	err = protojson.Unmarshal(natsResponse.Data, response)
-	if err != nil {
-		return response, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-
 	return response, nil
 }
 
@@ -275,7 +220,7 @@ func SendNATSRequestInterceptor(natsClient *nats_client.NATSClient,
 		// "go.mapped.dev.proto.cloud.api.business.nats.NATSClientService.ListNATSClient"
 		// "go.mapped.dev.proto.mapped.cloud.api.business.nats.NATSClientService.ListNATSClient"
 
-		_, err := HandleNATSClientRequestV2(ctx, natsClient, subject, reqProto, replyProto)
+		_, err := HandleNATSClientRequest(ctx, natsClient, subject, reqProto, replyProto)
 
 		return err
 	}
