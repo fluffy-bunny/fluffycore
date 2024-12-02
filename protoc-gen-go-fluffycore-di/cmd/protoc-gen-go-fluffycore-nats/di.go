@@ -279,7 +279,7 @@ func (s *methodGenContext) generateClientMethodShim() {
 	/*
 		func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
 			response := &HelloReply{}
-			result, err := nats_micro_service1.HandleNATSClientRequestV2(
+			result, err := nats_micro_service1.HandleNATSClientRequest(
 				ctx,
 				s.client,
 				fmt.Sprintf("%s.SayHello", s.groupName),
@@ -297,7 +297,7 @@ func (s *methodGenContext) generateClientMethodShim() {
 	g.P("// ", s.ProtogenMethod.GoName, "...")
 	g.P("func (s *", internalClientName, ") ", s.grpcClientMethodSignature(), "{")
 	g.P("	response := &", method.Output.GoIdent.GoName, "{}")
-	g.P("	result, err := ", serviceNatsMicroServicePackage.Ident("HandleNATSClientRequestV2"), "(")
+	g.P("	result, err := ", serviceNatsMicroServicePackage.Ident("HandleNATSClientRequest"), "(")
 	g.P("		ctx,")
 	g.P("		s.client,")
 	g.P("		", fmtPackage.Ident("Sprintf"), "(\"%s.", method.GoName, "\",s.groupName),")
@@ -335,6 +335,41 @@ func (s *serviceGenContext) genService() {
 			atLeastOneMethod = true
 			break
 		}
+	}
+	if atLeastOneMethod {
+
+		// need to map 	Greeter_SayHello_FullMethodName           = "/helloworld.Greeter/SayHello"
+		// to the nats full subject by providing a function.
+		g.P("func MethodToSubject_", service.GoName, "(method string) (string,bool){")
+		g.P("  	pkgPath := ", reflectPackage.Ident("TypeOf"), "((*", interfaceServerName, ")(nil)).Elem().PkgPath()")
+		g.P("  	fullPath := ", fmtPackage.Ident("Sprintf"), "(\"%s/%s\", pkgPath, \"", service.GoName, "\")")
+		g.P("  	groupName := ", stringsPackage.Ident("ReplaceAll"), "(")
+		g.P("  		fullPath,")
+		g.P("  		\"/\",")
+		g.P("  		\".\",")
+		g.P("  	)")
+		g.P("var methodMap = map[string]func()string{")
+		for _, method := range service.Methods {
+			serverType := method.Parent.GoName
+			key := "/" + *proto.Package + "." + serverType + "/" + method.GoName
+			g.P("	\"", key, "\": func() string {")
+			g.P("		return ", fmtPackage.Ident("Sprintf"), "(\"%s.", method.GoName, "\",groupName)")
+			g.P("	},")
+
+		}
+		g.P("}")
+		g.P("  	ret,ok := methodMap[method]")
+		g.P("  	if !ok {")
+		g.P("  		return \"\",false")
+		g.P("  	}")
+		g.P("  	return ret(),true")
+		g.P("}")
+		g.P()
+
+		g.P("func SendNATSRequestUnaryClientInterceptor_", service.GoName, "(natsClient *", natsClientPackage.Ident("NATSClient"), ")", grpcPackage.Ident("UnaryClientInterceptor"), "{")
+		g.P("  	return  ", serviceNatsMicroServicePackage.Ident("SendNATSRequestInterceptor"), "(natsClient,MethodToSubject_", service.GoName, ")")
+		g.P("}")
+		g.P()
 	}
 	g.P("type ", internalRegistrationServerName, " struct {")
 	g.P("}")
