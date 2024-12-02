@@ -10,13 +10,16 @@ import (
 	contracts_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	contracts_nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
 	nats_client "github.com/fluffy-bunny/fluffycore/nats/client"
+	"github.com/gogo/status"
 	nats "github.com/nats-io/nats.go"
 	micro "github.com/nats-io/nats.go/micro"
 	zerolog "github.com/rs/zerolog"
 	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	metadata "google.golang.org/grpc/metadata"
 	protojson "google.golang.org/protobuf/encoding/protojson"
 	proto "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type NATSMicroConfig struct {
@@ -40,20 +43,7 @@ type NATSClientOption struct {
 	Timeout time.Duration
 }
 
-var NATSRequestHeaderContainerKey = &NATSRequestHeaderContainer{}
-
-func WithNATSRequestHeaderContainer(ctx context.Context, headerContainer *NATSRequestHeaderContainer) context.Context {
-	return context.WithValue(ctx, NATSRequestHeaderContainerKey, headerContainer)
-}
-func GetNATSRequestHeaderContainer(ctx context.Context) *NATSRequestHeaderContainer {
-	vv := ctx.Value(NATSRequestHeaderContainerKey)
-	if vv == nil {
-		return &NATSRequestHeaderContainer{}
-	}
-	return vv.(*NATSRequestHeaderContainer)
-}
-
-func HandleNATSClientRequestV2[Req proto.Message, Resp proto.Message](
+func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 	ctx context.Context,
 	client *nats_client.NATSClient,
 	subject string,
@@ -75,48 +65,6 @@ func HandleNATSClientRequestV2[Req proto.Message, Resp proto.Message](
 	if err != nil {
 		return response, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	return response, nil
-}
-
-// HandleNATSRequest is a standalone generic function to handle GRPC to NATS bridge requests
-func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
-	ctx context.Context,
-	nc *nats.Conn,
-	subject string,
-	request Req,
-	response Resp,
-	timeout time.Duration,
-) (Resp, error) {
-
-	natsRequestHeaderContainer := GetNATSRequestHeaderContainer(ctx)
-	// Pull header from context
-	hdr := natsRequestHeaderContainer.Header
-
-	// Marshal the request
-	msg, err := protojson.Marshal(request)
-	if err != nil {
-		return response, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	// Prepare NATS message
-	natsMessage := &nats.Msg{
-		Subject: subject,
-		Data:    msg,
-		Header:  hdr,
-	}
-
-	// Send request and wait for response
-	natsResponse, err := nc.RequestMsg(natsMessage, timeout)
-	if err != nil {
-		return response, fmt.Errorf("NATS request failed: %w", err)
-	}
-
-	// Unmarshal response
-	err = protojson.Unmarshal(natsResponse.Data, response)
-	if err != nil {
-		return response, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-
 	return response, nil
 }
 
@@ -241,4 +189,39 @@ func ConvertToStringMap(h micro.Headers) map[string]string {
 		}
 	}
 	return result
+}
+
+func SendNATSRequestInterceptor(natsClient *nats_client.NATSClient,
+	methodToSubject func(string) (string, bool)) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+
+		subject, ok := methodToSubject(method)
+		if !ok {
+			return status.Error(codes.Internal, "methodToSubject failed")
+		}
+		// propegate all grpc metadata to the nats headers
+		md, ok := metadata.FromOutgoingContext(ctx)
+		if ok {
+			headers := nats.Header{}
+			for k, v := range md {
+				headers[k] = v
+			}
+		}
+		// typecase req to a protomessage
+		reqProto, ok := req.(protoreflect.ProtoMessage)
+		if !ok {
+			return status.Error(codes.Internal, "req is not a protoreflect.ProtoMessage")
+		}
+		// typecase reply to a protomessage
+		replyProto, ok := reply.(protoreflect.ProtoMessage)
+		if !ok {
+			return status.Error(codes.Internal, "reply is not a protoreflect.ProtoMessage")
+		}
+		// "go.mapped.dev.proto.cloud.api.business.nats.NATSClientService.ListNATSClient"
+		// "go.mapped.dev.proto.mapped.cloud.api.business.nats.NATSClientService.ListNATSClient"
+
+		_, err := HandleNATSClientRequest(ctx, natsClient, subject, reqProto, replyProto)
+
+		return err
+	}
 }
