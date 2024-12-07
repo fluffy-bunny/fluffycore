@@ -328,9 +328,18 @@ func getHandlerRule(
 	return proto.GetExtension(method.Desc.Options(), annotations.E_Handler).(*annotations.HandlerRule)
 }
 func hrvFromMethod(proto *descriptorpb.FileDescriptorProto, method *protogen.Method) *annotations.HandlerRule {
+	// we may not have anything, but we still have a subject so we will return that in the wildcard token
+	serverType := method.Parent.GoName
+
 	hr := getHandlerRule(method)
 	if hr == nil {
-		return nil
+		wildcardTokenFull := *proto.Package + "." + serverType + "." + method.GoName
+		paramaterizedTokenFull := *proto.Package + "." + serverType + "." + method.GoName
+
+		return &annotations.HandlerRule{
+			WildcardToken:      wildcardTokenFull,
+			ParameterizedToken: paramaterizedTokenFull,
+		}
 	}
 	namespace := hr.Namespace
 	wildcardToken := hr.WildcardToken
@@ -344,7 +353,6 @@ func hrvFromMethod(proto *descriptorpb.FileDescriptorProto, method *protogen.Met
 	if fluffycore_utils.IsNotEmptyOrNil(paramaterizedToken) {
 		paramaterizedToken = "." + paramaterizedToken
 	}
-	serverType := method.Parent.GoName
 
 	wildcardTokenFull := namespace + *proto.Package + "." + serverType + "." + method.GoName + wildcardToken
 	paramaterizedTokenFull := namespace + *proto.Package + "." + serverType + "." + method.GoName + paramaterizedToken

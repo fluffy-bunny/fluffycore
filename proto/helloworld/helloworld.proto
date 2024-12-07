@@ -45,11 +45,7 @@ service Greeter {
         post: "/v1/greeter/sayhello-auth"
         body: "*"
       };
-      option (nats.api.handler) = {
-        namespace: "fluffycore"
-        parameterized_token: "org.${orgId}"
-        wildcard_token: "org.*"
-      };
+     
     }
   // SayHelloDownstream is called from SayHello to demonstrate grpc opentelemetry tracing
   rpc SayHelloDownstream (HelloRequest) returns (HelloReply) {
@@ -59,9 +55,9 @@ service Greeter {
     };
     option (nats.api.handler) = {
       namespace: "fluffycore"
-      parameterized_token: "org.${orgId}"
-      wildcard_token: "org.*"
+
     };
+    
   }
 }
 service Greeter2 {

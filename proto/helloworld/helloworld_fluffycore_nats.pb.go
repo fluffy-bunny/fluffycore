@@ -22,8 +22,8 @@ import (
 
 var methodGreeterHandlerRuleMap = map[string]*annotations.HandlerRule{
 	"/helloworld.Greeter/SayHello":           {Namespace: "fluffycore.", WildcardToken: "fluffycore.helloworld.Greeter.SayHello.org.*", ParameterizedToken: "fluffycore.helloworld.Greeter.SayHello.org.${orgId}"},
-	"/helloworld.Greeter/SayHelloAuth":       {Namespace: "fluffycore.", WildcardToken: "fluffycore.helloworld.Greeter.SayHelloAuth.org.*", ParameterizedToken: "fluffycore.helloworld.Greeter.SayHelloAuth.org.${orgId}"},
-	"/helloworld.Greeter/SayHelloDownstream": {Namespace: "fluffycore.", WildcardToken: "fluffycore.helloworld.Greeter.SayHelloDownstream.org.*", ParameterizedToken: "fluffycore.helloworld.Greeter.SayHelloDownstream.org.${orgId}"},
+	"/helloworld.Greeter/SayHelloAuth":       {Namespace: "", WildcardToken: "helloworld.Greeter.SayHelloAuth", ParameterizedToken: "helloworld.Greeter.SayHelloAuth"},
+	"/helloworld.Greeter/SayHelloDownstream": {Namespace: "fluffycore.", WildcardToken: "fluffycore.helloworld.Greeter.SayHelloDownstream", ParameterizedToken: "fluffycore.helloworld.Greeter.SayHelloDownstream"},
 }
 
 func MethodToSubject_Greeter(method string) (string, bool) {
@@ -96,7 +96,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 			"response_schema": utils.SchemaFor(&HelloReply{}),
 		}))
 
-	svc.AddEndpoint("fluffycore.helloworld.Greeter.SayHelloAuth.org.*",
+	svc.AddEndpoint("helloworld.Greeter.SayHelloAuth",
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
@@ -115,7 +115,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 			"response_schema": utils.SchemaFor(&HelloReply{}),
 		}))
 
-	svc.AddEndpoint("fluffycore.helloworld.Greeter.SayHelloDownstream.org.*",
+	svc.AddEndpoint("fluffycore.helloworld.Greeter.SayHelloDownstream",
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
@@ -202,7 +202,9 @@ func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *Hel
 	return result, err
 }
 
-var methodGreeter2HandlerRuleMap = map[string]*annotations.HandlerRule{}
+var methodGreeter2HandlerRuleMap = map[string]*annotations.HandlerRule{
+	"/helloworld.Greeter2/SayHello": {Namespace: "", WildcardToken: "helloworld.Greeter2.SayHello", ParameterizedToken: "helloworld.Greeter2.SayHello"},
+}
 
 func MethodToSubject_Greeter2(method string) (string, bool) {
 	ret, ok := methodGreeter2HandlerRuleMap[method]
@@ -254,6 +256,25 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 	if err != nil {
 		return nil, err
 	}
+
+	svc.AddEndpoint("helloworld.Greeter2.SayHello",
+		micro.HandlerFunc(func(req micro.Request) {
+			nats_micro_service.HandleRequest(
+				req,
+				func(r *HelloRequest) error {
+					return protojson.Unmarshal(req.Data(), r)
+				},
+				func(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
+					return client.SayHello(ctx, request)
+				},
+			)
+		}),
+		micro.WithEndpointMetadata(map[string]string{
+			"description":     "SayHello",
+			"format":          "application/json",
+			"request_schema":  utils.SchemaFor(&HelloRequest{}),
+			"response_schema": utils.SchemaFor(&HelloReply2{}),
+		}))
 
 	return svc, nil
 }
