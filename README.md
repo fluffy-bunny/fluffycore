@@ -103,3 +103,9 @@ Because making a gazillion unary requests are wasteful.
 [intro-to-o11y-go](https://github.com/honeycombio/intro-to-o11y-go)  
 [uptrace](https://github.com/uptrace/opentelemetry-go-extra/tree/main/example/grpc)  
 [exploring-the-opentelemetry-client-library-for-go](https://medium.com/@tennis.akari.abcdefg/exploring-the-opentelemetry-client-library-for-go-5b75c92a74a5)
+
+# Debugging protogens
+
+```bash
+go build -gcflags="all=-N -l" .\protoc-gen-go-fluffycore-di\cmd\protoc-gen-go-fluffycore-nats\
+```

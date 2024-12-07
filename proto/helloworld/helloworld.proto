@@ -25,8 +25,9 @@ package helloworld;
 import "google/api/annotations.proto";
 import "nats/api/annotations.proto";
 
-// The greeting service definition.
+// fluffycore:nats:namespace:roger
 service Greeter {
+  
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply) {
     option (google.api.http) = {
@@ -34,7 +35,8 @@ service Greeter {
       body: "*"
     };
     option (nats.api.handler) = {
-      subject: "v1.greeter.sayhello"
+      parameterized_token: "org.${orgId}"
+      wildcard_token: "org.*"
     };
   }
     // Sends a greeting
@@ -43,9 +45,7 @@ service Greeter {
         post: "/v1/greeter/sayhello-auth"
         body: "*"
       };
-      option (nats.api.handler) = {
-        subject: "v1.greeter.sayhello-auth"
-      };
+     
     }
   // SayHelloDownstream is called from SayHello to demonstrate grpc opentelemetry tracing
   rpc SayHelloDownstream (HelloRequest) returns (HelloReply) {
@@ -54,10 +54,13 @@ service Greeter {
       body: "*"
     };
     option (nats.api.handler) = {
-      subject: "v1.greeter.sayhello-downstream"
+ 
     };
+    
   }
 }
+
+// fluffycore:nats:namespace:roger
 service Greeter2 {
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply2) {
@@ -68,9 +71,17 @@ service Greeter2 {
   }
   
 }
+message NestedMessage {
+  string org_id = 1;
+  int32 age = 2;
+}
+message ParentMessage {
+  NestedMessage nested_message= 1;
+}
 // The request message containing the user's name.
 message HelloRequest {
-  string name = 1;
+  string org_id = 1;
+  string name = 2;
 }
 
 // The response message containing the greetings
