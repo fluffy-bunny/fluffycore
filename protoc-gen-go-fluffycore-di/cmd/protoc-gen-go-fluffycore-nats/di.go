@@ -323,6 +323,14 @@ func (s *methodGenContext) generateClientMethodShim() {
 	}
 	g := s.g
 	service := s.service
+	proto := s.file.Proto
+	namespace := getServiceNamespace(service)
+	groupName := *proto.Package + "." + service.GoName
+	if fluffycore_utils.IsNotEmptyOrNil(namespace) {
+		namespace = namespace + "."
+	}
+	groupName = namespace + groupName
+
 	internalClientName := fmt.Sprintf("%vNATSMicroClient", service.GoName)
 	g.P("// ", s.ProtogenMethod.GoName, "...")
 	g.P("func (s *", internalClientName, ") ", s.grpcClientMethodSignature(), "{")
@@ -330,7 +338,7 @@ func (s *methodGenContext) generateClientMethodShim() {
 	g.P("	result, err := ", serviceNatsMicroServicePackage.Ident("HandleNATSClientRequest"), "(")
 	g.P("		ctx,")
 	g.P("		s.client,")
-	g.P("		\"", hr.ParameterizedToken, "\",")
+	g.P("		\"", groupName, ".", hr.ParameterizedToken, "\",")
 	g.P("		in,")
 	g.P("		response,")
 	g.P("	)")

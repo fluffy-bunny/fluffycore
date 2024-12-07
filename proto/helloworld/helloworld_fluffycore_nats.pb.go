@@ -157,7 +157,7 @@ func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest,
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
-		"SayHello.org.${orgId}",
+		"roger.helloworld.Greeter.SayHello.org.${orgId}",
 		in,
 		response,
 	)
@@ -170,7 +170,7 @@ func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequ
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
-		"SayHelloAuth",
+		"roger.helloworld.Greeter.SayHelloAuth",
 		in,
 		response,
 	)
@@ -183,7 +183,7 @@ func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *Hel
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
-		"SayHelloDownstream",
+		"roger.helloworld.Greeter.SayHelloDownstream",
 		in,
 		response,
 	)
@@ -291,7 +291,7 @@ func (s *Greeter2NATSMicroClient) SayHello(ctx context.Context, in *HelloRequest
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
-		"SayHello",
+		"roger.helloworld.Greeter2.SayHello",
 		in,
 		response,
 	)
