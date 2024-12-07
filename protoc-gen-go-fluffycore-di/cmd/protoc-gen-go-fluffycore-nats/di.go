@@ -3,8 +3,13 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	annotations "github.com/fluffy-bunny/fluffycore/nats/api/annotations"
+	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 const (
@@ -29,6 +34,7 @@ const (
 	serviceNatsMicroServicePackage   = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/nats/nats_micro_service")
 	protojsonPackage                 = protogen.GoImportPath("google.golang.org/protobuf/encoding/protojson")
 	natsClientPackage                = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/nats/client")
+	annotationsPackage               = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/nats/api/annotations")
 )
 
 type genFileContext struct {
@@ -309,18 +315,57 @@ func (s *methodGenContext) generateClientMethodShim() {
 	g.P()
 
 }
+func debugPause() {
+	fmt.Println("Debug break: Press Enter to continue...")
+	// Create a channel to listen for interrupt signals
 
+	time.Sleep(10 * time.Second)
+}
+
+func getHandlerRule(
+	method *protogen.Method,
+) *annotations.HandlerRule {
+	return proto.GetExtension(method.Desc.Options(), annotations.E_Handler).(*annotations.HandlerRule)
+}
+func hrvFromMethod(proto *descriptorpb.FileDescriptorProto, method *protogen.Method) *annotations.HandlerRule {
+	hr := getHandlerRule(method)
+	if hr == nil {
+		return nil
+	}
+	namespace := hr.Namespace
+	wildcardToken := hr.WildcardToken
+	paramaterizedToken := hr.ParameterizedToken
+	if fluffycore_utils.IsNotEmptyOrNil(namespace) {
+		namespace = namespace + "."
+	}
+	if fluffycore_utils.IsNotEmptyOrNil(wildcardToken) {
+		wildcardToken = "." + wildcardToken
+	}
+	if fluffycore_utils.IsNotEmptyOrNil(paramaterizedToken) {
+		paramaterizedToken = "." + paramaterizedToken
+	}
+	serverType := method.Parent.GoName
+
+	wildcardTokenFull := namespace + *proto.Package + "." + serverType + "." + method.GoName + wildcardToken
+	paramaterizedTokenFull := namespace + *proto.Package + "." + serverType + "." + method.GoName + paramaterizedToken
+
+	return &annotations.HandlerRule{
+		Namespace:          namespace,
+		WildcardToken:      wildcardTokenFull,
+		ParameterizedToken: paramaterizedTokenFull,
+	}
+
+}
 func (s *serviceGenContext) genService() {
 	gen := s.gen
 	file := s.file
 	proto := file.Proto
 	g := s.g
 	service := s.service
-
+	//debugPause()
 	// IServiceEndpointRegistration
 
 	internalRegistrationServerName := fmt.Sprintf("%vFluffyCoreServerNATSMicroRegistration", service.GoName)
-	interfaceServerName := fmt.Sprintf("%sServer", service.GoName)
 
 	for _, method := range service.Methods {
 		serverType := method.Parent.GoName
@@ -336,33 +381,31 @@ func (s *serviceGenContext) genService() {
 			break
 		}
 	}
+
 	if atLeastOneMethod {
+
+		g.P("var method", service.GoName, "HandlerRuleMap = map[string]*", annotationsPackage.Ident("HandlerRule"), " {")
+		for _, method := range service.Methods {
+			hr := hrvFromMethod(proto, method)
+			if hr == nil {
+				continue
+			}
+			serverType := method.Parent.GoName
+			key := "/" + *proto.Package + "." + serverType + "/" + method.GoName
+			hrV := "{Namespace:  \"" + hr.Namespace + "\",WildcardToken: \"" + hr.WildcardToken + "\",ParameterizedToken: \"" + hr.ParameterizedToken + "\"}"
+			g.P("	\"", key, "\":", hrV, ",")
+		}
+		g.P("}")
+		g.P(" ")
 
 		// need to map 	Greeter_SayHello_FullMethodName           = "/helloworld.Greeter/SayHello"
 		// to the nats full subject by providing a function.
 		g.P("func MethodToSubject_", service.GoName, "(method string) (string,bool){")
-		g.P("  	pkgPath := ", reflectPackage.Ident("TypeOf"), "((*", interfaceServerName, ")(nil)).Elem().PkgPath()")
-		g.P("  	fullPath := ", fmtPackage.Ident("Sprintf"), "(\"%s/%s\", pkgPath, \"", service.GoName, "\")")
-		g.P("  	groupName := ", stringsPackage.Ident("ReplaceAll"), "(")
-		g.P("  		fullPath,")
-		g.P("  		\"/\",")
-		g.P("  		\".\",")
-		g.P("  	)")
-		g.P("var methodMap = map[string]func()string{")
-		for _, method := range service.Methods {
-			serverType := method.Parent.GoName
-			key := "/" + *proto.Package + "." + serverType + "/" + method.GoName
-			g.P("	\"", key, "\": func() string {")
-			g.P("		return ", fmtPackage.Ident("Sprintf"), "(\"%s.", method.GoName, "\",groupName)")
-			g.P("	},")
-
-		}
-		g.P("}")
-		g.P("  	ret,ok := methodMap[method]")
+		g.P("	ret,ok := method", service.GoName, "HandlerRuleMap[method]")
 		g.P("  	if !ok {")
 		g.P("  		return \"\",false")
 		g.P("  	}")
-		g.P("  	return ret(),true")
+		g.P("  	return ret.WildcardToken,true")
 		g.P("}")
 		g.P()
 
@@ -511,20 +554,9 @@ func (s *serviceGenContext) genService() {
 	g.P("  	}")
 	g.P(" ")
 	if atLeastOneMethod {
-		g.P("  	pkgPath := ", reflectPackage.Ident("TypeOf"), "((*", interfaceServerName, ")(nil)).Elem().PkgPath()")
-		g.P("  	fullPath := ", fmtPackage.Ident("Sprintf"), "(\"%s/%s\", pkgPath, \"", service.GoName, "\")")
-		g.P("  	groupName := ", stringsPackage.Ident("ReplaceAll"), "(")
-		g.P("  		fullPath,")
-		g.P("  		\"/\",")
-		g.P("  		\".\",")
-		g.P("  	)")
-		g.P(" ")
-		g.P("  	if ", fluffyCoreUtilsPackage.Ident("IsNotEmptyOrNil"), "(option.GroupName) {")
-		g.P("  		groupName = option.GroupName")
-		g.P("  	}")
-		g.P(" ")
-		g.P("  	m := svc.AddGroup( groupName )")
+
 		for _, method := range service.Methods {
+
 			serverType := method.Parent.GoName
 			key := "/" + *proto.Package + "." + serverType + "/" + method.GoName
 			methodGenCtx := s.MethodMapGenCtx[key]
@@ -563,9 +595,13 @@ m.AddEndpoint("SayHello",
 func (s *methodGenContext) generateNATSMethodGRPCGateway() {
 
 	method := s.ProtogenMethod
+	hr := hrvFromMethod(s.file.Proto, method)
+	if hr == nil {
+		return
+	}
 	g := s.g
 
-	g.P("	m.AddEndpoint(\"", method.GoName, "\",")
+	g.P("	svc.AddEndpoint(\"", hr.WildcardToken, "\",")
 	g.P("		", natsGoMicroPackage.Ident("HandlerFunc"), "(func(req micro.Request) {")
 	g.P("			", serviceNatsMicroServicePackage.Ident("HandleRequest"), "(")
 	g.P("				req,")

@@ -8,6 +8,7 @@ import (
 	fluffy_dozm_di "github.com/fluffy-bunny/fluffy-dozm-di"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	nats_micro_service1 "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
+	annotations "github.com/fluffy-bunny/fluffycore/nats/api/annotations"
 	client "github.com/fluffy-bunny/fluffycore/nats/client"
 	nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	utils "github.com/fluffy-bunny/fluffycore/utils"
@@ -19,30 +20,18 @@ import (
 	strings "strings"
 )
 
+var methodGreeterHandlerRuleMap = map[string]*annotations.HandlerRule{
+	"/helloworld.Greeter/SayHello":           {Namespace: "fluffycore.", WildcardToken: "fluffycore.helloworld.Greeter.SayHello.org.*", ParameterizedToken: "fluffycore.helloworld.Greeter.SayHello.org.${orgId}"},
+	"/helloworld.Greeter/SayHelloAuth":       {Namespace: "fluffycore.", WildcardToken: "fluffycore.helloworld.Greeter.SayHelloAuth.org.*", ParameterizedToken: "fluffycore.helloworld.Greeter.SayHelloAuth.org.${orgId}"},
+	"/helloworld.Greeter/SayHelloDownstream": {Namespace: "fluffycore.", WildcardToken: "fluffycore.helloworld.Greeter.SayHelloDownstream.org.*", ParameterizedToken: "fluffycore.helloworld.Greeter.SayHelloDownstream.org.${orgId}"},
+}
+
 func MethodToSubject_Greeter(method string) (string, bool) {
-	pkgPath := reflect.TypeOf((*GreeterServer)(nil)).Elem().PkgPath()
-	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter")
-	groupName := strings.ReplaceAll(
-		fullPath,
-		"/",
-		".",
-	)
-	var methodMap = map[string]func() string{
-		"/helloworld.Greeter/SayHello": func() string {
-			return fmt.Sprintf("%s.SayHello", groupName)
-		},
-		"/helloworld.Greeter/SayHelloAuth": func() string {
-			return fmt.Sprintf("%s.SayHelloAuth", groupName)
-		},
-		"/helloworld.Greeter/SayHelloDownstream": func() string {
-			return fmt.Sprintf("%s.SayHelloDownstream", groupName)
-		},
-	}
-	ret, ok := methodMap[method]
+	ret, ok := methodGreeterHandlerRuleMap[method]
 	if !ok {
 		return "", false
 	}
-	return ret(), true
+	return ret.WildcardToken, true
 }
 
 func SendNATSRequestUnaryClientInterceptor_Greeter(natsClient *client.NATSClient) grpc.UnaryClientInterceptor {
@@ -88,20 +77,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 		return nil, err
 	}
 
-	pkgPath := reflect.TypeOf((*GreeterServer)(nil)).Elem().PkgPath()
-	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter")
-	groupName := strings.ReplaceAll(
-		fullPath,
-		"/",
-		".",
-	)
-
-	if utils.IsNotEmptyOrNil(option.GroupName) {
-		groupName = option.GroupName
-	}
-
-	m := svc.AddGroup(groupName)
-	m.AddEndpoint("SayHello",
+	svc.AddEndpoint("fluffycore.helloworld.Greeter.SayHello.org.*",
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
@@ -120,7 +96,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 			"response_schema": utils.SchemaFor(&HelloReply{}),
 		}))
 
-	m.AddEndpoint("SayHelloAuth",
+	svc.AddEndpoint("fluffycore.helloworld.Greeter.SayHelloAuth.org.*",
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
@@ -139,7 +115,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 			"response_schema": utils.SchemaFor(&HelloReply{}),
 		}))
 
-	m.AddEndpoint("SayHelloDownstream",
+	svc.AddEndpoint("fluffycore.helloworld.Greeter.SayHelloDownstream.org.*",
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
@@ -226,24 +202,14 @@ func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *Hel
 	return result, err
 }
 
+var methodGreeter2HandlerRuleMap = map[string]*annotations.HandlerRule{}
+
 func MethodToSubject_Greeter2(method string) (string, bool) {
-	pkgPath := reflect.TypeOf((*Greeter2Server)(nil)).Elem().PkgPath()
-	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter2")
-	groupName := strings.ReplaceAll(
-		fullPath,
-		"/",
-		".",
-	)
-	var methodMap = map[string]func() string{
-		"/helloworld.Greeter2/SayHello": func() string {
-			return fmt.Sprintf("%s.SayHello", groupName)
-		},
-	}
-	ret, ok := methodMap[method]
+	ret, ok := methodGreeter2HandlerRuleMap[method]
 	if !ok {
 		return "", false
 	}
-	return ret(), true
+	return ret.WildcardToken, true
 }
 
 func SendNATSRequestUnaryClientInterceptor_Greeter2(natsClient *client.NATSClient) grpc.UnaryClientInterceptor {
@@ -288,38 +254,6 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 	if err != nil {
 		return nil, err
 	}
-
-	pkgPath := reflect.TypeOf((*Greeter2Server)(nil)).Elem().PkgPath()
-	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter2")
-	groupName := strings.ReplaceAll(
-		fullPath,
-		"/",
-		".",
-	)
-
-	if utils.IsNotEmptyOrNil(option.GroupName) {
-		groupName = option.GroupName
-	}
-
-	m := svc.AddGroup(groupName)
-	m.AddEndpoint("SayHello",
-		micro.HandlerFunc(func(req micro.Request) {
-			nats_micro_service.HandleRequest(
-				req,
-				func(r *HelloRequest) error {
-					return protojson.Unmarshal(req.Data(), r)
-				},
-				func(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
-					return client.SayHello(ctx, request)
-				},
-			)
-		}),
-		micro.WithEndpointMetadata(map[string]string{
-			"description":     "SayHello",
-			"format":          "application/json",
-			"request_schema":  utils.SchemaFor(&HelloRequest{}),
-			"response_schema": utils.SchemaFor(&HelloReply2{}),
-		}))
 
 	return svc, nil
 }

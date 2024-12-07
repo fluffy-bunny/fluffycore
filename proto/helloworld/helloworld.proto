@@ -34,7 +34,9 @@ service Greeter {
       body: "*"
     };
     option (nats.api.handler) = {
-      subject: "v1.greeter.sayhello"
+      namespace: "fluffycore"
+      parameterized_token: "org.${orgId}"
+      wildcard_token: "org.*"
     };
   }
     // Sends a greeting
@@ -44,7 +46,9 @@ service Greeter {
         body: "*"
       };
       option (nats.api.handler) = {
-        subject: "v1.greeter.sayhello-auth"
+        namespace: "fluffycore"
+        parameterized_token: "org.${orgId}"
+        wildcard_token: "org.*"
       };
     }
   // SayHelloDownstream is called from SayHello to demonstrate grpc opentelemetry tracing
@@ -54,7 +58,9 @@ service Greeter {
       body: "*"
     };
     option (nats.api.handler) = {
-      subject: "v1.greeter.sayhello-downstream"
+      namespace: "fluffycore"
+      parameterized_token: "org.${orgId}"
+      wildcard_token: "org.*"
     };
   }
 }
@@ -68,9 +74,17 @@ service Greeter2 {
   }
   
 }
+message NestedMessage {
+  string org_id = 1;
+  int32 age = 2;
+}
+message ParentMessage {
+  NestedMessage nested_message= 1;
+}
 // The request message containing the user's name.
 message HelloRequest {
-  string name = 1;
+  string org_id = 1;
+  string name = 2;
 }
 
 // The response message containing the greetings
