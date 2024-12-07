@@ -25,8 +25,9 @@ package helloworld;
 import "google/api/annotations.proto";
 import "nats/api/annotations.proto";
 
-// The greeting service definition.
+// fluffycore:nats:namespace:roger
 service Greeter {
+  
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply) {
     option (google.api.http) = {
@@ -34,7 +35,6 @@ service Greeter {
       body: "*"
     };
     option (nats.api.handler) = {
-      namespace: "fluffycore"
       parameterized_token: "org.${orgId}"
       wildcard_token: "org.*"
     };
@@ -54,12 +54,13 @@ service Greeter {
       body: "*"
     };
     option (nats.api.handler) = {
-      namespace: "fluffycore"
-
+ 
     };
     
   }
 }
+
+// fluffycore:nats:namespace:roger
 service Greeter2 {
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply2) {

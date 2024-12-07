@@ -27,6 +27,10 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 )
 
+type NATSMicroHandlerInfo struct {
+	WildcardToken      string
+	ParameterizedToken string
+}
 type NATSMicroConfig struct {
 	NATSUrl         string `json:"natsUrl"`
 	ClientID        string `json:"clientId"`

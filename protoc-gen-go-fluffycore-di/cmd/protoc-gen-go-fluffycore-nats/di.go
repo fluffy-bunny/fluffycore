@@ -2,14 +2,16 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	annotations "github.com/fluffy-bunny/fluffycore/nats/api/annotations"
+	nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
-	"google.golang.org/protobuf/compiler/protogen"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/descriptorpb"
+	protogen "google.golang.org/protobuf/compiler/protogen"
+	proto "google.golang.org/protobuf/proto"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
 const (
@@ -79,6 +81,35 @@ func isServiceIgnored(service *protogen.Service) bool {
 	}
 
 	return strings.Contains(string(service.Comments.Leading), ignore)
+}
+func ExtractLastPart(namespace string) string {
+	parts := strings.Split(namespace, ":")
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[len(parts)-1]
+}
+
+func extractNatsNamespaces(input string) []string {
+	// Regular expression to match fluffycore:nats:namespace:* pattern
+	regex := regexp.MustCompile(`fluffycore:nats:namespace:[^\s\n]+`)
+
+	// Find all matches in the input string
+	matches := regex.FindAllString(input, -1)
+
+	return matches
+}
+
+func getServiceNamespace(service *protogen.Service) string {
+	// Look for a comment consisting of "fluffycore:nats:namespace:roger"
+	ss := service.Comments.Leading.String()
+	namespaceTags := extractNatsNamespaces(ss)
+	for _, match := range namespaceTags {
+		ns := ExtractLastPart(string(match))
+		return ns
+	}
+
+	return ""
 }
 
 // generateFile generates a _di.pb.go file containing gRPC service definitions.
@@ -320,26 +351,19 @@ func getHandlerRule(
 ) *annotations.HandlerRule {
 	return proto.GetExtension(method.Desc.Options(), annotations.E_Handler).(*annotations.HandlerRule)
 }
-func hrvFromMethod(proto *descriptorpb.FileDescriptorProto, method *protogen.Method) *annotations.HandlerRule {
+func hrvFromMethod(proto *descriptorpb.FileDescriptorProto, method *protogen.Method) *nats_micro_service.NATSMicroHandlerInfo {
 	// we may not have anything, but we still have a subject so we will return that in the wildcard token
-	serverType := method.Parent.GoName
 
 	hr := getHandlerRule(method)
 	if hr == nil {
-		wildcardTokenFull := *proto.Package + "." + serverType + "." + method.GoName
-		paramaterizedTokenFull := *proto.Package + "." + serverType + "." + method.GoName
-
-		return &annotations.HandlerRule{
-			WildcardToken:      wildcardTokenFull,
-			ParameterizedToken: paramaterizedTokenFull,
+		return &nats_micro_service.NATSMicroHandlerInfo{
+			WildcardToken:      method.GoName,
+			ParameterizedToken: method.GoName,
 		}
 	}
-	namespace := hr.Namespace
 	wildcardToken := hr.WildcardToken
 	paramaterizedToken := hr.ParameterizedToken
-	if fluffycore_utils.IsNotEmptyOrNil(namespace) {
-		namespace = namespace + "."
-	}
+
 	if fluffycore_utils.IsNotEmptyOrNil(wildcardToken) {
 		wildcardToken = "." + wildcardToken
 	}
@@ -347,13 +371,9 @@ func hrvFromMethod(proto *descriptorpb.FileDescriptorProto, method *protogen.Met
 		paramaterizedToken = "." + paramaterizedToken
 	}
 
-	wildcardTokenFull := namespace + *proto.Package + "." + serverType + "." + method.GoName + wildcardToken
-	paramaterizedTokenFull := namespace + *proto.Package + "." + serverType + "." + method.GoName + paramaterizedToken
-
-	return &annotations.HandlerRule{
-		Namespace:          namespace,
-		WildcardToken:      wildcardTokenFull,
-		ParameterizedToken: paramaterizedTokenFull,
+	return &nats_micro_service.NATSMicroHandlerInfo{
+		WildcardToken:      method.GoName + wildcardToken,
+		ParameterizedToken: method.GoName + paramaterizedToken,
 	}
 
 }
@@ -365,6 +385,13 @@ func (s *serviceGenContext) genService() {
 	service := s.service
 	//debugPause()
 	// IServiceEndpointRegistration
+
+	namespace := getServiceNamespace(service)
+	groupName := *proto.Package + "." + service.GoName
+	if fluffycore_utils.IsNotEmptyOrNil(namespace) {
+		namespace = namespace + "."
+	}
+	groupName = namespace + groupName
 
 	internalRegistrationServerName := fmt.Sprintf("%vFluffyCoreServerNATSMicroRegistration", service.GoName)
 
@@ -385,7 +412,7 @@ func (s *serviceGenContext) genService() {
 
 	if atLeastOneMethod {
 
-		g.P("var method", service.GoName, "HandlerRuleMap = map[string]*", annotationsPackage.Ident("HandlerRule"), " {")
+		g.P("var method", service.GoName, "HandlerRuleMap = map[string]*", serviceNatsMicroServicePackage.Ident("NATSMicroHandlerInfo"), " {")
 		for _, method := range service.Methods {
 			hr := hrvFromMethod(proto, method)
 			if hr == nil {
@@ -393,7 +420,7 @@ func (s *serviceGenContext) genService() {
 			}
 			serverType := method.Parent.GoName
 			key := "/" + *proto.Package + "." + serverType + "/" + method.GoName
-			hrV := "{Namespace:  \"" + hr.Namespace + "\",WildcardToken: \"" + hr.WildcardToken + "\",ParameterizedToken: \"" + hr.ParameterizedToken + "\"}"
+			hrV := "{  WildcardToken: \"" + hr.WildcardToken + "\",ParameterizedToken: \"" + hr.ParameterizedToken + "\"}"
 			g.P("	\"", key, "\":", hrV, ",")
 		}
 		g.P("}")
@@ -554,8 +581,11 @@ func (s *serviceGenContext) genService() {
 	g.P("  		return nil, err")
 	g.P("  	}")
 	g.P(" ")
+	// 	   	m := svc.AddGroup(groupName)
 	if atLeastOneMethod {
+		g.P("  	m := svc.AddGroup(\"", groupName, "\")")
 
+		//mm := make(map[string]bool)
 		for _, method := range service.Methods {
 
 			serverType := method.Parent.GoName
@@ -602,7 +632,7 @@ func (s *methodGenContext) generateNATSMethodGRPCGateway() {
 	}
 	g := s.g
 
-	g.P("	svc.AddEndpoint(\"", hr.WildcardToken, "\",")
+	g.P("	m.AddEndpoint(\"", hr.WildcardToken, "\",")
 	g.P("		", natsGoMicroPackage.Ident("HandlerFunc"), "(func(req micro.Request) {")
 	g.P("			", serviceNatsMicroServicePackage.Ident("HandleRequest"), "(")
 	g.P("				req,")

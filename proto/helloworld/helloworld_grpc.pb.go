@@ -42,7 +42,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// The greeting service definition.
+// fluffycore:nats:namespace:roger
 type GreeterClient interface {
 	// Sends a greeting
 	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error)
@@ -94,7 +94,7 @@ func (c *greeterClient) SayHelloDownstream(ctx context.Context, in *HelloRequest
 // All implementations must embed UnimplementedGreeterServer
 // for forward compatibility.
 //
-// The greeting service definition.
+// fluffycore:nats:namespace:roger
 type GreeterServer interface {
 	// Sends a greeting
 	SayHello(context.Context, *HelloRequest) (*HelloReply, error)
@@ -227,6 +227,8 @@ const (
 // Greeter2Client is the client API for Greeter2 service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// fluffycore:nats:namespace:roger
 type Greeter2Client interface {
 	// Sends a greeting
 	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply2, error)
@@ -253,6 +255,8 @@ func (c *greeter2Client) SayHello(ctx context.Context, in *HelloRequest, opts ..
 // Greeter2Server is the server API for Greeter2 service.
 // All implementations must embed UnimplementedGreeter2Server
 // for forward compatibility.
+//
+// fluffycore:nats:namespace:roger
 type Greeter2Server interface {
 	// Sends a greeting
 	SayHello(context.Context, *HelloRequest) (*HelloReply2, error)

@@ -10,8 +10,6 @@ option java_package = "com.nats.api";
 option objc_class_prefix = "NAPI";
 
 message HandlerRule {
-    string namespace = 1;
-    string parameterized_token = 2;
-    string wildcard_token = 3;
-
+    string parameterized_token = 1;
+    string wildcard_token = 2;
 }
