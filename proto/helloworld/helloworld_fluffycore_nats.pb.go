@@ -4,7 +4,6 @@ package helloworld
 
 import (
 	context "context"
-	fmt "fmt"
 	fluffy_dozm_di "github.com/fluffy-bunny/fluffy-dozm-di"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	nats_micro_service1 "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
@@ -16,8 +15,6 @@ import (
 	micro "github.com/nats-io/nats.go/micro"
 	grpc "google.golang.org/grpc"
 	protojson "google.golang.org/protobuf/encoding/protojson"
-	reflect "reflect"
-	strings "strings"
 )
 
 var methodGreeterHandlerRuleMap = map[string]*annotations.HandlerRule{
@@ -139,8 +136,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 
 type (
 	GreeterNATSMicroClient struct {
-		client    *client.NATSClient
-		groupName string
+		client *client.NATSClient
 	}
 )
 
@@ -150,16 +146,8 @@ func NewGreeterNATSMicroClient(opts ...client.NATSClientOption) (GreeterClient, 
 		return nil, err
 	}
 
-	pkgPath := reflect.TypeOf((*GreeterServer)(nil)).Elem().PkgPath()
-	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter")
-	groupName := strings.ReplaceAll(
-		fullPath,
-		"/",
-		".",
-	)
 	return &GreeterNATSMicroClient{
-		client:    client,
-		groupName: groupName,
+		client: client,
 	}, nil
 }
 
@@ -169,7 +157,7 @@ func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *HelloRequest,
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
-		fmt.Sprintf("%s.SayHello", s.groupName),
+		"fluffycore.helloworld.Greeter.SayHello.org.${orgId}",
 		in,
 		response,
 	)
@@ -182,7 +170,7 @@ func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequ
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
-		fmt.Sprintf("%s.SayHelloAuth", s.groupName),
+		"helloworld.Greeter.SayHelloAuth",
 		in,
 		response,
 	)
@@ -195,7 +183,7 @@ func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *Hel
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
-		fmt.Sprintf("%s.SayHelloDownstream", s.groupName),
+		"fluffycore.helloworld.Greeter.SayHelloDownstream",
 		in,
 		response,
 	)
@@ -281,8 +269,7 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 
 type (
 	Greeter2NATSMicroClient struct {
-		client    *client.NATSClient
-		groupName string
+		client *client.NATSClient
 	}
 )
 
@@ -292,16 +279,8 @@ func NewGreeter2NATSMicroClient(opts ...client.NATSClientOption) (Greeter2Client
 		return nil, err
 	}
 
-	pkgPath := reflect.TypeOf((*Greeter2Server)(nil)).Elem().PkgPath()
-	fullPath := fmt.Sprintf("%s/%s", pkgPath, "Greeter2")
-	groupName := strings.ReplaceAll(
-		fullPath,
-		"/",
-		".",
-	)
 	return &Greeter2NATSMicroClient{
-		client:    client,
-		groupName: groupName,
+		client: client,
 	}, nil
 }
 
@@ -311,7 +290,7 @@ func (s *Greeter2NATSMicroClient) SayHello(ctx context.Context, in *HelloRequest
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
-		fmt.Sprintf("%s.SayHello", s.groupName),
+		"helloworld.Greeter2.SayHello",
 		in,
 		response,
 	)

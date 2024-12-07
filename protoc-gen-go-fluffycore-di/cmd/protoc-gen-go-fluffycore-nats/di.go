@@ -179,7 +179,6 @@ func (s *serviceGenContext) genClient() {
 	if !atLeastOneMethod {
 		return
 	}
-	interfaceServerName := fmt.Sprintf("%sServer", service.GoName)
 	internalClientName := fmt.Sprintf("%vNATSMicroClient", service.GoName)
 
 	/*
@@ -192,7 +191,6 @@ func (s *serviceGenContext) genClient() {
 	g.P("type (")
 	g.P("	", internalClientName, " struct {")
 	g.P("		client *", natsClientPackage.Ident("NATSClient"))
-	g.P("		groupName string")
 	g.P("	}")
 	g.P(")")
 
@@ -224,16 +222,8 @@ func (s *serviceGenContext) genClient() {
 	g.P("		return nil, err")
 	g.P("	}")
 	g.P(" 	")
-	g.P("  	pkgPath := ", reflectPackage.Ident("TypeOf"), "((*", interfaceServerName, ")(nil)).Elem().PkgPath()")
-	g.P("  	fullPath := ", fmtPackage.Ident("Sprintf"), "(\"%s/%s\", pkgPath, \"", service.GoName, "\")")
-	g.P("  	groupName := ", stringsPackage.Ident("ReplaceAll"), "(")
-	g.P("  		fullPath,")
-	g.P("  		\"/\",")
-	g.P("  		\".\",")
-	g.P("  	)")
 	g.P("	return &", internalClientName, "{")
 	g.P("		client: client,")
-	g.P("		groupName: groupName,")
 	g.P("	}, nil")
 	g.P("}")
 
@@ -296,7 +286,10 @@ func (s *methodGenContext) generateClientMethodShim() {
 		}
 	*/
 	method := s.ProtogenMethod
-
+	hr := hrvFromMethod(s.file.Proto, method)
+	if hr == nil {
+		return
+	}
 	g := s.g
 	service := s.service
 	internalClientName := fmt.Sprintf("%vNATSMicroClient", service.GoName)
@@ -306,7 +299,7 @@ func (s *methodGenContext) generateClientMethodShim() {
 	g.P("	result, err := ", serviceNatsMicroServicePackage.Ident("HandleNATSClientRequest"), "(")
 	g.P("		ctx,")
 	g.P("		s.client,")
-	g.P("		", fmtPackage.Ident("Sprintf"), "(\"%s.", method.GoName, "\",s.groupName),")
+	g.P("		\"", hr.ParameterizedToken, "\",")
 	g.P("		in,")
 	g.P("		response,")
 	g.P("	)")

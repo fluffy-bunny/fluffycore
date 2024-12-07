@@ -2,7 +2,11 @@ package nats_micro_service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,16 +14,17 @@ import (
 	contracts_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	contracts_nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
 	nats_client "github.com/fluffy-bunny/fluffycore/nats/client"
-	"github.com/gogo/status"
+	status "github.com/gogo/status"
+	jsonpath "github.com/mdaverde/jsonpath"
 	nats "github.com/nats-io/nats.go"
 	micro "github.com/nats-io/nats.go/micro"
 	zerolog "github.com/rs/zerolog"
 	grpc "google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
+	codes "google.golang.org/grpc/codes"
 	metadata "google.golang.org/grpc/metadata"
 	protojson "google.golang.org/protobuf/encoding/protojson"
 	proto "google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type NATSMicroConfig struct {
@@ -43,6 +48,63 @@ type NATSClientOption struct {
 	Timeout time.Duration
 }
 
+// TokenToValue is assumed to be defined elsewhere in the codebase
+// func TokenToValue(token string) interface{}
+
+// ReplaceTokens replaces tokens in the input string using TokenToValue
+func ReplaceTokens(paramaterizedToken string, m protoreflect.ProtoMessage) (string, error) {
+	// Regular expression to find tokens like ${token}
+	tokenRegex := regexp.MustCompile(`\$\{([^}]+)\}`)
+
+	// Find all matches
+	matches := tokenRegex.FindAllStringSubmatch(paramaterizedToken, -1)
+
+	// Create a copy of the input string to modify
+	replacedString := paramaterizedToken
+
+	pJson, err := protojson.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+
+	var payload interface{}
+
+	err = json.Unmarshal([]byte(pJson), &payload)
+	if err != nil {
+		return "", err
+	}
+	// Replace each found token
+	for _, match := range matches {
+		if len(match) > 1 {
+			fullToken := match[0] // The full token like ${orgId}
+			tokenName := match[1] // The token name like orgId
+
+			// Use TokenToValue to get the replacement value
+			value, err := jsonpath.Get(payload, tokenName)
+			if err != nil {
+				return "", err
+			}
+			// Convert the value to string (you might need to adjust this based on actual implementation)
+			var stringValue string
+			switch v := value.(type) {
+			case string:
+				stringValue = v
+			case int:
+				stringValue = strconv.Itoa(v)
+			case float64:
+				stringValue = strconv.FormatFloat(v, 'f', -1, 64)
+			default:
+				stringValue = fmt.Sprintf("%v", v)
+			}
+
+			// Replace the token with its value
+			replacedString = strings.ReplaceAll(replacedString, fullToken, stringValue)
+		}
+	}
+
+	return replacedString, nil
+}
+
 func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 	ctx context.Context,
 	client *nats_client.NATSClient,
@@ -50,11 +112,18 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 	request Req,
 	response Resp,
 ) (Resp, error) {
+
 	// Marshal the request
 	msg, err := protojson.Marshal(request)
 	if err != nil {
 		return response, fmt.Errorf("failed to marshal request: %w", err)
 	}
+
+	subject, err = ReplaceTokens(subject, request)
+	if err != nil {
+		return response, err
+	}
+
 	natsResponse, err := client.RequestWithContext(ctx, subject, msg)
 	if err != nil {
 		return response, fmt.Errorf("NATS request failed: %w", err)
