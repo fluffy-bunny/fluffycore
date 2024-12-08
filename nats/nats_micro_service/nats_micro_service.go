@@ -217,6 +217,10 @@ func (s *NATSMicroServicesContainer) Register(ctx context.Context, conn *grpc.Cl
 			log.Error().Err(err).Msg("failed to AddService")
 			return err
 		}
+		if natsMicroService == nil {
+			log.Warn().Msg("AddService returned nil, most likely due to no NATS handlers")
+			continue
+		}
 		s.natsMicroSerivices = append(s.natsMicroSerivices, natsMicroService)
 	}
 	return nil

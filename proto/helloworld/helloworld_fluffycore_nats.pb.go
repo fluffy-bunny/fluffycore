@@ -58,23 +58,33 @@ func RegisterGreeterNATSHandler(ctx context.Context, natsCon *nats_go.Conn, conn
 }
 
 func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client GreeterClient, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+	var err error
 	defaultConfig := &micro.Config{
 		Name:        "Greeter",
 		Version:     "0.0.1",
 		Description: "The Greeter nats micro service",
 	}
 
-	for _, option := range option.NATSMicroConfigOptions {
+	for _, option := range option.ConfigNATSMicroConfigs {
 		option(defaultConfig)
 	}
 
-	svc, err := micro.AddService(nc, *defaultConfig)
+	serviceOpions := &nats_micro_service1.ServiceMicroOption{
+		GroupName: "roger.helloworld.Greeter",
+	}
+
+	for _, option := range option.ConfigServiceMicroOptions {
+		option(serviceOpions)
+	}
+
+	var svc micro.Service
+	svc, err = micro.AddService(nc, *defaultConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	m := svc.AddGroup("roger.helloworld.Greeter")
-	m.AddEndpoint("SayHello.org.*",
+	m := svc.AddGroup(serviceOpions.GroupName)
+	err = m.AddEndpoint("SayHello.org.*",
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
@@ -93,7 +103,11 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 			"response_schema": utils.SchemaFor(&HelloReply{}),
 		}))
 
-	m.AddEndpoint("SayHelloAuth",
+	if err != nil {
+		return nil, err
+	}
+
+	err = m.AddEndpoint("SayHelloAuth",
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
@@ -112,7 +126,11 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 			"response_schema": utils.SchemaFor(&HelloReply{}),
 		}))
 
-	m.AddEndpoint("SayHelloDownstream",
+	if err != nil {
+		return nil, err
+	}
+
+	err = m.AddEndpoint("SayHelloDownstream",
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
@@ -131,7 +149,11 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 			"response_schema": utils.SchemaFor(&HelloReply{}),
 		}))
 
-	return svc, nil
+	if err != nil {
+		return nil, err
+	}
+
+	return svc, err
 }
 
 type (
@@ -230,23 +252,33 @@ func RegisterGreeter2NATSHandler(ctx context.Context, natsCon *nats_go.Conn, con
 }
 
 func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client Greeter2Client, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+	var err error
 	defaultConfig := &micro.Config{
 		Name:        "Greeter2",
 		Version:     "0.0.1",
 		Description: "The Greeter2 nats micro service",
 	}
 
-	for _, option := range option.NATSMicroConfigOptions {
+	for _, option := range option.ConfigNATSMicroConfigs {
 		option(defaultConfig)
 	}
 
-	svc, err := micro.AddService(nc, *defaultConfig)
+	serviceOpions := &nats_micro_service1.ServiceMicroOption{
+		GroupName: "roger.helloworld.Greeter2",
+	}
+
+	for _, option := range option.ConfigServiceMicroOptions {
+		option(serviceOpions)
+	}
+
+	var svc micro.Service
+	svc, err = micro.AddService(nc, *defaultConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	m := svc.AddGroup("roger.helloworld.Greeter2")
-	m.AddEndpoint("SayHello",
+	m := svc.AddGroup(serviceOpions.GroupName)
+	err = m.AddEndpoint("SayHello",
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
@@ -265,7 +297,11 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 			"response_schema": utils.SchemaFor(&HelloReply2{}),
 		}))
 
-	return svc, nil
+	if err != nil {
+		return nil, err
+	}
+
+	return svc, err
 }
 
 type (
@@ -322,20 +358,25 @@ func RegisterMyStreamServiceNATSHandler(ctx context.Context, natsCon *nats_go.Co
 }
 
 func RegisterMyStreamServiceNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, client MyStreamServiceClient, option *nats_micro_service1.NATSMicroServiceRegisrationOption) (micro.Service, error) {
+	var err error
 	defaultConfig := &micro.Config{
 		Name:        "MyStreamService",
 		Version:     "0.0.1",
 		Description: "The MyStreamService nats micro service",
 	}
 
-	for _, option := range option.NATSMicroConfigOptions {
+	for _, option := range option.ConfigNATSMicroConfigs {
 		option(defaultConfig)
 	}
 
-	svc, err := micro.AddService(nc, *defaultConfig)
-	if err != nil {
-		return nil, err
+	serviceOpions := &nats_micro_service1.ServiceMicroOption{
+		GroupName: "helloworld.MyStreamService",
 	}
 
-	return svc, nil
+	for _, option := range option.ConfigServiceMicroOptions {
+		option(serviceOpions)
+	}
+
+	var svc micro.Service
+	return svc, err
 }
