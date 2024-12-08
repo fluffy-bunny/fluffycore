@@ -658,6 +658,7 @@ func (s *methodGenContext) generateNATSMethodGRPCGateway() {
 	g.P("		", natsGoMicroPackage.Ident("HandlerFunc"), "(func(req micro.Request) {")
 	g.P("			", serviceNatsMicroServicePackage.Ident("HandleRequest"), "(")
 	g.P("				req,")
+	g.P("				serviceOpions.GroupName,")
 	g.P("				&", serviceNatsMicroServicePackage.Ident("NATSMicroHandlerInfo"), "{")
 	g.P("					WildcardToken: \"", hr.WildcardToken, "\",")
 	g.P("					ParameterizedToken: \"", hr.ParameterizedToken, "\",")

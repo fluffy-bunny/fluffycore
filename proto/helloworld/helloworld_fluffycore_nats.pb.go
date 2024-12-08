@@ -89,6 +89,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
+				serviceOpions.GroupName,
 				&nats_micro_service.NATSMicroHandlerInfo{
 					WildcardToken:      "SayHello.org.*",
 					ParameterizedToken: "SayHello.org.${orgId}",
@@ -133,6 +134,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
+				serviceOpions.GroupName,
 				&nats_micro_service.NATSMicroHandlerInfo{
 					WildcardToken:      "SayHelloAuth",
 					ParameterizedToken: "SayHelloAuth",
@@ -177,6 +179,7 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
+				serviceOpions.GroupName,
 				&nats_micro_service.NATSMicroHandlerInfo{
 					WildcardToken:      "SayHelloDownstream",
 					ParameterizedToken: "SayHelloDownstream",
@@ -346,6 +349,7 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
+				serviceOpions.GroupName,
 				&nats_micro_service.NATSMicroHandlerInfo{
 					WildcardToken:      "SayHello",
 					ParameterizedToken: "SayHello",

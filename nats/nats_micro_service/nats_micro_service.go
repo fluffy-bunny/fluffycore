@@ -14,6 +14,7 @@ import (
 	contracts_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	contracts_nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
 	nats_client "github.com/fluffy-bunny/fluffycore/nats/client"
+	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	status "github.com/gogo/status"
 	jsonpath "github.com/mdaverde/jsonpath"
 	nats "github.com/nats-io/nats.go"
@@ -303,6 +304,7 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 
 func HandleRequest[Req, Resp any](
 	req micro.Request,
+	groupName string,
 	nmHandlerInfo *NATSMicroHandlerInfo,
 	unmarshaler func(*Req) error,
 	protoRequestMessage func() (protoreflect.ProtoMessage, error),
@@ -325,10 +327,13 @@ func HandleRequest[Req, Resp any](
 	if err != nil {
 		return
 	}
-
+	fixedParameterizedToken := nmHandlerInfo.ParameterizedToken
+	if fluffycore_utils.IsNotEmptyOrNil(groupName) {
+		fixedParameterizedToken = groupName + "." + fixedParameterizedToken
+	}
 	rr, err := InjectParamaterizedRoutesIntoProtoMessage(
 		subject,
-		nmHandlerInfo.ParameterizedToken,
+		fixedParameterizedToken,
 		pm)
 	if err != nil {
 		req.Error("400", err.Error(), nil)
