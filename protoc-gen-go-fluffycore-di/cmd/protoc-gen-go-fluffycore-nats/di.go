@@ -37,6 +37,7 @@ const (
 	protojsonPackage                 = protogen.GoImportPath("google.golang.org/protobuf/encoding/protojson")
 	natsClientPackage                = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/nats/client")
 	annotationsPackage               = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/nats/api/annotations")
+	protoreflectPackage              = protogen.GoImportPath("google.golang.org/protobuf/reflect/protoreflect")
 )
 
 type genFileContext struct {
@@ -653,16 +654,53 @@ func (s *methodGenContext) generateNATSMethodGRPCGateway() {
 	}
 	g := s.g
 
-	g.P("	err = m.AddEndpoint(\"", hr.WildcardToken, "\",")
+	g.P("	err = m.AddEndpoint(\"", method.GoName, "\",")
 	g.P("		", natsGoMicroPackage.Ident("HandlerFunc"), "(func(req micro.Request) {")
 	g.P("			", serviceNatsMicroServicePackage.Ident("HandleRequest"), "(")
 	g.P("				req,")
+	g.P("				&", serviceNatsMicroServicePackage.Ident("NATSMicroHandlerInfo"), "{")
+	g.P("					WildcardToken: \"", hr.WildcardToken, "\",")
+	g.P("					ParameterizedToken: \"", hr.ParameterizedToken, "\",")
+	g.P("				},")
 	g.P("				func(r *", method.Input.GoIdent.GoName, ") error {")
 	g.P("					return ", protojsonPackage.Ident("Unmarshal"), "(req.Data(), r)")
 	g.P("				},")
+	/*
+		func() (protoreflect.ProtoMessage,error){
+						request := &HelloRequest{}
+						err := protojson.Unmarshal(req.Data(), request)
+						if err != nil {
+							return nil, err
+						}
+						return request,nil
+					},
+					func(pm protoreflect.ProtoMessage,req *HelloRequest) error{
+						pj, err := protojson.Marshal(pm)
+						if err != nil {
+							return err
+						}
+						return protojson.Unmarshal(pj, req)
+					},
+	*/
+	g.P("			func() (", protoreflectPackage.Ident("ProtoMessage"), ",error){")
+	g.P("				request := &", method.Input.GoIdent.GoName, "{}")
+	g.P("				err := ", protojsonPackage.Ident("Unmarshal"), "(req.Data(), request)")
+	g.P("				if err != nil {")
+	g.P("					return nil, err")
+	g.P("				}")
+	g.P("				return request,nil")
+	g.P("			},")
+	g.P("			func(pm ", protoreflectPackage.Ident("ProtoMessage"), ",req *", method.Input.GoIdent.GoName, ") error{")
+	g.P("				pj, err := ", protojsonPackage.Ident("Marshal"), "(pm)")
+	g.P("				if err != nil {")
+	g.P("					return err")
+	g.P("				}")
+	g.P("				return ", protojsonPackage.Ident("Unmarshal"), "(pj, req)")
+	g.P("			},")
 	g.P("				func(ctx ", contextPackage.Ident("Context"), ", request *", method.Input.GoIdent.GoName, ") (*", method.Output.GoIdent.GoName, ", error) {")
 	g.P("					return client.", method.GoName, "(ctx,request)")
 	g.P("				},")
+
 	g.P("			)")
 	g.P("		}),")
 	g.P("		", natsGoMicroPackage.Ident("WithEndpointMetadata"), "(map[string]string{")
@@ -670,7 +708,9 @@ func (s *methodGenContext) generateNATSMethodGRPCGateway() {
 	g.P("			\"format\":          \"application/json\",")
 	g.P("			\"request_schema\": ", fluffyCoreUtilsPackage.Ident("SchemaFor"), "(&", method.Input.GoIdent.GoName, "{}),")
 	g.P("			\"response_schema\": ", fluffyCoreUtilsPackage.Ident("SchemaFor"), "(&", method.Output.GoIdent.GoName, "{}),")
-	g.P("		}))")
+	g.P("		}),")
+	g.P("		", natsGoMicroPackage.Ident("WithEndpointSubject"), "(\"", hr.WildcardToken, "\"),")
+	g.P("		)")
 	g.P()
 	g.P("		if err != nil {")
 	g.P("			return nil, err")

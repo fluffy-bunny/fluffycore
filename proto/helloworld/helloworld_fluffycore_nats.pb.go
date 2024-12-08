@@ -14,6 +14,7 @@ import (
 	micro "github.com/nats-io/nats.go/micro"
 	grpc "google.golang.org/grpc"
 	protojson "google.golang.org/protobuf/encoding/protojson"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 )
 
 var methodGreeterHandlerRuleMap = map[string]*nats_micro_service.NATSMicroHandlerInfo{
@@ -84,12 +85,31 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 	}
 
 	m := svc.AddGroup(serviceOpions.GroupName)
-	err = m.AddEndpoint("SayHello.org.*",
+	err = m.AddEndpoint("SayHello",
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
+				&nats_micro_service.NATSMicroHandlerInfo{
+					WildcardToken:      "SayHello.org.*",
+					ParameterizedToken: "SayHello.org.${orgId}",
+				},
 				func(r *HelloRequest) error {
 					return protojson.Unmarshal(req.Data(), r)
+				},
+				func() (protoreflect.ProtoMessage, error) {
+					request := &HelloRequest{}
+					err := protojson.Unmarshal(req.Data(), request)
+					if err != nil {
+						return nil, err
+					}
+					return request, nil
+				},
+				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
+					pj, err := protojson.Marshal(pm)
+					if err != nil {
+						return err
+					}
+					return protojson.Unmarshal(pj, req)
 				},
 				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
 					return client.SayHello(ctx, request)
@@ -101,7 +121,9 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 			"format":          "application/json",
 			"request_schema":  utils.SchemaFor(&HelloRequest{}),
 			"response_schema": utils.SchemaFor(&HelloReply{}),
-		}))
+		}),
+		micro.WithEndpointSubject("SayHello.org.*"),
+	)
 
 	if err != nil {
 		return nil, err
@@ -111,8 +133,27 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
+				&nats_micro_service.NATSMicroHandlerInfo{
+					WildcardToken:      "SayHelloAuth",
+					ParameterizedToken: "SayHelloAuth",
+				},
 				func(r *HelloRequest) error {
 					return protojson.Unmarshal(req.Data(), r)
+				},
+				func() (protoreflect.ProtoMessage, error) {
+					request := &HelloRequest{}
+					err := protojson.Unmarshal(req.Data(), request)
+					if err != nil {
+						return nil, err
+					}
+					return request, nil
+				},
+				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
+					pj, err := protojson.Marshal(pm)
+					if err != nil {
+						return err
+					}
+					return protojson.Unmarshal(pj, req)
 				},
 				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
 					return client.SayHelloAuth(ctx, request)
@@ -124,7 +165,9 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 			"format":          "application/json",
 			"request_schema":  utils.SchemaFor(&HelloRequest{}),
 			"response_schema": utils.SchemaFor(&HelloReply{}),
-		}))
+		}),
+		micro.WithEndpointSubject("SayHelloAuth"),
+	)
 
 	if err != nil {
 		return nil, err
@@ -134,8 +177,27 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
+				&nats_micro_service.NATSMicroHandlerInfo{
+					WildcardToken:      "SayHelloDownstream",
+					ParameterizedToken: "SayHelloDownstream",
+				},
 				func(r *HelloRequest) error {
 					return protojson.Unmarshal(req.Data(), r)
+				},
+				func() (protoreflect.ProtoMessage, error) {
+					request := &HelloRequest{}
+					err := protojson.Unmarshal(req.Data(), request)
+					if err != nil {
+						return nil, err
+					}
+					return request, nil
+				},
+				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
+					pj, err := protojson.Marshal(pm)
+					if err != nil {
+						return err
+					}
+					return protojson.Unmarshal(pj, req)
 				},
 				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
 					return client.SayHelloDownstream(ctx, request)
@@ -147,7 +209,9 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 			"format":          "application/json",
 			"request_schema":  utils.SchemaFor(&HelloRequest{}),
 			"response_schema": utils.SchemaFor(&HelloReply{}),
-		}))
+		}),
+		micro.WithEndpointSubject("SayHelloDownstream"),
+	)
 
 	if err != nil {
 		return nil, err
@@ -282,8 +346,27 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 		micro.HandlerFunc(func(req micro.Request) {
 			nats_micro_service.HandleRequest(
 				req,
+				&nats_micro_service.NATSMicroHandlerInfo{
+					WildcardToken:      "SayHello",
+					ParameterizedToken: "SayHello",
+				},
 				func(r *HelloRequest) error {
 					return protojson.Unmarshal(req.Data(), r)
+				},
+				func() (protoreflect.ProtoMessage, error) {
+					request := &HelloRequest{}
+					err := protojson.Unmarshal(req.Data(), request)
+					if err != nil {
+						return nil, err
+					}
+					return request, nil
+				},
+				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
+					pj, err := protojson.Marshal(pm)
+					if err != nil {
+						return err
+					}
+					return protojson.Unmarshal(pj, req)
 				},
 				func(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
 					return client.SayHello(ctx, request)
@@ -295,7 +378,9 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 			"format":          "application/json",
 			"request_schema":  utils.SchemaFor(&HelloRequest{}),
 			"response_schema": utils.SchemaFor(&HelloReply2{}),
-		}))
+		}),
+		micro.WithEndpointSubject("SayHello"),
+	)
 
 	if err != nil {
 		return nil, err

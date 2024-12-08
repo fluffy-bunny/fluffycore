@@ -52,6 +52,166 @@ type NATSClientOption struct {
 	Timeout time.Duration
 }
 
+func InjectParamaterizedRoutesIntoProtoMessage(route string, parameterizedRoute string, m protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
+	pJson, err := protojson.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+
+	var payload interface{}
+
+	err = json.Unmarshal([]byte(pJson), &payload)
+	if err != nil {
+		return nil, err
+	}
+	pathMap, err := ExtractRouteParams(route, parameterizedRoute)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range pathMap {
+		value, err := jsonpath.Get(payload, k)
+		if err != nil {
+			return nil, err
+		}
+		switch value.(type) {
+		case string:
+			// as is, set the value
+			jsonpath.Set(payload, k, v)
+		case float64:
+			// convert the string to a json int
+			// v is a string, convert it to an int
+
+			i64, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+
+			jsonpath.Set(payload, k, i64)
+		}
+	}
+	jj, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	// we now do a protojson.Unmarshal
+	err = protojson.Unmarshal(jj, m)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func ExtractRouteParams(route string, parameterizedRoute string) (map[string]string, error) {
+	params := make(map[string]string)
+
+	// Parse and extract tokens from the parameterized route
+	tokens, err := parseTokens(parameterizedRoute)
+	if err != nil {
+		return nil, err
+	}
+
+	// Tokenize the route, but respect nested tokens
+	routeTokens, err := tokenizeRouteWithNesting(route)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate equal number of tokens
+	if len(routeTokens) != len(tokens) {
+		return nil, status.Error(codes.InvalidArgument,
+			fmt.Sprintf("token count mismatch: route has %d, parameterized route has %d",
+				len(routeTokens), len(tokens)))
+	}
+
+	// Match tokens
+	for i, token := range tokens {
+		// If it's a static token, verify exact match
+		if !isParameterToken(token) {
+			if token != routeTokens[i] {
+				return nil, status.Error(codes.InvalidArgument,
+					fmt.Sprintf("route segment mismatch: expected %s, got %s", token, routeTokens[i]))
+			}
+			continue
+		}
+
+		// Extract parameter name (remove ${} )
+		paramName := token[2 : len(token)-1]
+		params[paramName] = routeTokens[i]
+	}
+
+	// Ensure at least one parameter was extracted
+	if len(params) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "no parameters extracted from the route")
+	}
+
+	return params, nil
+}
+
+func parseTokens(expr string) ([]string, error) {
+	re := regexp.MustCompile(`(\w+|\$\{[^}]+\})`)
+	matches := re.FindAllString(expr, -1)
+	return matches, nil
+}
+
+// Expected output:
+// Route: a.${a_id}
+// Tokens:
+// "a"
+// "${a_id}"
+//
+// Route: a.${blah}.b.${blah}
+// Tokens:
+// "a"
+// "${blah}"
+// "b"
+// "${blah}"
+//
+// Route: org.${nestedMessage.orgId}.age.${nestedMessage.age}
+// Tokens:
+// "org"
+// "${nestedMessage.orgId}"
+// "age"
+// "${nestedMessage.age}"
+
+// tokenizeRouteWithNesting breaks down a route respecting nested structures
+func tokenizeRouteWithNesting(route string) ([]string, error) {
+	var tokens []string
+	var currentToken strings.Builder
+	var depth int
+
+	for _, r := range route {
+		switch {
+		case r == '.' && depth == 0:
+			// Normal segment separator at top level
+			if currentToken.Len() > 0 {
+				tokens = append(tokens, currentToken.String())
+				currentToken.Reset()
+			}
+		case r == '{':
+			depth++
+			currentToken.WriteRune(r)
+		case r == '}':
+			depth--
+			currentToken.WriteRune(r)
+		default:
+			currentToken.WriteRune(r)
+		}
+	}
+
+	// Add last token
+	if currentToken.Len() > 0 {
+		tokens = append(tokens, currentToken.String())
+	}
+
+	return tokens, nil
+}
+
+// isParameterToken checks if a token is a parameter token
+func isParameterToken(token string) bool {
+	return strings.HasPrefix(token, "${") && strings.HasSuffix(token, "}")
+}
+
 // TokenToValue is assumed to be defined elsewhere in the codebase
 // func TokenToValue(token string) interface{}
 
@@ -143,7 +303,10 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 
 func HandleRequest[Req, Resp any](
 	req micro.Request,
+	nmHandlerInfo *NATSMicroHandlerInfo,
 	unmarshaler func(*Req) error,
+	protoRequestMessage func() (protoreflect.ProtoMessage, error),
+	protoMessageToRequest func(protoreflect.ProtoMessage, *Req) error,
 	serviceMethod func(context.Context, *Req) (*Resp, error),
 ) {
 	ctx := context.Background()
@@ -151,13 +314,33 @@ func HandleRequest[Req, Resp any](
 	dd := ConvertToStringMap(req.Headers())
 	md := metadata.New(dd)
 	ctx = metadata.NewOutgoingContext(ctx, md)
-	var innerRequest Req
-	if err := unmarshaler(&innerRequest); err != nil {
+	var innerRequest *Req = new(Req)
+	if err := unmarshaler(innerRequest); err != nil {
 		req.Error("400", err.Error(), nil)
 		return
 	}
 
-	resp, err := serviceMethod(ctx, &innerRequest)
+	subject := req.Subject()
+	pm, err := protoRequestMessage()
+	if err != nil {
+		return
+	}
+
+	rr, err := InjectParamaterizedRoutesIntoProtoMessage(
+		subject,
+		nmHandlerInfo.ParameterizedToken,
+		pm)
+	if err != nil {
+		req.Error("400", err.Error(), nil)
+		return
+	}
+	err = protoMessageToRequest(rr, innerRequest)
+	if err != nil {
+		req.Error("400", err.Error(), nil)
+		return
+	}
+
+	resp, err := serviceMethod(ctx, innerRequest)
 	if err != nil {
 		req.Error("500", err.Error(), nil)
 		return

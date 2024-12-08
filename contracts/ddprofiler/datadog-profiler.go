@@ -6,8 +6,6 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 )
 
-//go:generate mockgen -package=$GOPACKAGE -destination=../mocks/$GOPACKAGE/mock_$GOFILE  github.com/fluffy-bunny/fluffycore/contracts/$GOPACKAGE IDataDogProfiler
-
 type (
 	// IProfiler abstraction, i.e. datadog profiler
 	IDataDogProfiler interface {

@@ -77,6 +77,8 @@ message NestedMessage {
 }
 message ParentMessage {
   NestedMessage nested_message= 1;
+  string org_id = 2;
+  int32 age = 3;
 }
 // The request message containing the user's name.
 message HelloRequest {
