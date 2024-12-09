@@ -25,68 +25,79 @@ type (
 	}
 
 	NATSMicroServiceRegisrationOption struct {
-		NATSMicroConfigOptions []NATSMicroConfigOption `json:"NATSMicroConfigOption"`
-		GroupName              string                  `json:"groupName"`
+		ConfigServiceMicroOptions []ConfigServiceMicroOption `json:"ServiceMicroOption"`
+		ConfigNATSMicroConfigs    []ConfigNATSMicroConfig    `json:"NATSMicroConfigOption"`
+		GroupName                 string                     `json:"groupName"`
 	}
 	INATSMicroServiceRegisration interface {
 		AddService(nc *nats.Conn, option *NATSMicroServiceRegisrationOption) (micro.Service, error)
 	}
-	NATSMicroConfigOption func(config *micro.Config) *micro.Config
+	ConfigNATSMicroConfig func(config *micro.Config) *micro.Config
+	ServiceMicroOption    struct {
+		GroupName string
+	}
+	ConfigServiceMicroOption func(config *ServiceMicroOption) *ServiceMicroOption
 )
 
-func WithMicroConfigNamne(name string) NATSMicroConfigOption {
+func WithServiceMicroOptionGroupName(groupName string) ConfigServiceMicroOption {
+	return func(config *ServiceMicroOption) *ServiceMicroOption {
+		config.GroupName = groupName
+		return config
+	}
+}
+func WithMicroConfigNamne(name string) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {
 		config.Name = name
 		return config
 	}
 }
-func WithMicroConfigVersion(version string) NATSMicroConfigOption {
+func WithMicroConfigVersion(version string) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {
 		config.Version = version
 		return config
 	}
 }
-func WithMicroConfigEndpoint(Endpoint *micro.EndpointConfig) NATSMicroConfigOption {
+func WithMicroConfigEndpoint(Endpoint *micro.EndpointConfig) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {
 		config.Endpoint = Endpoint
 		return config
 	}
 }
-func WithMicroConfigDescription(description string) NATSMicroConfigOption {
+func WithMicroConfigDescription(description string) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {
 		config.Description = description
 		return config
 	}
 }
 
-func WithMicroConfigMetadata(metadata map[string]string) NATSMicroConfigOption {
+func WithMicroConfigMetadata(metadata map[string]string) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {
 		config.Metadata = metadata
 		return config
 	}
 }
 
-func WithMicroConfigQueueGroup(queueGroup string) NATSMicroConfigOption {
+func WithMicroConfigQueueGroup(queueGroup string) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {
 		config.QueueGroup = queueGroup
 		return config
 	}
 }
 
-func WithMicroConfigStatsHandler(statsHandler micro.StatsHandler) NATSMicroConfigOption {
+func WithMicroConfigStatsHandler(statsHandler micro.StatsHandler) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {
 		config.StatsHandler = statsHandler
 		return config
 	}
 }
-func WithMicroConfigDoneHandler(doneHandler micro.DoneHandler) NATSMicroConfigOption {
+func WithMicroConfigDoneHandler(doneHandler micro.DoneHandler) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {
 		config.DoneHandler = doneHandler
 		return config
 	}
 }
 
-func WithMicroConfigErrorHandler(errorHandler micro.ErrHandler) NATSMicroConfigOption {
+func WithMicroConfigErrorHandler(errorHandler micro.ErrHandler) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {
 		config.ErrorHandler = errorHandler
 		return config
