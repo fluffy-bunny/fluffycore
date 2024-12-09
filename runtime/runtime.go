@@ -21,6 +21,7 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
 	fluffycore_contracts_config "github.com/fluffy-bunny/fluffycore/contracts/config"
+	contracts_profiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
 	fluffycore_contract_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	fluffycore_contracts_health "github.com/fluffy-bunny/fluffycore/contracts/health"
 	fluffycore_contract_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
@@ -43,6 +44,7 @@ import (
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
 	keepalive "google.golang.org/grpc/keepalive"
 	grpc_reflection "google.golang.org/grpc/reflection"
+	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 )
 
 type ServerInstance struct {
@@ -249,6 +251,16 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	serverOpts = append(serverOpts, grpc.MaxRecvMsgSize(maxRecvMsgSize))
 	serverOpts = append(serverOpts, grpc.MaxSendMsgSize(maxSendMsgSize))
 
+	ddConfig, err := di.TryGet[*contracts_profiler.Config](si.RootContainer)
+	if err == nil && ddConfig.TracingEnabled {
+		// Datadog tracing interceptors
+		unaryTraceInterceptor := grpctrace.UnaryServerInterceptor()
+		streamTraceInterceptor := grpctrace.StreamServerInterceptor()
+		serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(unaryTraceInterceptor))
+		serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(streamTraceInterceptor))
+	}
+	// we are using the datadog profiler
+	//
 	serverOpts = append(serverOpts, startup.ConfigureServerOpts(ctx)...)
 	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 
