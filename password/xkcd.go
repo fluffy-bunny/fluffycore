@@ -36,7 +36,22 @@ var (
 
 // NewXKCDGenerator initializes a new XKCD password generator
 // https://xkcd.com/936/
-func NewXKCDGenerator() *XKCD { return &XKCD{} }
+func NewXKCDGenerator(options ...XKCDGeneratorOption) *XKCD {
+	x := &XKCD{}
+	for _, opt := range options {
+		opt(x)
+	}
+	return x
+}
+
+type XKCDGeneratorOption func(*XKCD)
+
+// WithSeparator sets the separator between words
+func WithSeparator(sep string) XKCDGeneratorOption {
+	return func(x *XKCD) {
+		x.Separator = sep
+	}
+}
 
 // AppendIfMissing adds a string to a slice when it's not present yet
 func AppendIfMissing(slice []string, s string) []string {
@@ -69,11 +84,9 @@ func (x XKCD) GeneratePassword(length int, addDate bool) (string, error) {
 		password  string
 		usedWords []string
 	)
-
 	if addDate {
-		password = time.Now().Format("20060102.")
+		password = time.Now().Format("20060102") + x.Separator
 	}
-
 	for len(usedWords) < length {
 		widx, err := randIntn(len(xkcdWordList))
 		if err != nil {
