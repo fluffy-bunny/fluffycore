@@ -29,52 +29,53 @@ type (
 
 var stemService = (*service)(nil)
 
-func init() {
-	var _ fluffycore_contracts_eko_gocache.ISingletonInMemoryCache = stemService
-	var _ fluffycore_contracts_eko_gocache.IGoCache = stemService
+const defaultExpiration = gocache.NoExpiration
+const defaultCleanupInterval = gocache.NoExpiration
 
-}
-func (s *service) Ctor() (*service, error) {
-	gocacheClient := gocache.New(gocache.NoExpiration, 10*time.Minute)
-	gocacheStore := gocache_store.NewGoCache(gocacheClient)
+var _ fluffycore_contracts_eko_gocache.IGoCache = stemService
 
-	cacheManager := cache.New[[]byte](gocacheStore)
-	ss := &service{
-		BaseEkoGoCache: services_eko_gocache_base.BaseEkoGoCache{
-			CacheManager: cacheManager,
-		},
-	}
-	return ss, nil
-}
 func timeDurationPtr(v time.Duration) *time.Duration {
 	return &v
 }
-func AddISingletonInMemoryCacheWithOptions(cb di.ContainerBuilder, options *InMemoryCacheOptions) {
+func AddSingletonInMemoryCacheWithOptions(cb di.ContainerBuilder, options *InMemoryCacheOptions) {
 	if options == nil {
 		options = &InMemoryCacheOptions{}
-	}
-	if options.CleanupInterval == nil {
-		options.CleanupInterval = timeDurationPtr(10 * time.Minute)
 	}
 	if options.DefaultExpiration == nil {
 		options.DefaultExpiration = timeDurationPtr(gocache.NoExpiration)
 	}
-
-	reflectType := []reflect.Type{
-		reflect.TypeOf((*fluffycore_contracts_eko_gocache.ISingletonInMemoryCache)(nil)),
-		reflect.TypeOf((*fluffycore_contracts_eko_gocache.IGoCache)(nil)),
+	if options.CleanupInterval == nil {
+		options.CleanupInterval = timeDurationPtr(10 * time.Minute)
 	}
-	reflectType = append(reflectType, options.ImplementedInterfaceTypes...)
-	di.AddSingleton[*service](cb, stemService.Ctor, reflectType...)
+
+	di.AddSingleton[*service](cb, func() (*service, error) {
+		cleanUpInterval := defaultCleanupInterval
+		expiration := defaultExpiration
+		if options.CleanupInterval != nil {
+			cleanUpInterval = *options.CleanupInterval
+		}
+		if options.DefaultExpiration != nil {
+			expiration = *options.DefaultExpiration
+		}
+		gocacheClient := gocache.New(expiration, cleanUpInterval)
+		gocacheStore := gocache_store.NewGoCache(gocacheClient)
+
+		cacheManager := cache.New[[]byte](gocacheStore)
+		ss := &service{
+			BaseEkoGoCache: services_eko_gocache_base.BaseEkoGoCache{
+				CacheManager: cacheManager,
+			},
+		}
+		return ss, nil
+	}, options.ImplementedInterfaceTypes...)
 }
-func AddISingletonInMemoryCache(cb di.ContainerBuilder, implementedInterfaceTypes ...reflect.Type) {
+func AddSingletonInMemoryCacheNoExpiration(cb di.ContainerBuilder, implementedInterfaceTypes ...reflect.Type) {
 	options := &InMemoryCacheOptions{
 		ImplementedInterfaceTypes: implementedInterfaceTypes,
-		DefaultExpiration:         timeDurationPtr(gocache.NoExpiration),
-		CleanupInterval:           timeDurationPtr(10 * time.Minute),
 	}
-	AddISingletonInMemoryCacheWithOptions(cb, options)
+	AddSingletonInMemoryCacheWithOptions(cb, options)
 }
+
 func (s *service) GetType() string {
 	return "go-cache"
 }

@@ -1,16 +1,17 @@
 package eko_cache
 
 import (
+	"context"
+
 	"github.com/eko/gocache/lib/v4/store"
 )
 
 type (
 	IGoCache interface {
 		store.StoreInterface
+		GetOrInsert(ctx context.Context, key string, f func(ctx context.Context) (any, error), options ...store.Option) (any, error)
 	}
-	ISingletonInMemoryCache interface {
-		IGoCache
-	}
+
 	RedisCacheOptions struct {
 		// Default is tcp.
 		Network string `json:"network"`
