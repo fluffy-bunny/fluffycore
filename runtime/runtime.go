@@ -28,8 +28,8 @@ import (
 	fluffycore_contracts_tasks "github.com/fluffy-bunny/fluffycore/contracts/tasks"
 	services_health "github.com/fluffy-bunny/fluffycore/internal/services/health"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
-	fluffycore_nats_connect "github.com/fluffy-bunny/fluffycore/nats/nats_connect"
 	fluffycore_nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
+	fluffycore_nats_token "github.com/fluffy-bunny/fluffycore/nats/nats_token"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
@@ -344,8 +344,8 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 				anyNatsHandler &&
 				natsMicroConfig != nil {
 
-				nc, err := fluffycore_nats_connect.CreateNatsConnectionWithClientCredentials(
-					&fluffycore_nats_connect.NATSConnectTokenClientCredentialsRequest{
+				nc, err := fluffycore_nats_token.CreateNatsConnectionWithClientCredentials(
+					&fluffycore_nats_token.NATSConnectTokenClientCredentialsRequest{
 						NATSUrl:      natsMicroConfig.NATSUrl,
 						ClientID:     natsMicroConfig.ClientID,
 						ClientSecret: natsMicroConfig.ClientSecret,
