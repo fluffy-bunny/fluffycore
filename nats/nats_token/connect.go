@@ -29,9 +29,9 @@ func CreateNATSConnectTokenClientCredentials(request *NATSConnectTokenClientCred
 	return string(natsConnectTokenJson), nil
 }
 func CreateNatsConnectionWithClientCredentials(request *NATSConnectTokenClientCredentialsRequest) (*nats.Conn, error) {
-	natsConnectTokenJson, _ := CreateNATSConnectTokenClientCredentials(request)
+	token, _ := CreateNATSConnectTokenClientCredentials(request)
 	tokenHandler := nats.TokenHandler(func() string {
-		return string(natsConnectTokenJson)
+		return token
 	})
 	nc, err := nats.Connect(request.NATSUrl, tokenHandler)
 	return nc, err
