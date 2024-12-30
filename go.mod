@@ -34,7 +34,7 @@ require (
 	github.com/lestrrat-go/jwx/v2 v2.1.2
 	github.com/madflojo/tasks v1.2.1
 	github.com/mdaverde/jsonpath v0.2.1
-	github.com/nats-io/nats.go v1.34.0
+	github.com/nats-io/nats.go v1.38.0
 	github.com/nicksnyder/go-i18n/v2 v2.4.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -149,7 +149,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
-	github.com/nats-io/nkeys v0.4.7 // indirect
+	github.com/nats-io/nkeys v0.4.9 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/outcaste-io/ristretto v0.2.3 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
