@@ -1,6 +1,7 @@
 package nats_token
 
 import (
+	"encoding/base64"
 	"encoding/json"
 
 	status "github.com/gogo/status"
@@ -15,9 +16,14 @@ type (
 		ClientSecret string `json:"client"`
 		Account      string `json:"account"`
 	}
+	CreateNATSConnectTokenClientCredentialsRequest struct {
+		ClientID     string `json:"client_id"`
+		ClientSecret string `json:"client"`
+		Account      string `json:"account"`
+	}
 )
 
-func CreateNATSConnectTokenClientCredentials(request *NATSConnectTokenClientCredentialsRequest) (string, error) {
+func CreateNATSConnectTokenClientCredentials(request *CreateNATSConnectTokenClientCredentialsRequest) (string, error) {
 	natsConnectToken := &NATSConnectToken{
 		Token: &ClientCredentialsTokenType{
 			ClientID:     request.ClientID,
@@ -26,19 +32,31 @@ func CreateNATSConnectTokenClientCredentials(request *NATSConnectTokenClientCred
 		},
 	}
 	natsConnectTokenJson, _ := json.Marshal(natsConnectToken)
-	return string(natsConnectTokenJson), nil
+	encodedToken := base64.StdEncoding.EncodeToString(natsConnectTokenJson)
+
+	return encodedToken, nil
 }
+
 func CreateNatsConnectionWithClientCredentials(request *NATSConnectTokenClientCredentialsRequest) (*nats.Conn, error) {
-	token, _ := CreateNATSConnectTokenClientCredentials(request)
+	token, _ := CreateNATSConnectTokenClientCredentials(&CreateNATSConnectTokenClientCredentialsRequest{
+		ClientID:     request.ClientID,
+		ClientSecret: request.ClientSecret,
+		Account:      request.Account,
+	})
 	tokenHandler := nats.TokenHandler(func() string {
 		return token
 	})
 	nc, err := nats.Connect(request.NATSUrl, tokenHandler)
 	return nc, err
 }
-func DecodeNATSConnectTokenClientCredentials(natsConnectTokenJson string) (*ClientCredentialsTokenType, error) {
+
+func DecodeNATSConnectTokenClientCredentials(token string) (*ClientCredentialsTokenType, error) {
+	natsConnectTokenJson, err := base64.StdEncoding.DecodeString(token)
+	if err != nil {
+		return nil, err
+	}
 	natsConnectToken := &NATSConnectToken{}
-	err := json.Unmarshal([]byte(natsConnectTokenJson), natsConnectToken)
+	err = json.Unmarshal([]byte(natsConnectTokenJson), natsConnectToken)
 	if err != nil {
 		return nil, err
 	}
