@@ -7,6 +7,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCreateNATSConnectTokenClientCredentials(t *testing.T) {
+	token, err := CreateNATSConnectTokenClientCredentials(&CreateNATSConnectTokenClientCredentialsRequest{
+		ClientID:     "client_id",
+		ClientSecret: "client_secret",
+		Account:      "account",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	decodedToken, err := DecodeNATSConnectTokenClientCredentials(token)
+	require.NoError(t, err)
+	require.NotNil(t, decodedToken)
+	require.Equal(t, "client_id", decodedToken.ClientID)
+	require.Equal(t, "client_secret", decodedToken.ClientSecret)
+	require.Equal(t, "account", decodedToken.Account)
+
+}
+
 func TestOneOf(t *testing.T) {
 	natsToken := &NATSConnectToken{
 		Token: &ClientCredentialsTokenType{
