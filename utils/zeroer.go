@@ -55,9 +55,10 @@ func IsZero(v reflect.Value) bool {
 
 // IsEmptyOrNil checks if a value is empty or nil, useful for strings and arrays
 func _isEmptyOrNil(i interface{}) bool {
-	if i == nil {
+	if _isNil(i) {
 		return true
 	}
+
 	switch reflect.TypeOf(i).Kind() {
 	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
 		if reflect.ValueOf(i).IsNil() {
@@ -89,6 +90,8 @@ func _isNil(i interface{}) bool {
 	}
 	switch reflect.TypeOf(i).Kind() {
 	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		return reflect.ValueOf(i).IsNil()
+	case reflect.Func:
 		return reflect.ValueOf(i).IsNil()
 	}
 	return false //everything else here is a primitive
