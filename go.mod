@@ -24,7 +24,7 @@ require (
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jedib0t/go-pretty/v6 v6.6.5
 	github.com/jellydator/ttlcache/v2 v2.11.1
@@ -70,9 +70,9 @@ require (
 	go.opentelemetry.io/otel/trace v1.33.0
 	golang.org/x/oauth2 v0.25.0
 	golang.org/x/text v0.21.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20241219192143-6b3ec007d9bb
+	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f
 	google.golang.org/grpc v1.69.4
-	google.golang.org/protobuf v1.36.2
+	google.golang.org/protobuf v1.36.3
 	gopkg.in/DataDog/dd-trace-go.v1 v1.70.3
 )
 
@@ -209,7 +209,7 @@ require (
 	golang.org/x/time v0.8.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241219192143-6b3ec007d9bb // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
 	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
