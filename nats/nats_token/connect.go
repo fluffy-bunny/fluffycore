@@ -13,12 +13,12 @@ type (
 	NATSConnectTokenClientCredentialsRequest struct {
 		NATSUrl      string `json:"nats_url"`
 		ClientID     string `json:"client_id"`
-		ClientSecret string `json:"client"`
+		ClientSecret string `json:"client_secret"`
 		Account      string `json:"account"`
 	}
 	CreateNATSConnectTokenClientCredentialsRequest struct {
 		ClientID     string `json:"client_id"`
-		ClientSecret string `json:"client"`
+		ClientSecret string `json:"client_secret"`
 		Account      string `json:"account"`
 	}
 )
