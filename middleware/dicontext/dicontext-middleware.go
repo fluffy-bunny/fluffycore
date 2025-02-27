@@ -15,6 +15,7 @@ func UnaryServerInterceptor(rootContainer di.Container) grpc.UnaryServerIntercep
 		defer scope.Dispose()
 		requestContainer := scope.Container()
 		ctx = SetRequestContainer(ctx, requestContainer)
+		defer SetRequestContainer(ctx, nil)
 		return handler(ctx, req)
 	}
 }
@@ -27,6 +28,7 @@ func StreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterc
 		requestContainer := scope.Container()
 		ctx := ss.Context()
 		newCtx := SetRequestContainer(ctx, requestContainer)
+		defer SetRequestContainer(newCtx, nil)
 		sw := fluffycore_middleware.NewStreamContextWrapper(ss)
 		sw.SetContext(newCtx)
 		return handler(srv, sw)

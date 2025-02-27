@@ -19,9 +19,6 @@ func AddMemoryCache(b di.ContainerBuilder) {
 	di.AddSingleton[fluffycore_contracts_common.ISingletonMemoryCache](b, func() fluffycore_contracts_common.ISingletonMemoryCache {
 		return NewMemoryCache()
 	})
-	di.AddScoped[fluffycore_contracts_common.IScopedMemoryCache](b, func() fluffycore_contracts_common.IScopedMemoryCache {
-		return NewMemoryCache()
-	})
 }
 
 func NewMemoryCache() *service {
