@@ -1,4 +1,4 @@
-FROM alpine:latest as stage1
+FROM alpine:latest AS stage1
 
 RUN apk add -U --no-cache ca-certificates
 
@@ -7,7 +7,7 @@ RUN apk add bash curl && \
   chmod +x /wait-for-it.sh && \
   apk del curl
 
-FROM golang:1.23 as build
+FROM golang:1.24 AS build
 
 #!!!DO NOT REMOVE THE BELOW 3 LINES!!! Needed for github action to work
 #GHAONLY:COPY dotssh/* /root/.ssh/
