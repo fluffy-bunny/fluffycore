@@ -119,7 +119,7 @@ func (s *service) ValidateAccessToken(ctx context.Context, rawToken *fluffycore_
 		}
 		if matchedAudience == "" {
 			msg := "JWT audience do not match"
-			return true, status.Errorf(codes.Unauthenticated, msg)
+			return true, status.Error(codes.Unauthenticated, msg)
 		}
 	}
 	return true, nil
@@ -283,7 +283,7 @@ func getRawToken(ctx context.Context, accessToken string) (*fluffycore_contracts
 	if err != nil {
 		msg := "Failed to parse JWT. Invalid format"
 		log.Warn().Err(err).Msg(msg)
-		return nil, status.Errorf(codes.Unauthenticated, msg)
+		return nil, status.Error(codes.Unauthenticated, msg)
 	}
 
 	// Parse JWT headers
@@ -291,7 +291,7 @@ func getRawToken(ctx context.Context, accessToken string) (*fluffycore_contracts
 	if err != nil {
 		msg := "Failed to parse JWT. Invalid headers"
 		log.Warn().Err(err).Msg(msg)
-		return nil, status.Errorf(codes.Unauthenticated, msg)
+		return nil, status.Error(codes.Unauthenticated, msg)
 	}
 	rt := &fluffycore_contracts_middleware_auth_jwt.ParsedToken{
 		Token:       notTrustedToken,

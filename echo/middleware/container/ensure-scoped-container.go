@@ -13,9 +13,11 @@ func EnsureScopedContainer(root di.Container) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			scopeFactory := di.Get[di.ScopeFactory](root)
 			scope := scopeFactory.CreateScope()
-			subContainer := scope.Container()
+			defer scope.Dispose()
 
+			subContainer := scope.Container()
 			c.Set(wellknown.SCOPED_CONTAINER_KEY, subContainer)
+			defer c.Set(wellknown.SCOPED_CONTAINER_KEY, nil)
 			internalContextAccessor := di.Get[contracts_contextaccessor.IInternalEchoContextAccessor](subContainer)
 			internalContextAccessor.SetContext(c)
 

@@ -16,10 +16,6 @@ type (
 	ISingletonMemoryCache interface {
 		ICache
 	}
-	// IScopedMemoryCache interface
-	IScopedMemoryCache interface {
-		ICache
-	}
 )
 
 // some generic expire time define.

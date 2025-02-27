@@ -6,7 +6,7 @@ import (
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
-	require"github.com/stretchr/testify/require"
+	require "github.com/stretchr/testify/require"
 )
 
 func TestSameTypeAsScopedTransientSingleton(t *testing.T) {
@@ -21,18 +21,6 @@ func TestSameTypeAsScopedTransientSingleton(t *testing.T) {
 	container := b.Build()
 
 	meCache := di.Get[fluffycore_contracts_common.ISingletonMemoryCache](container)
-	require.Panics(t, func() {
-		di.Get[fluffycore_contracts_common.IScopedMemoryCache](container)
-	})
-	scopeFactory := di.Get[di.ScopeFactory](container)
-	scope := scopeFactory.CreateScope()
-	scopedContainer := scope.Container()
-
-	meCacheScoped := di.Get[fluffycore_contracts_common.IScopedMemoryCache](scopedContainer)
-	require.NotNil(t, meCacheScoped)
-
-	require.NotNil(t, meCache)
-	require.NotSame(t, meCache, meCacheScoped)
 
 	val, err := meCache.Get("test")
 	require.Error(t, err)
