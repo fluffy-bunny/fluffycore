@@ -7,7 +7,7 @@ go 1.24
 require (
 	github.com/ahmetb/go-linq/v3 v3.2.0
 	github.com/alexedwards/argon2id v1.0.0
-	github.com/auth0/go-jwt-middleware/v2 v2.2.2
+	github.com/auth0/go-jwt-middleware/v2 v2.3.0
 	github.com/eko/gocache/lib/v4 v4.2.0
 	github.com/eko/gocache/store/go_cache/v4 v4.2.2
 	github.com/eko/gocache/store/redis/v4 v4.2.2
@@ -198,7 +198,7 @@ require (
 	go.uber.org/mock v0.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.32.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
