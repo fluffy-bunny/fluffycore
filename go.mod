@@ -53,9 +53,9 @@ require (
 	github.com/ziflex/lecho/v3 v3.7.0
 	go.mongodb.org/mongo-driver v1.17.3
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.59.0
-	go.opentelemetry.io/contrib/instrumentation/host v0.59.0
+	go.opentelemetry.io/contrib/instrumentation/host v0.60.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.59.0
-	go.opentelemetry.io/otel v1.34.0
+	go.opentelemetry.io/otel v1.35.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.34.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.34.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.34.0
@@ -65,7 +65,7 @@ require (
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.34.0
 	go.opentelemetry.io/otel/sdk v1.34.0
 	go.opentelemetry.io/otel/sdk/metric v1.34.0
-	go.opentelemetry.io/otel/trace v1.34.0
+	go.opentelemetry.io/otel/trace v1.35.0
 	golang.org/x/oauth2 v0.27.0
 	golang.org/x/text v0.22.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250204164813-702378808489
@@ -136,7 +136,7 @@ require (
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
-	github.com/lufia/plan9stats v0.0.0-20240909124753-873cd0166683 // indirect
+	github.com/lufia/plan9stats v0.0.0-20250303091104-876f3ea5145d // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -165,7 +165,7 @@ require (
 	github.com/secure-systems-lab/go-securesystemslib v0.7.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shirou/gopsutil/v3 v3.24.4 // indirect
-	github.com/shirou/gopsutil/v4 v4.24.12 // indirect
+	github.com/shirou/gopsutil/v4 v4.25.2 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
@@ -192,7 +192,7 @@ require (
 	go.opentelemetry.io/collector/pdata v1.11.0 // indirect
 	go.opentelemetry.io/collector/pdata/pprofile v0.104.0 // indirect
 	go.opentelemetry.io/collector/semconv v0.104.0 // indirect
-	go.opentelemetry.io/otel/metric v1.34.0 // indirect
+	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/mock v0.4.0 // indirect
