@@ -31,6 +31,7 @@ import (
 	fluffycore_nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	fluffycore_nats_token "github.com/fluffy-bunny/fluffycore/nats/nats_token"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
+	fluffycore_services_common_AppContext "github.com/fluffy-bunny/fluffycore/services/common/AppContext"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -229,7 +230,10 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		panic(err)
 	}
 	di.AddInstance[*fluffycore_contracts_config.CoreConfig](builder, coreConfig)
-
+	// set the global context
+	fluffycore_services_common_AppContext.SetAppContext(ctx)
+	// register a func to access it
+	fluffycore_services_common_AppContext.AddAppContext(builder)
 	si := &ServerInstance{}
 	startup.ConfigureServices(ctx, builder)
 	si.RootContainer = builder.Build()
