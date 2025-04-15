@@ -19,8 +19,7 @@ func getAppContext() context.Context {
 // AddAppContext adds service to the DI container
 
 func AddAppContext(b di.ContainerBuilder) {
-	di.AddSingleton[fluffycore_contracts_common.AppContext](b,
-		func() fluffycore_contracts_common.AppContext {
-			return getAppContext
-		})
+	di.AddSingleton[fluffycore_contracts_common.AppContext](b, func() fluffycore_contracts_common.AppContext {
+		return getAppContext
+	})
 }
