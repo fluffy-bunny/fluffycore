@@ -16,7 +16,7 @@ require (
 	github.com/fluffy-bunny/viperEx v0.0.34
 	github.com/gogo/status v1.1.1
 	github.com/golang-jwt/jwt/v5 v5.2.2
-	github.com/golang-migrate/migrate/v4 v4.18.2
+	github.com/golang-migrate/migrate/v4 v4.18.3
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/securecookie v1.1.2
@@ -29,7 +29,7 @@ require (
 	github.com/jinzhu/copier v0.4.0
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/labstack/gommon v0.4.2
-	github.com/lestrrat-go/jwx/v2 v2.1.5
+	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/madflojo/tasks v1.2.1
 	github.com/mdaverde/jsonpath v0.2.1
 	github.com/nats-io/nats.go v1.41.2
@@ -38,7 +38,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
 	github.com/quasoft/memstore v0.0.0-20191010062613-2bce066d2b0b
-	github.com/redis/go-redis/v9 v9.7.3
+	github.com/redis/go-redis/v9 v9.8.0
 	github.com/reugn/async v0.9.0
 	github.com/rs/xid v1.6.0
 	github.com/rs/zerolog v1.34.0
