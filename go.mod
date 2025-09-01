@@ -16,7 +16,7 @@ require (
 	github.com/fluffy-bunny/viperEx v0.0.34
 	github.com/gogo/status v1.1.1
 	github.com/golang-jwt/jwt/v5 v5.2.3
-	github.com/golang-migrate/migrate/v4 v4.18.3
+	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/golang/mock v1.7.0-rc.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/securecookie v1.1.2
