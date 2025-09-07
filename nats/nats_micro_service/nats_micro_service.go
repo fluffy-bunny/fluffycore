@@ -142,9 +142,9 @@ func ExtractRouteParams(route string, parameterizedRoute string) (map[string]str
 	}
 
 	// Ensure at least one parameter was extracted
-	if len(params) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "no parameters extracted from the route")
-	}
+	//	if len(params) == 0 {
+	//		return nil, status.Error(codes.InvalidArgument, "no parameters extracted from the route")
+	//	}
 
 	return params, nil
 }
@@ -292,6 +292,21 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 	natsResponse, err := client.RequestWithContext(ctx, subject, msg)
 	if err != nil {
 		return response, fmt.Errorf("NATS request failed: %w", err)
+	}
+
+	natsServiceError, ok := natsResponse.Header["Nats-Service-Error"]
+	if ok && len(natsServiceError) > 0 {
+		errString := ""
+		for _, v := range natsServiceError {
+			if fluffycore_utils.IsNotEmptyOrNil(errString) {
+				errString += "; "
+			}
+			errString += v
+		}
+		return response, status.Error(codes.Internal, errString)
+	}
+	if fluffycore_utils.IsEmptyOrNil(natsResponse.Data) {
+		return response, status.Error(codes.Internal, "NATS response data is empty")
 	}
 
 	// Unmarshal response
