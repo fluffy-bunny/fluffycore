@@ -21,7 +21,7 @@ on:
 
 env:
   BINARY: "server"
-  GO_VERSION: "1.23"
+  GO_VERSION: "1.25"
   BUILD_PATH: "./example/server"
   IMAGE_NAME: "ghstahl/fluffycore-example"
   BASE_VERSION: "1.0.0"
