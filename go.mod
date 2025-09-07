@@ -1,6 +1,6 @@
 module github.com/fluffy-bunny/fluffycore
 
-go 1.24
+go 1.25
 
 //replace github.com/fluffy-bunny/viperEx => ../ViperEx
 
@@ -8,7 +8,7 @@ require (
 	github.com/ahmetb/go-linq/v3 v3.2.0
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/auth0/go-jwt-middleware/v2 v2.3.0
-	github.com/eko/gocache/lib/v4 v4.2.0
+	github.com/eko/gocache/lib/v4 v4.2.1
 	github.com/eko/gocache/store/go_cache/v4 v4.2.2
 	github.com/eko/gocache/store/redis/v4 v4.2.2
 	github.com/fatih/structs v1.1.0
@@ -38,7 +38,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
 	github.com/quasoft/memstore v0.0.0-20191010062613-2bce066d2b0b
-	github.com/redis/go-redis/v9 v9.11.0
+	github.com/redis/go-redis/v9 v9.13.0
 	github.com/reugn/async v0.9.0
 	github.com/rs/xid v1.6.0
 	github.com/rs/zerolog v1.34.0
