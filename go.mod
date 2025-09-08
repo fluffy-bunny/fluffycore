@@ -1,6 +1,6 @@
 module github.com/fluffy-bunny/fluffycore
 
-go 1.24
+go 1.24.0
 
 //replace github.com/fluffy-bunny/viperEx => ../ViperEx
 
@@ -66,7 +66,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.37.0
 	go.opentelemetry.io/otel/sdk/metric v1.37.0
 	go.opentelemetry.io/otel/trace v1.37.0
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/oauth2 v0.31.0
 	golang.org/x/text v0.27.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822
 	google.golang.org/grpc v1.74.2
