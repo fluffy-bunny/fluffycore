@@ -29,7 +29,6 @@ import (
 	services_health "github.com/fluffy-bunny/fluffycore/internal/services/health"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	fluffycore_nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
-	fluffycore_nats_token "github.com/fluffy-bunny/fluffycore/nats/nats_token"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	fluffycore_services_common_AppContext "github.com/fluffy-bunny/fluffycore/services/common/AppContext"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
@@ -116,6 +115,10 @@ func getGRPCMsgSizeLimits() (int, int) {
 
 	return grpcMaxReceiveMsgSizeMegs * 1024 * 1024, grpcMaxSendMsgSizeMegs * 1024 * 1024
 }
+func (s *Runtime) SetNATSMicroServicesContainer(container *fluffycore_nats_micro_service.NATSMicroServicesContainer) {
+	s.ServerInstances.NATSMicroServicesContainer = container
+}
+
 func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contract_runtime.IStartup) {
 	ctx := context.Background()
 	var err error
@@ -329,46 +332,13 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	// Create a client connection to the gRPC server we just started
 	// This is where the gRPC-Gateway proxies the requests
 	conn, err := grpc.NewClient(endpoint, opts...)
-
 	// now we add NATS
-	if coreConfig.NATSEnabled {
-		go func() {
-			// pause a bit to let things settle down.
-			time.Sleep(1 * time.Second)
-			// special case as the hosting service may also be the nats auth service so
-			// we will wait a bit before the handlers come on line.
-
-			anyNatsHandler := fluffycore_nats_micro_service.IsAnyNatsHandler(si.RootContainer)
-			// no need to do anything if nothing here to be registered
-			natsMicroConfig, err := di.TryGet[*fluffycore_nats_micro_service.NATSMicroConfig](si.RootContainer)
-			if err != nil {
-				log.Error().Err(err).Msg("Could not get *NATSMicroConfig.  You get no nats micros.")
-			}
-			if err == nil &&
-				anyNatsHandler &&
-				natsMicroConfig != nil {
-
-				nc, err := fluffycore_nats_token.CreateNatsConnectionWithClientCredentials(
-					&fluffycore_nats_token.NATSConnectTokenClientCredentialsRequest{
-						NATSUrl:      natsMicroConfig.NATSUrl,
-						ClientID:     natsMicroConfig.ClientID,
-						ClientSecret: natsMicroConfig.ClientSecret,
-					},
-				)
-				if err != nil {
-					log.Fatal().Err(err).Msg("Failed to connect to NATS")
-				}
-				si.NATSMicroServicesContainer = fluffycore_nats_micro_service.NewNATSMicroServicesContainer(
-					nc, si.RootContainer,
-				)
-
-				err = si.NATSMicroServicesContainer.Register(ctx, conn)
-				if err != nil {
-					log.Fatal().Err(err).Msg("failed to RegisterNATSMicroServiceHandlers")
-				}
-			}
-		}()
-	}
+	// ===============================================================
+	StartNATSHandlerGateway(ctx, &StartNATSHandlerGatewayRequest{
+		Container: si.RootContainer,
+		Conn:      conn,
+		Callback:  s,
+	})
 
 	if coreConfig.GRPCGateWayEnabled {
 
