@@ -142,9 +142,9 @@ func ExtractRouteParams(route string, parameterizedRoute string) (map[string]str
 	}
 
 	// Ensure at least one parameter was extracted
-	if len(params) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "no parameters extracted from the route")
-	}
+	//	if len(params) == 0 {
+	//		return nil, status.Error(codes.InvalidArgument, "no parameters extracted from the route")
+	//	}
 
 	return params, nil
 }
