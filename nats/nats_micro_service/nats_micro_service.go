@@ -294,6 +294,21 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 		return response, fmt.Errorf("NATS request failed: %w", err)
 	}
 
+	natsServiceError, ok := natsResponse.Header["Nats-Service-Error"]
+	if ok && len(natsServiceError) > 0 {
+		errString := ""
+		for _, v := range natsServiceError {
+			if fluffycore_utils.IsNotEmptyOrNil(errString) {
+				errString += "; "
+			}
+			errString += v
+		}
+		return response, status.Error(codes.Internal, errString)
+	}
+	if fluffycore_utils.IsEmptyOrNil(natsResponse.Data) {
+		return response, status.Error(codes.Internal, "NATS response data is empty")
+	}
+
 	// Unmarshal response
 	err = protojson.Unmarshal(natsResponse.Data, response)
 	if err != nil {
