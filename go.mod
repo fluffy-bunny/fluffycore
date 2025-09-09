@@ -1,6 +1,6 @@
 module github.com/fluffy-bunny/fluffycore
 
-go 1.24.0
+go 1.25
 
 //replace github.com/fluffy-bunny/viperEx => ../ViperEx
 
@@ -10,7 +10,7 @@ require (
 	github.com/auth0/go-jwt-middleware/v2 v2.3.0
 	github.com/eko/gocache/lib/v4 v4.2.0
 	github.com/eko/gocache/store/go_cache/v4 v4.2.2
-	github.com/eko/gocache/store/redis/v4 v4.2.2
+	github.com/eko/gocache/store/redis/v4 v4.2.4
 	github.com/fatih/structs v1.1.0
 	github.com/fluffy-bunny/fluffy-dozm-di v0.0.4
 	github.com/fluffy-bunny/viperEx v0.0.34
@@ -39,7 +39,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
 	github.com/quasoft/memstore v0.0.0-20191010062613-2bce066d2b0b
-	github.com/redis/go-redis/v9 v9.11.0
+	github.com/redis/go-redis/v9 v9.13.0
 	github.com/reugn/async v0.9.0
 	github.com/rs/xid v1.6.0
 	github.com/rs/zerolog v1.34.0
@@ -194,12 +194,12 @@ require (
 	go.opentelemetry.io/otel/metric v1.37.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.7.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	go.uber.org/mock v0.4.0 // indirect
+	go.uber.org/mock v0.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac // indirect
+	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b // indirect
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
