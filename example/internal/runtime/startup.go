@@ -115,7 +115,9 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 
 	services_auth_FinalAuthVerificationServerOptionAccessor_claimsprincipal.AddFinalAuthVerificationServerOptionAccessor(builder, internal_auth.BuildGrpcEntrypointPermissionsClaimsMap())
 
-	fluffycore_nats_micro_service.AddNatsMicroConfig(builder, config.NATSMicroConfig)
+	if config.NATSEnabled {
+		fluffycore_nats_micro_service.AddNatsMicroConfig(builder, config.NATSMicroConfig)
+	}
 }
 
 type taskTracker struct {

@@ -279,7 +279,7 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 ) (Resp, error) {
 
 	// Marshal the request
-	msg, err := protojson.Marshal(request)
+	msg, err := proto.Marshal(request)
 	if err != nil {
 		return response, fmt.Errorf("failed to marshal request: %w", err)
 	}
@@ -310,7 +310,7 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 	}
 
 	// Unmarshal response
-	err = protojson.Unmarshal(natsResponse.Data, response)
+	err = proto.Unmarshal(natsResponse.Data, response)
 	if err != nil {
 		return response, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
@@ -374,7 +374,7 @@ func HandleRequest[Req, Resp any](
 	}
 
 	// Marshal proto message to JSON
-	respBytes, err := protojson.Marshal(respProto)
+	respBytes, err := proto.Marshal(respProto)
 	if err != nil {
 		req.Error("500", err.Error(), nil)
 		return

@@ -12,6 +12,7 @@ import (
 	fluffycore_contracts_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/contracts/somedisposable"
 	fluffycore_grpcclient "github.com/fluffy-bunny/fluffycore/grpcclient"
 	proto_helloworld "github.com/fluffy-bunny/fluffycore/proto/helloworld"
+	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	nats "github.com/nats-io/nats.go"
 	micro "github.com/nats-io/nats.go/micro"
@@ -38,11 +39,9 @@ type (
 var stemService = (*service)(nil)
 var tracer = otel.Tracer("grpc-example")
 
-func init() {
-	var _ proto_helloworld.IFluffyCoreGreeterServer = stemService
-	var _ endpoint.IEndpointRegistration = (*registrationServer)(nil)
-	var _ endpoint.INATSEndpointRegistration = (*registrationServer)(nil)
-}
+var _ proto_helloworld.IFluffyCoreGreeterServer = stemService
+var _ endpoint.IEndpointRegistration = (*registrationServer)(nil)
+var _ endpoint.INATSEndpointRegistration = (*registrationServer)(nil)
 
 func (s *registrationServer) RegisterHandler(gwmux *grpc_gateway_runtime.ServeMux, conn *grpc.ClientConn) {
 	proto_helloworld.RegisterGreeterHandler(context.Background(), gwmux, conn)
@@ -68,10 +67,12 @@ func AddGreeterService(builder di.ContainerBuilder) {
 		func() endpoint.IEndpointRegistration {
 			return &registrationServer{}
 		})
-	/*
-	   // need a nats server with an auth callout for this to work
-	   	proto_helloworld.AddSingletonGreeterNATSEndpointRegistration(builder)
-	*/
+	natsEnabled := fluffycore_utils.BoolEnv("NATS_ENABLED", false)
+	if natsEnabled {
+		// need a nats server with an auth callout for this to work
+		proto_helloworld.AddSingletonGreeterFluffyCoreServerNATSMicroRegistration(builder)
+	}
+
 }
 func (s *service) SayHelloAuth(ctx context.Context, request *proto_helloworld.HelloRequest) (*proto_helloworld.HelloReply, error) {
 	return s.SayHello(ctx, request)
