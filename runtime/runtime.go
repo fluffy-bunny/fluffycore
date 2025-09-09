@@ -444,7 +444,7 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 		rootConfigMap["PORT"] = 0
 	}
 
-	rootConfigMap["NATS_ENABLED"] = fluffycore_utils.BoolEnv("NATS_ENABLED", true)
+	rootConfigMap["NATS_ENABLED"] = fluffycore_utils.BoolEnv("NATS_ENABLED", false)
 
 	if _, ok := rootConfigMap["GRPC_GATEWAY_ENABLED"]; !ok {
 		rootConfigMap["GRPC_GATEWAY_ENABLED"] = true

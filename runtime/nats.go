@@ -40,7 +40,7 @@ func validateStartNATSHandlerGatewayRequest(request *StartNATSHandlerGatewayRequ
 }
 func StartNATSHandlerGateway(ctx context.Context, request *StartNATSHandlerGatewayRequest) error {
 	log := zerolog.Ctx(ctx).With().Logger()
-	natsEnabled := fluffycore_utils.BoolEnv("NATS_ENABLED", true)
+	natsEnabled := fluffycore_utils.BoolEnv("NATS_ENABLED", false)
 	if !natsEnabled {
 		return nil
 	}
