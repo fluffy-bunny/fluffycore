@@ -13,7 +13,7 @@ import (
 	nats_go "github.com/nats-io/nats.go"
 	micro "github.com/nats-io/nats.go/micro"
 	grpc "google.golang.org/grpc"
-	protojson "google.golang.org/protobuf/encoding/protojson"
+	proto "google.golang.org/protobuf/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -95,22 +95,22 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 					ParameterizedToken: "SayHello.org.${orgId}",
 				},
 				func(r *HelloRequest) error {
-					return protojson.Unmarshal(req.Data(), r)
+					return proto.Unmarshal(req.Data(), r)
 				},
 				func() (protoreflect.ProtoMessage, error) {
 					request := &HelloRequest{}
-					err := protojson.Unmarshal(req.Data(), request)
+					err := proto.Unmarshal(req.Data(), request)
 					if err != nil {
 						return nil, err
 					}
 					return request, nil
 				},
 				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
-					pj, err := protojson.Marshal(pm)
+					pj, err := proto.Marshal(pm)
 					if err != nil {
 						return err
 					}
-					return protojson.Unmarshal(pj, req)
+					return proto.Unmarshal(pj, req)
 				},
 				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
 					return client.SayHello(ctx, request)
@@ -140,22 +140,22 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 					ParameterizedToken: "SayHelloAuth",
 				},
 				func(r *HelloRequest) error {
-					return protojson.Unmarshal(req.Data(), r)
+					return proto.Unmarshal(req.Data(), r)
 				},
 				func() (protoreflect.ProtoMessage, error) {
 					request := &HelloRequest{}
-					err := protojson.Unmarshal(req.Data(), request)
+					err := proto.Unmarshal(req.Data(), request)
 					if err != nil {
 						return nil, err
 					}
 					return request, nil
 				},
 				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
-					pj, err := protojson.Marshal(pm)
+					pj, err := proto.Marshal(pm)
 					if err != nil {
 						return err
 					}
-					return protojson.Unmarshal(pj, req)
+					return proto.Unmarshal(pj, req)
 				},
 				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
 					return client.SayHelloAuth(ctx, request)
@@ -185,22 +185,22 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 					ParameterizedToken: "SayHelloDownstream",
 				},
 				func(r *HelloRequest) error {
-					return protojson.Unmarshal(req.Data(), r)
+					return proto.Unmarshal(req.Data(), r)
 				},
 				func() (protoreflect.ProtoMessage, error) {
 					request := &HelloRequest{}
-					err := protojson.Unmarshal(req.Data(), request)
+					err := proto.Unmarshal(req.Data(), request)
 					if err != nil {
 						return nil, err
 					}
 					return request, nil
 				},
 				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
-					pj, err := protojson.Marshal(pm)
+					pj, err := proto.Marshal(pm)
 					if err != nil {
 						return err
 					}
-					return protojson.Unmarshal(pj, req)
+					return proto.Unmarshal(pj, req)
 				},
 				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
 					return client.SayHelloDownstream(ctx, request)
@@ -355,22 +355,22 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 					ParameterizedToken: "SayHello",
 				},
 				func(r *HelloRequest) error {
-					return protojson.Unmarshal(req.Data(), r)
+					return proto.Unmarshal(req.Data(), r)
 				},
 				func() (protoreflect.ProtoMessage, error) {
 					request := &HelloRequest{}
-					err := protojson.Unmarshal(req.Data(), request)
+					err := proto.Unmarshal(req.Data(), request)
 					if err != nil {
 						return nil, err
 					}
 					return request, nil
 				},
 				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
-					pj, err := protojson.Marshal(pm)
+					pj, err := proto.Marshal(pm)
 					if err != nil {
 						return err
 					}
-					return protojson.Unmarshal(pj, req)
+					return proto.Unmarshal(pj, req)
 				},
 				func(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
 					return client.SayHello(ctx, request)
