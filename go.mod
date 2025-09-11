@@ -70,7 +70,7 @@ require (
 	golang.org/x/oauth2 v0.31.0
 	golang.org/x/text v0.29.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250818200422-3122310a409c
-	google.golang.org/grpc v1.75.0
+	google.golang.org/grpc v1.75.1
 	google.golang.org/protobuf v1.36.7
 	gopkg.in/DataDog/dd-trace-go.v1 v1.74.3
 )
