@@ -10,9 +10,8 @@ type service struct {
 	schedular *madflojo_tasks.Scheduler
 }
 
-func init() {
-	var _ fluffycore_contracts_tasks.ISingletonScheduler = (*service)(nil)
-}
+var _ fluffycore_contracts_tasks.ISingletonScheduler = (*service)(nil)
+
 func AddTasksServices(cb di.ContainerBuilder) {
 	addTransientScheduler(cb)
 	addSingletonScheduler(cb)

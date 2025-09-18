@@ -100,6 +100,7 @@ func FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOptionV2(grpcEntrypoi
 		subLogger = subLogger.With().Logger()
 
 		if requestContainer != nil {
+
 			claimsPrincipal := di.Get[claimsprincipalContracts.IClaimsPrincipal](requestContainer)
 			permissionDeniedFunc := func() (interface{}, error) {
 				subLogger.Debug().Msg("Permission denied")
