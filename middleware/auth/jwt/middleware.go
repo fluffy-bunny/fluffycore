@@ -223,6 +223,7 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 		if err != nil && requestContextClaimsToPropagate == nil {
 			requestContextClaimsToPropagate = &fluffycore_contracts_middleware.RequestContextClaimsToPropagate{
 				ClaimTypes: []string{"sub", "client_id", "email", "aud"},
+				JSONRequestPropagationName: "jsonContextPropagation",
 			}
 		} else {
 			requestContextClaimsToPropagate.ClaimTypes = append(requestContextClaimsToPropagate.ClaimTypes,

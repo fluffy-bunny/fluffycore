@@ -5,15 +5,17 @@ import (
 	"encoding/json"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
+	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_contracts_propertybag "github.com/fluffy-bunny/fluffycore/contracts/propertybag"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
-	"github.com/gogo/status"
+	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
+	status "github.com/gogo/status"
 	zerolog "github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
 	grpc "google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
+	codes "google.golang.org/grpc/codes"
+	metadata "google.golang.org/grpc/metadata"
 )
 
 type PropertyBagHook struct {
@@ -47,6 +49,7 @@ func getIncomingContextJson(ctx context.Context) (map[string]interface{}, error)
 	}
 	return generic, nil
 }
+
 func EnsureContextLoggingUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		logger := log.With().Caller().Logger()
@@ -54,13 +57,20 @@ func EnsureContextLoggingUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		scopedContainer := middleware_dicontext.GetRequestContainer(ctx)
 		propertyBag := di.Get[fluffycore_contracts_propertybag.IRequestContextLoggingPropertyBag](scopedContainer)
 
+		jsonContextPropagationName := "jsonContextPropagation"
+		requestContextClaimsToPropagate, err := di.TryGet[*fluffycore_contracts_middleware.RequestContextClaimsToPropagate](scopedContainer)
+		if err == nil {
+			if fluffycore_utils.IsNotEmptyOrNil(requestContextClaimsToPropagate.JSONRequestPropagationName) {
+				jsonContextPropagationName = requestContextClaimsToPropagate.JSONRequestPropagationName
+			}
+		}
 		jsonContextPropagation, err := getIncomingContextJson(ctx)
 		if err != nil {
 			// log the error, but continue on.
 			logger.Error().Err(err).Msg("getIncomingContextJson failed")
 		} else {
 			if jsonContextPropagation != nil {
-				propertyBag.Set("jsonContextPropagation", jsonContextPropagation)
+				propertyBag.Set(jsonContextPropagationName, jsonContextPropagation)
 			}
 		}
 
