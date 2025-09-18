@@ -12,3 +12,8 @@ type IStreamServerInterceptorBuilder interface {
 	GetStreamServerInterceptors() []grpc.StreamServerInterceptor
 	Use(intercepter grpc.StreamServerInterceptor)
 }
+
+type RequestContextClaimsToPropagate struct {
+	JSONRequestPropagationName string   `json:"jsonRequestPropagationName"`
+	ClaimTypes                 []string `json:"claimTypes"`
+}

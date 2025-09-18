@@ -57,23 +57,23 @@ func (s *FluffyCoreOTELStartup) ConfigureServerOpts(ctx context.Context) []grpc.
 	log.Info().Msg("adding OTEL serverOpts")
 	serverOpts = append(serverOpts, grpc.StatsHandler(otelgrpc.NewServerHandler(otelOpts...)))
 
-	log.Info().Msg("adding ChainUnaryInterceptor: fluffycore_middleware_logging.EnsureContextLoggingUnaryServerInterceptor")
-	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_logging.EnsureContextLoggingUnaryServerInterceptor()))
-
-	log.Info().Msg("adding ChainStreamInterceptor: fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor")
-	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor()))
-
 	// log correlation and spans
 	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_correlation.EnsureOTELCorrelationIDUnaryServerInterceptor()))
-	// dicontext is responsible of create a scoped context for each request.
+	// FIRST FIRST: ScopedContextxxx must be called first
+	// --------------------------------------------------------------------------------------------------------
 	log.Info().Msg("adding ChainUnaryInterceptor: fluffycore_middleware_dicontext.UnaryServerInterceptor")
-	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_dicontext.UnaryServerInterceptor(s.RootContainer)))
+	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_dicontext.ScopedContextUnaryServerInterceptor(s.RootContainer)))
 	log.Info().Msg("adding ChainStreamInterceptor: fluffycore_middleware_dicontext.StreamServerInterceptor")
-	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(fluffycore_middleware_dicontext.StreamServerInterceptor(s.RootContainer)))
+	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(fluffycore_middleware_dicontext.ScopedContextStreamServerInterceptor(s.RootContainer)))
+
+	log.Info().Msg("adding ChainUnaryInterceptor: fluffycore_middleware_logging.EnsureContextLoggingUnaryServerInterceptor")
+	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_logging.EnsureContextLoggingUnaryServerInterceptor()))
 
 	// auth
 	log.Info().Msg("adding ChainUnaryInterceptor: fluffycore_middleware_auth_jwt.UnaryServerInterceptor")
 	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_auth_jwt.UnaryServerInterceptor(s.RootContainer)))
+	log.Info().Msg("adding ChainStreamInterceptor: fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor")
+	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor()))
 
 	// Here the gating happens
 	//grpcEntrypointClaimsMap := internal_auth.BuildGrpcEntrypointPermissionsClaimsMap()

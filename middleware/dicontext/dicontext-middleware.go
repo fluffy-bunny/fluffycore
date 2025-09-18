@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func UnaryServerInterceptor(rootContainer di.Container) grpc.UnaryServerInterceptor {
+func ScopedContextUnaryServerInterceptor(rootContainer di.Container) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		scopeFactory := di.Get[di.ScopeFactory](rootContainer)
 		scope := scopeFactory.CreateScope()
@@ -20,7 +20,7 @@ func UnaryServerInterceptor(rootContainer di.Container) grpc.UnaryServerIntercep
 	}
 }
 
-func StreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterceptor {
+func ScopedContextStreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		scopeFactory := di.Get[di.ScopeFactory](rootContainer)
 		scope := scopeFactory.CreateScope()
