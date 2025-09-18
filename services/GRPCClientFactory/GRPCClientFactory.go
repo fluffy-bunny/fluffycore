@@ -1,4 +1,4 @@
-package time
+package GRPCClientFactory
 
 import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"

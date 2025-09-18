@@ -6,12 +6,15 @@ import (
 	"strings"
 	"time"
 
+	linq "github.com/ahmetb/go-linq/v3"
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
+	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
+	fluffycore_contracts_propertybag "github.com/fluffy-bunny/fluffycore/contracts/propertybag"
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_services_common_claimsprincipal "github.com/fluffy-bunny/fluffycore/services/common/claimsprincipal"
-	utils "github.com/fluffy-bunny/fluffycore/utils"
+	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	status "github.com/gogo/status"
 	copier "github.com/jinzhu/copier"
 	jwxk "github.com/lestrrat-go/jwx/v2/jwk"
@@ -214,6 +217,20 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		scopedContainer := dicontext.GetRequestContainer(ctx)
 		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
+		propertyBag := di.Get[fluffycore_contracts_propertybag.IRequestContextLoggingPropertyBag](scopedContainer)
+
+		requestContextClaimsToPropagate, err := di.TryGet[*fluffycore_contracts_middleware.RequestContextClaimsToPropagate](scopedContainer)
+		if err != nil && requestContextClaimsToPropagate == nil {
+			requestContextClaimsToPropagate = &fluffycore_contracts_middleware.RequestContextClaimsToPropagate{
+				ClaimTypes: []string{"sub", "client_id", "email", "aud"},
+			}
+		} else {
+			requestContextClaimsToPropagate.ClaimTypes = append(requestContextClaimsToPropagate.ClaimTypes,
+				"sub", "client_id", "email", "aud")
+		}
+		distinctClaimTypes := []string{}
+		linq.From(requestContextClaimsToPropagate.ClaimTypes).Distinct().ToSlice(&distinctClaimTypes)
+		requestContextClaimsToPropagate.ClaimTypes = distinctClaimTypes
 
 		rt, err := _validate(ctx)
 		if err != nil {
@@ -222,6 +239,7 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 					Type:  string("sub"),
 					Value: "anonymous",
 				})
+				propertyBag.Set("sub", "anonymous")
 				return handler(ctx, req)
 			}
 			e, ok := status.FromError(err)
@@ -231,6 +249,7 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 						Type:  string("sub"),
 						Value: "anonymous",
 					})
+					propertyBag.Set("sub", "anonymous")
 					return handler(ctx, req)
 				}
 			}
@@ -240,11 +259,27 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 		claimsPrincipalScratch := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(jwtToken.GetClaims())
 		// transfer the claims over to the scoped IClaimsPrincipal
 		claimsPrincipal.AddClaim(claimsPrincipalScratch.GetClaims()...)
-		if !utils.IsEmptyOrNil(jwtToken.GetID()) {
+		if !fluffycore_utils.IsEmptyOrNil(jwtToken.GetID()) {
 			claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
 				Type:  string("sub"),
 				Value: jwtToken.GetID(),
 			})
+		}
+		for _, claimType := range requestContextClaimsToPropagate.ClaimTypes {
+			if claimsPrincipal.HasClaimType(claimType) {
+				claimVal := claimsPrincipal.GetClaimsByType(claimType)
+				if fluffycore_utils.IsNotEmptyOrNil(claimVal) {
+					if len(claimVal) == 1 {
+						propertyBag.Set(claimType, claimVal[0].Value)
+					} else {
+						values := make([]string, 0, len(claimVal))
+						for _, v := range claimVal {
+							values = append(values, v.Value)
+						}
+						propertyBag.Set(claimType, values)
+					}
+				}
+			}
 		}
 		return handler(ctx, req)
 	}
@@ -265,7 +300,7 @@ func StreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterc
 		// transfer the claims over to the scoped IClaimsPrincipal
 		claimsPrincipal.AddClaim(claimsPrincipalScratch.GetClaims()...)
 
-		if !utils.IsEmptyOrNil(jwtToken.GetID()) {
+		if !fluffycore_utils.IsEmptyOrNil(jwtToken.GetID()) {
 			claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
 				Type:  string("sub"),
 				Value: jwtToken.GetID(),
