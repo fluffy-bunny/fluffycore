@@ -14,6 +14,8 @@ type IStreamServerInterceptorBuilder interface {
 }
 
 type RequestContextClaimsToPropagate struct {
-	JSONRequestPropagationName string   `json:"jsonRequestPropagationName"`
-	ClaimTypes                 []string `json:"claimTypes"`
+	// JSONRequestPropagationName
+	JSONRequestPropagationName string `json:"jsonRequestPropagationName"`
+	// ClaimToContextMap
+	ClaimToContextMap map[string]string `json:"claimToContextMap"`
 }

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	linq "github.com/ahmetb/go-linq/v3"
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
@@ -222,16 +221,20 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 		requestContextClaimsToPropagate, err := di.TryGet[*fluffycore_contracts_middleware.RequestContextClaimsToPropagate](scopedContainer)
 		if err != nil && requestContextClaimsToPropagate == nil {
 			requestContextClaimsToPropagate = &fluffycore_contracts_middleware.RequestContextClaimsToPropagate{
-				ClaimTypes: []string{"sub", "client_id", "email", "aud"},
+				ClaimToContextMap: map[string]string{
+					"sub":       "sub",
+					"client_id": "client_id",
+					"email":     "email",
+					"aud":       "aud",
+				},
 				JSONRequestPropagationName: "jsonContextPropagation",
 			}
 		} else {
-			requestContextClaimsToPropagate.ClaimTypes = append(requestContextClaimsToPropagate.ClaimTypes,
-				"sub", "client_id", "email", "aud")
+			requestContextClaimsToPropagate.ClaimToContextMap["sub"] = "sub"
+			requestContextClaimsToPropagate.ClaimToContextMap["client_id"] = "client_id"
+			requestContextClaimsToPropagate.ClaimToContextMap["email"] = "email"
+			requestContextClaimsToPropagate.ClaimToContextMap["aud"] = "aud"
 		}
-		distinctClaimTypes := []string{}
-		linq.From(requestContextClaimsToPropagate.ClaimTypes).Distinct().ToSlice(&distinctClaimTypes)
-		requestContextClaimsToPropagate.ClaimTypes = distinctClaimTypes
 
 		rt, err := _validate(ctx)
 		if err != nil {
@@ -266,18 +269,18 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 				Value: jwtToken.GetID(),
 			})
 		}
-		for _, claimType := range requestContextClaimsToPropagate.ClaimTypes {
+		for claimType, ctxType := range requestContextClaimsToPropagate.ClaimToContextMap {
 			if claimsPrincipal.HasClaimType(claimType) {
 				claimVal := claimsPrincipal.GetClaimsByType(claimType)
 				if fluffycore_utils.IsNotEmptyOrNil(claimVal) {
 					if len(claimVal) == 1 {
-						propertyBag.Set(claimType, claimVal[0].Value)
+						propertyBag.Set(ctxType, claimVal[0].Value)
 					} else {
 						values := make([]string, 0, len(claimVal))
 						for _, v := range claimVal {
 							values = append(values, v.Value)
 						}
-						propertyBag.Set(claimType, values)
+						propertyBag.Set(ctxType, values)
 					}
 				}
 			}
