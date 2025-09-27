@@ -218,16 +218,16 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
 		propertyBag := di.Get[fluffycore_contracts_propertybag.IRequestContextLoggingPropertyBag](scopedContainer)
 
-		requestContextClaimsToPropagate, err := di.TryGet[*fluffycore_contracts_middleware.RequestContextClaimsToPropagate](scopedContainer)
+		requestContextClaimsToPropagate, err := di.TryGet[*fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig](scopedContainer)
 		if err != nil && requestContextClaimsToPropagate == nil {
-			requestContextClaimsToPropagate = &fluffycore_contracts_middleware.RequestContextClaimsToPropagate{
+			requestContextClaimsToPropagate = &fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig{
 				ClaimToContextMap: map[string]string{
 					"sub":       "sub",
 					"client_id": "client_id",
 					"email":     "email",
 					"aud":       "aud",
 				},
-				JSONRequestPropagationName: "jsonContextPropagation",
+				ContextOrigin: "ctxOrigin",
 			}
 		} else {
 			requestContextClaimsToPropagate.ClaimToContextMap["sub"] = "sub"

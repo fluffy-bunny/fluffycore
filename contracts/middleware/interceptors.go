@@ -13,9 +13,9 @@ type IStreamServerInterceptorBuilder interface {
 	Use(intercepter grpc.StreamServerInterceptor)
 }
 
-type RequestContextClaimsToPropagate struct {
-	// JSONRequestPropagationName
-	JSONRequestPropagationName string `json:"jsonRequestPropagationName"`
+type RequestClaimsContextPropagateConfig struct {
+	// ContextOrigin
+	ContextOrigin string `json:"ctxOrigin"`
 	// ClaimToContextMap
 	ClaimToContextMap map[string]string `json:"claimToContextMap"`
 }

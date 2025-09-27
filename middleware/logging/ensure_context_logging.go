@@ -29,23 +29,23 @@ func (h PropertyBagHook) Run(e *zerolog.Event, l zerolog.Level, msg string) {
 	e.Interface("ctx", propertyMap)
 }
 
-func getIncomingContextJson(ctx context.Context) (map[string]interface{}, error) {
+func getIncomingOriginContextJson(ctx context.Context) (map[string]interface{}, error) {
 	// pull bearer token from context using metadata
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "no metadata found")
 	}
 	// its an Authorization : Bearer {{token}}
-	jsonContextPropagation := md.Get("jsonContextPropagation")
-	if len(jsonContextPropagation) == 0 {
+	ctxOrigin := md.Get("ctxOrigin")
+	if len(ctxOrigin) == 0 {
 		// not having anything is ok.
 		return nil, nil
 	}
 	generic := make(map[string]interface{})
 	// ensure it is valid json
-	err := json.Unmarshal([]byte(jsonContextPropagation[0]), &generic)
+	err := json.Unmarshal([]byte(ctxOrigin[0]), &generic)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid jsonContextPropagation")
+		return nil, status.Errorf(codes.InvalidArgument, "invalid ctxOrigin")
 	}
 	return generic, nil
 }
@@ -57,20 +57,20 @@ func EnsureContextLoggingUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		scopedContainer := middleware_dicontext.GetRequestContainer(ctx)
 		propertyBag := di.Get[fluffycore_contracts_propertybag.IRequestContextLoggingPropertyBag](scopedContainer)
 
-		jsonContextPropagationName := "jsonContextPropagation"
-		requestContextClaimsToPropagate, err := di.TryGet[*fluffycore_contracts_middleware.RequestContextClaimsToPropagate](scopedContainer)
+		ctxOriginName := "ctxOrigin"
+		requestContextClaimsToPropagate, err := di.TryGet[*fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig](scopedContainer)
 		if err == nil {
-			if fluffycore_utils.IsNotEmptyOrNil(requestContextClaimsToPropagate.JSONRequestPropagationName) {
-				jsonContextPropagationName = requestContextClaimsToPropagate.JSONRequestPropagationName
+			if fluffycore_utils.IsNotEmptyOrNil(requestContextClaimsToPropagate.ContextOrigin) {
+				ctxOriginName = requestContextClaimsToPropagate.ContextOrigin
 			}
 		}
-		jsonContextPropagation, err := getIncomingContextJson(ctx)
+		ctxOrigin, err := getIncomingOriginContextJson(ctx)
 		if err != nil {
 			// log the error, but continue on.
-			logger.Error().Err(err).Msg("getIncomingContextJson failed")
+			logger.Error().Err(err).Msg("getIncomingOriginContextJson failed")
 		} else {
-			if jsonContextPropagation != nil {
-				propertyBag.Set(jsonContextPropagationName, jsonContextPropagation)
+			if ctxOrigin != nil {
+				propertyBag.Set(ctxOriginName, ctxOrigin)
 			}
 		}
 
