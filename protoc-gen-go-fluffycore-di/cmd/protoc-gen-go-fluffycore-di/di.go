@@ -8,16 +8,23 @@ import (
 )
 
 const (
-	contextPackage            = protogen.GoImportPath("context")
-	errorsPackage             = protogen.GoImportPath("errors")
-	grpcPackage               = protogen.GoImportPath("google.golang.org/grpc")
-	grpcGatewayRuntimePackage = protogen.GoImportPath("github.com/grpc-ecosystem/grpc-gateway/v2/runtime")
-	grpcStatusPackage         = protogen.GoImportPath("google.golang.org/grpc/status")
-	grpcCodesPackage          = protogen.GoImportPath("google.golang.org/grpc/codes")
-	diPackage                 = protogen.GoImportPath("github.com/fluffy-bunny/fluffy-dozm-di")
-	reflectxPackage           = protogen.GoImportPath("github.com/fluffy-bunny/fluffy-dozm-di/reflectx")
-	diContextPackage          = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/middleware/dicontext")
-	contractsEndpointPackage  = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/contracts/endpoint")
+	sync_package               = protogen.GoImportPath("sync")
+	context_package            = protogen.GoImportPath("context")
+	errors_package             = protogen.GoImportPath("errors")
+	grpc_package               = protogen.GoImportPath("google.golang.org/grpc")
+	grpcGatewayRuntimePackage  = protogen.GoImportPath("github.com/grpc-ecosystem/grpc-gateway/v2/runtime")
+	grpc_status_package        = protogen.GoImportPath("google.golang.org/grpc/status")
+	grpc_codes_package         = protogen.GoImportPath("google.golang.org/grpc/codes")
+	di_Package                 = protogen.GoImportPath("github.com/fluffy-bunny/fluffy-dozm-di")
+	reflectx_package           = protogen.GoImportPath("github.com/fluffy-bunny/fluffy-dozm-di/reflectx")
+	dicontext_package          = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/middleware/dicontext")
+	contracts_dndpoint_package = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/contracts/endpoint")
+	// 	fluffycore_contracts_tokensource "github.com/fluffy-bunny/fluffycore/contracts/tokensource"
+	contracts_tokensource_package = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/contracts/tokensource")
+	// 	fluffycore_contracts_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory"
+	contracts_GRPCClientFactory_package = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory")
+	// 	fluffycore_grpcclient "github.com/fluffy-bunny/fluffycore/grpcclient"
+	grpcclient_package = protogen.GoImportPath("github.com/fluffy-bunny/fluffycore/grpcclient")
 )
 
 type genFileContext struct {
@@ -154,9 +161,142 @@ func (s *serviceGenContext) genService() {
 
 	// IServiceEndpointRegistration
 	interfaceGRPCServerName := fmt.Sprintf("%vServer", service.GoName)
+	interfaceGRPCClientName := fmt.Sprintf("%vClient", service.GoName)
 
 	interfaceServerName := fmt.Sprintf("IFluffyCore%s", interfaceGRPCServerName)
+	interfaceClientAccessorName := fmt.Sprintf("IApp%sAccessor", interfaceGRPCClientName)
 	internalServerName := fmt.Sprintf("%vFluffyCoreServer", service.GoName)
+	internalClientAccessorStructName := fmt.Sprintf("App%vAccessor", interfaceGRPCClientName)
+	internalClientAccessorConfigStructName := fmt.Sprintf("App%vAccessorConfig", interfaceGRPCClientName)
+
+	g.P("// ", interfaceClientAccessorName, " defines the grpc client")
+	g.P("type ", interfaceClientAccessorName, " interface {")
+	g.P("  	", "GetClient() (", interfaceGRPCClientName, ", error)")
+	g.P("}")
+	g.P()
+
+	g.P("// ", internalClientAccessorConfigStructName, " defines the grpc client struct")
+	g.P("type ", internalClientAccessorConfigStructName, " struct {")
+	g.P("    Url string ")
+	g.P("}")
+	g.P()
+
+	g.P("// ", internalClientAccessorStructName, " defines the grpc client struct")
+	g.P("type ", internalClientAccessorStructName, " struct {")
+	g.P("    rwLock ", sync_package.Ident("RWMutex"))
+	g.P("    config *", internalClientAccessorConfigStructName)
+	g.P("    appTokenSource ", contracts_tokensource_package.Ident("IAppTokenSource"))
+	g.P("    grpcClientFactory ", contracts_GRPCClientFactory_package.Ident("IGRPCClientFactory"))
+	g.P("    client ", interfaceGRPCClientName)
+	g.P("}")
+	g.P()
+
+	// var stemService = (*service)(nil)
+	g.P("var stem", internalClientAccessorStructName, " = (*", internalClientAccessorStructName, ")(nil)")
+	// var _ fluffycore_contracts_jwtminter.IKeyMaterial = stemService
+	g.P("var _ ", interfaceClientAccessorName, " = stem", internalClientAccessorStructName)
+	g.P()
+	// contracts_tokensource_package
+	g.P("func (s *", internalClientAccessorStructName, ") Ctor (\n    ",
+		"config *", internalClientAccessorConfigStructName, ",\n    ",
+		"appTokenSource ", contracts_tokensource_package.Ident("IAppTokenSource"), ",\n    ",
+		"grpcClientFactory ", contracts_GRPCClientFactory_package.Ident("IGRPCClientFactory"), ",\n    ",
+		") (", interfaceClientAccessorName, " ,error) {")
+	g.P("   return &", internalClientAccessorStructName, "{")
+	g.P("       config: config,")
+	g.P("       appTokenSource: appTokenSource,")
+	g.P("       grpcClientFactory: grpcClientFactory,")
+	g.P("   }, nil")
+	g.P("}")
+	g.P()
+	/*
+	   	func AddSingletonIMappedGRPCClientFactory(cb di.ContainerBuilder) {
+	   	di.AddSingleton[commoncore_contracts_grpcclientfactory.IMappedGRPCClientFactory](cb, stemService.CtorDozm)
+	   	di.AddSingleton[commoncore_contracts_grpcclientfactory.IMappedNATSClientFactory](cb, stemService.CtorDozmNATS)
+	   }
+	*/
+	g.P("// AddSingleton", interfaceClientAccessorName, " ...")
+	g.P("func AddSingleton", interfaceClientAccessorName, "(\n    ",
+		"cb ", di_Package.Ident("ContainerBuilder"), ",\n    ",
+		"config *", internalClientAccessorConfigStructName, ",\n    ",
+		") {")
+	g.P("   ", di_Package.Ident("AddInstance"), "[*", internalClientAccessorConfigStructName, "](cb,config)")
+	g.P("   ", di_Package.Ident("AddSingleton"), "[", interfaceClientAccessorName, "](cb,stem", internalClientAccessorStructName, ".Ctor)")
+	g.P("}")
+	g.P()
+
+	/*
+			func (s *service) GetOrgServiceClient() (cloud_api_orgs.OrgServiceClient, error) {
+
+			doGetClient := func() cloud_api_orgs.OrgServiceClient {
+				s.rwLock.RLock()
+				defer s.rwLock.RUnlock()
+				if s.orgServiceClient != nil {
+					return s.orgServiceClient
+				}
+				return nil
+			}
+
+			client := doGetClient()
+			if client != nil {
+				return client, nil
+			}
+
+			tokenSource := s.getTokenSource(context.Background())
+			//--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+			s.rwLock.Lock()
+			defer s.rwLock.Unlock()
+			//--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+
+			serviceClient, err := grpcclient.NewGrpcClient(
+				grpcclient.WithTarget(s.config.OrgsServiceURI),
+				grpcclient.WithTokenSource(tokenSource),
+				grpcclient.WithInsecure(true), // TODO: remove this in production
+			)
+			if err != nil {
+				return nil, err
+			}
+			s.orgServiceClient = cloud_api_orgs.NewOrgServiceClient(serviceClient.GetConnection())
+			return s.orgServiceClient, nil
+		}
+
+	*/
+	g.P("func (s *", internalClientAccessorStructName, ") GetClient () (", interfaceGRPCClientName, ", error) {")
+	g.P("   doGetClient := func() ", interfaceGRPCClientName, " {")
+	g.P("       s.rwLock.RLock()")
+	g.P("       defer s.rwLock.RUnlock()")
+	g.P("       if s.client != nil {")
+	g.P("           return s.client")
+	g.P("       }")
+	g.P("       return nil")
+	g.P("   }")
+	g.P()
+	g.P("   client := doGetClient()")
+	g.P("   if client != nil {")
+	g.P("       return client,nil")
+	g.P("   }")
+	g.P()
+	g.P("   tokenSource,err := s.appTokenSource.GetTokenSource()")
+	g.P("   if err != nil {")
+	g.P("       return nil, err")
+	g.P("   }")
+	g.P("   //--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--")
+	g.P("   s.rwLock.Lock()")
+	g.P("   defer s.rwLock.Unlock()")
+	g.P("   //--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--")
+	g.P()
+	g.P("   grpcClient, err := s.grpcClientFactory.NewGrpcClient(")
+	g.P("       ", grpcclient_package.Ident("WithTarget"), "(s.config.Url),")
+	g.P("       ", grpcclient_package.Ident("WithTokenSource"), "(tokenSource),")
+	g.P("       ", grpcclient_package.Ident("WithInsecure"), "(true), // TODO: remove this in production")
+	g.P("   )")
+	g.P("   if err != nil {")
+	g.P("       return nil, err")
+	g.P("   }")
+	g.P("   s.client =  New", interfaceGRPCClientName, "(grpcClient.GetConnection())")
+	g.P("   return s.client, nil")
+	g.P("}")
+	g.P()
 
 	g.P("// ", interfaceServerName, " defines the grpc server")
 	g.P("type ", interfaceServerName, " interface {")
@@ -169,7 +309,7 @@ func (s *serviceGenContext) genService() {
 	g.P()
 
 	g.P("func (UnimplementedFluffyCore", service.GoName, "ServerEndpointRegistration) RegisterFluffyCoreHandler(gwmux *", grpcGatewayRuntimePackage.Ident("ServeMux"),
-		",conn *", grpcPackage.Ident("ClientConn"), ") {")
+		",conn *", grpc_package.Ident("ClientConn"), ") {")
 	g.P("}")
 	g.P()
 
@@ -183,19 +323,19 @@ func (s *serviceGenContext) genService() {
 	g.P()
 
 	g.P("// RegisterFluffyCoreGRPCService the server with grpc")
-	g.P("func (srv *", internalServerName, ") RegisterFluffyCoreGRPCService(s *", grpcPackage.Ident("Server"), ") {")
+	g.P("func (srv *", internalServerName, ") RegisterFluffyCoreGRPCService(s *", grpc_package.Ident("Server"), ") {")
 	g.P("   ", "Register", interfaceGRPCServerName, "(s,srv)")
 	g.P("}")
 
 	g.P("// Add", service.GoName, "ServerWithExternalRegistration", " adds the fluffycore aware grpc server and external registration service.  Mainly used for grpc-gateway")
-	g.P("func Add", service.GoName, "ServerWithExternalRegistration(cb ", diPackage.Ident("ContainerBuilder"), ", ctor any, register func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " ) {")
-	g.P("   ", diPackage.Ident("AddSingleton"), "[", contractsEndpointPackage.Ident("IEndpointRegistration"), "](cb,register)")
-	g.P("   ", diPackage.Ident("AddScoped"), "[", interfaceServerName, "](cb,ctor)")
+	g.P("func Add", service.GoName, "ServerWithExternalRegistration(cb ", di_Package.Ident("ContainerBuilder"), ", ctor any, register func() ", contracts_dndpoint_package.Ident("IEndpointRegistration"), " ) {")
+	g.P("   ", di_Package.Ident("AddSingleton"), "[", contracts_dndpoint_package.Ident("IEndpointRegistration"), "](cb,register)")
+	g.P("   ", di_Package.Ident("AddScoped"), "[", interfaceServerName, "](cb,ctor)")
 	g.P("}")
 
 	g.P("// Add", service.GoName, "Server", " adds the fluffycore aware grpc server")
-	g.P("func Add", service.GoName, "Server(cb ", diPackage.Ident("ContainerBuilder"), ", ctor any) {")
-	g.P("   Add", service.GoName, "ServerWithExternalRegistration(cb,ctor,func() ", contractsEndpointPackage.Ident("IEndpointRegistration"), " {")
+	g.P("func Add", service.GoName, "Server(cb ", di_Package.Ident("ContainerBuilder"), ", ctor any) {")
+	g.P("   Add", service.GoName, "ServerWithExternalRegistration(cb,ctor,func() ", contracts_dndpoint_package.Ident("IEndpointRegistration"), " {")
 	g.P("      return &", internalServerName, "{}")
 	g.P("   })")
 	g.P("}")
@@ -235,8 +375,8 @@ func (s *methodGenContext) generateUnaryServerMethodShim() {
 
 	g.P("// ", s.ProtogenMethod.GoName, "...")
 	g.P("func (s *", internalServerName, ") ", s.unaryMethodSignature(), "{")
-	g.P("requestContainer := ", diContextPackage.Ident("GetRequestContainer(ctx)"))
-	g.P("downstreamService := ", diPackage.Ident("Get"), "[", interfaceServerName, "](requestContainer)")
+	g.P("requestContainer := ", dicontext_package.Ident("GetRequestContainer(ctx)"))
+	g.P("downstreamService := ", di_Package.Ident("Get"), "[", interfaceServerName, "](requestContainer)")
 	g.P("return downstreamService.", method.GoName, "(ctx,request)")
 	g.P("}")
 	g.P()
@@ -253,8 +393,8 @@ func (s *methodGenContext) generateStreamServerMethodShim() {
 	g.P("// ", s.ProtogenMethod.GoName, "...")
 	g.P("func (s *", internalServerName, ") ", sig, "{")
 	g.P("ctx := stream.Context()")
-	g.P("requestContainer := ", diContextPackage.Ident("GetRequestContainer(ctx)"))
-	g.P("downstreamService := ", diPackage.Ident("Get"), "[", interfaceServerName, "](requestContainer)")
+	g.P("requestContainer := ", dicontext_package.Ident("GetRequestContainer(ctx)"))
+	g.P("downstreamService := ", di_Package.Ident("Get"), "[", interfaceServerName, "](requestContainer)")
 	if argCount == 1 {
 		// stream only
 		g.P("return downstreamService.", method.GoName, "(stream)")
@@ -273,7 +413,7 @@ func (s *methodGenContext) unaryMethodSignature() string {
 	var reqArgs []string
 	ret := "error"
 	if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
-		reqArgs = append(reqArgs, "ctx "+g.QualifiedGoIdent(contextPackage.Ident("Context")))
+		reqArgs = append(reqArgs, "ctx "+g.QualifiedGoIdent(context_package.Ident("Context")))
 		ret = "(*" + g.QualifiedGoIdent(method.Output.GoIdent) + ", error)"
 	}
 	if !method.Desc.IsStreamingClient() {
