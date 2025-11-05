@@ -23,7 +23,8 @@ func (s *service) Ctor(config *fluffycore_contracts_GRPCClientFactory.GRPCClient
 var _ fluffycore_contracts_GRPCClientFactory.IGRPCClientFactory = (*service)(nil)
 
 // AddSingletonIGRPCClientFactory ...
-func AddSingletonIGRPCClientFactory(builder di.ContainerBuilder) {
+func AddSingletonIGRPCClientFactory(builder di.ContainerBuilder, config *fluffycore_contracts_GRPCClientFactory.GRPCClientConfig) {
+	di.AddInstance[*fluffycore_contracts_GRPCClientFactory.GRPCClientConfig](builder, config)
 	di.AddSingleton[fluffycore_contracts_GRPCClientFactory.IGRPCClientFactory](builder, stemService.Ctor)
 }
 

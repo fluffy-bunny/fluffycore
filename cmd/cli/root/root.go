@@ -8,11 +8,16 @@ import (
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	shared "github.com/fluffy-bunny/fluffycore/cmd/cli/internal/shared"
+	"github.com/fluffy-bunny/fluffycore/cmd/cli/root/app_client"
 	"github.com/fluffy-bunny/fluffycore/cmd/cli/root/nats"
 	"github.com/fluffy-bunny/fluffycore/cmd/cli/root/version"
+	fluffycore_contracts_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory"
+	fluffycore_contracts_tokensource "github.com/fluffy-bunny/fluffycore/contracts/tokensource"
+	fluffycore_services_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/services/GRPCClientFactory"
+	fluffycore_services_tokensource_client_credentials "github.com/fluffy-bunny/fluffycore/services/tokensource/client_credentials"
+
+	//GRPCClientFactory
 	godotenv "github.com/joho/godotenv"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
 
 	cobra "github.com/spf13/cobra"
 	viper "github.com/spf13/viper"
@@ -64,16 +69,20 @@ func InitRootCmd() *cobra.Command {
 			return nil
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := shared.GetContext()
-			config := &clientcredentials.Config{
+
+			appTokenSourceConfig := &fluffycore_contracts_tokensource.AppTokenSourceConfig{
 				ClientID:     shared.OAuth2.ClientID,
 				ClientSecret: shared.OAuth2.ClientSecret,
 				TokenURL:     shared.OAuth2.TokenEndepoint,
+				Scopes:       []string{},
 			}
-			ts := config.TokenSource(ctx)
+
 			shared.AddServices(func(builder di.ContainerBuilder) {
-				di.AddInstance[oauth2.TokenSource](builder, ts)
-				//		commoncore_services_grpcclientfactory.AddSingletonIMappedGRPCClientFactory(builder)
+				fluffycore_services_tokensource_client_credentials.AddSingletonIAppTokenSource(builder, appTokenSourceConfig)
+				fluffycore_services_GRPCClientFactory.AddSingletonIGRPCClientFactory(builder, &fluffycore_contracts_GRPCClientFactory.GRPCClientConfig{
+					OTELTracingEnabled:    true,
+					DataDogTracingEnabled: false,
+				})
 			})
 			shared.BuildContainer()
 			return nil
@@ -125,6 +134,6 @@ func InitRootCmd() *cobra.Command {
 
 	version.Init(command)
 	nats.Init(command)
-
+	app_client.Init(command)
 	return command
 }
