@@ -31,9 +31,7 @@ type (
 
 var stemService = (*service)(nil)
 
-func init() {
-	var _ fluffycore_contracts_jwtminter.IKeyMaterial = stemService
-}
+var _ fluffycore_contracts_jwtminter.IKeyMaterial = stemService
 
 func (s *service) Ctor(keyMaterial *fluffycore_contracts_jwtminter.KeyMaterial) (fluffycore_contracts_jwtminter.IKeyMaterial, error) {
 	return &service{

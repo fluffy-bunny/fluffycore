@@ -11,4 +11,10 @@ type (
 	IAppTokenSource interface {
 		ITokenSource
 	}
+	AppTokenSourceConfig struct {
+		ClientID     string
+		ClientSecret string
+		TokenURL     string
+		Scopes       []string
+	}
 )
