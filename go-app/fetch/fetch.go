@@ -1,0 +1,280 @@
+package fetch
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	app "github.com/maxence-charriere/go-app/v10/pkg/app"
+	zerolog "github.com/rs/zerolog"
+)
+
+// DTO-in structure for the API call.
+type CallInput struct {
+	Method      string
+	Url         string
+	CallerID    string
+	PageNo      int
+	HideReplies bool
+
+	// Payload body for the API call.
+	Data interface{}
+}
+
+// Standardized common response from API.
+type Response struct {
+	Code      int
+	Error     error
+	Message   string `json:"message"`
+	Timestamp int64  `json:"timestamp"`
+
+	// Custom Data field per the app component. Must be referenced via the inner pointer too when the output is required.
+	//
+	//   Example:
+	//   output := &common.Response{&model.User}
+	//
+	Data interface{} `json:"data"`
+}
+
+// RequestInit object. Usable map for export to JSValue via app.ValueOf(x)
+var DefaultRequestInit = map[string]interface{}{
+	// Serialized JSON string.
+	"body": nil,
+	// Caching options: default, no-store, reload, no-cache, force-cache, only-if-cached.
+	"cache": "default",
+	// Credential control options: omit, same-site, include.
+	// Use "include" to send cookies with cross-origin requests
+	"credentials":    "include",
+	"headers":        map[string]interface{}{},
+	"keepalive":      false,
+	"method":         "GET",
+	"mode":           "cors",
+	"priority":       "auto",
+	"redirect":       "follow",
+	"referrer":       "about:client",
+	"referrerPolicy": "",
+	"signal":         nil,
+	"url":            "",
+}
+
+// FetchData is a metafunction for input options conversion for the main, lighter Fetch() function.
+func FetchData(ctx context.Context, input *CallInput, output *Response) bool {
+	log := zerolog.Ctx(ctx).With().
+		Str("component", "common.FetchData").
+		Interface("input", input).
+		Logger()
+	init := DefaultRequestInit
+	log.Debug().Msg("FetchData called")
+
+	headers := map[string]interface{}{
+		"Content-Type": "application/json",
+	}
+	init["headers"] = headers
+
+	if input.CallerID != "" {
+		init["callerID"] = input.CallerID
+	}
+
+	if input.Method != "" {
+		init["method"] = input.Method
+	}
+
+	init["url"] = input.Url
+
+	// Convert body into a string.
+	if input.Data != nil && init["method"] != "GET" && init["method"] != "HEAD" {
+		jsonData, err := json.Marshal(input.Data)
+		if err != nil {
+			return false
+		}
+		init["body"] = string(jsonData)
+	} else {
+		init["body"] = nil
+	}
+
+	// Set the abort controller signal callback.
+	/*var aController = app.Window().Get("AbortController").New()
+	app.Window().Set("fetchController", aController)
+	init["signal"] = aController.Get("signal")*/
+
+	// Call the ligher fetch wrapper.
+	out, code, err := Fetch(&init)
+	if err != nil {
+		log.Error().Err(err).Msg("FetchData: fetch error")
+		output.Error = err
+		return false
+	}
+	log.Debug().Str("responseBody", *out).Int("responseCode", code).Msg("FetchData: fetch successful")
+
+	// Read again and associate fields.
+	r := strings.NewReader(*out)
+
+	// Unmarshal the raw string to []byte stream JSON to the interface map.
+	if err := json.NewDecoder(r).Decode(&output); err != nil {
+		log.Error().Err(err).Msg("FetchData: decode error")
+		return false
+	}
+	log.Debug().Interface("output", output).Msg("FetchData: output")
+
+	// Assign the HTTP response code.
+	output.Code = code
+
+	return true
+}
+
+type WrappedResonseT[T any] struct {
+	Response *T  `json:"response"`
+	Code     int `json:"code"`
+}
+
+// FetchDataT is a generic version of FetchData that directly unmarshals to the specified type T.
+// Returns the data, HTTP status code, and any error encountered.
+//
+// Example usage:
+//
+//	cfg, code, err := common.FetchDataT[config.Config](&common.CallInput{
+//	    Method: "GET",
+//	    Url:    "/api/config",
+//	})
+func FetchDataT[T any](ctx context.Context, input *CallInput) (*T, int, error) {
+
+	init := DefaultRequestInit
+	log := zerolog.Ctx(ctx).With().
+		Str("component", "common.FetchDataT").
+		Interface("input", input).
+		Logger()
+
+	headers := map[string]interface{}{
+		"Content-Type": "application/json",
+	}
+	init["headers"] = headers
+
+	if input.CallerID != "" {
+		init["callerID"] = input.CallerID
+	}
+
+	if input.Method != "" {
+		init["method"] = input.Method
+	}
+
+	init["url"] = input.Url
+
+	// Convert body into a string.
+	if input.Data != nil && init["method"] != "GET" && init["method"] != "HEAD" {
+		jsonData, err := json.Marshal(input.Data)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to marshal request body: %w", err)
+		}
+		init["body"] = string(jsonData)
+	} else {
+		init["body"] = nil
+	}
+
+	// Call the lighter fetch wrapper.
+	out, code, err := Fetch(&init)
+	if err != nil {
+		log.Error().Err(err).Msg("FetchDataT: fetch error")
+		return nil, code, err
+	}
+
+	log.Debug().Str("responseBody", *out).Int("responseCode", code).Msg("FetchDataT: fetch successful")
+
+	// Unmarshal directly to the generic type T
+	var result T
+	r := strings.NewReader(*out)
+	if err := json.NewDecoder(r).Decode(&result); err != nil {
+		log.Error().Err(err).Msg("FetchDataT: decode error")
+		return nil, code, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	log.Debug().Interface("result", result).Msg("FetchDataT: decoded result")
+
+	return &result, code, nil
+}
+
+func FetchWrappedResponseT[T any](ctx context.Context, input *CallInput) (*WrappedResonseT[T], error) {
+	responseData, code, err := FetchDataT[T](ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	return &WrappedResonseT[T]{
+		Response: responseData,
+		Code:     code,
+	}, nil
+}
+
+// Fetch is a raw implementation of http.Client to omit the `net/*` packages completely. The main purpose is to further optimize the disk and memory space needed by the WASM app client.
+func Fetch(input *map[string]interface{}) (*string, int, error) {
+	if (*input)["url"] == "" {
+		return nil, 0, fmt.Errorf("URL not specified for Fetch()")
+	}
+
+	// Start channels to catch the outputs.
+	chC := make(chan int, 1)
+	chE := make(chan error, 1)
+	chS := make(chan string, 1)
+
+	// The initial fetch call with options to get the promise.
+	promise := app.Window().Call("fetch", (*input)["url"], *input)
+	promise.Call("then", app.FuncOf(func(this app.Value, args []app.Value) interface{} {
+		response := args[0]
+
+		//
+		//  JSON response handling
+		//
+		//if response.Get("ok").Bool() {
+		// Another promise getter via the JSON function call upon the response object.
+		// --> fetch(url).then(response => response.json())
+		subpromise := response.Call("json")
+		subpromise.Call("then", app.FuncOf(func(this app.Value, args []app.Value) interface{} {
+			result := args[0]
+
+			// Preprocess the response to be unserializable. And send to output.
+			chC <- response.Get("status").Int()
+			chS <- app.Window().Get("JSON").Call("stringify", result).String()
+			chE <- nil
+
+			close(chC)
+			close(chE)
+			close(chS)
+
+			//app.Window().Get("fetchController").Call("abort")
+			return nil
+
+		})).Call("catch", app.FuncOf(func(this app.Value, args []app.Value) interface{} {
+			chC <- 500
+			chE <- fmt.Errorf("%s", args[0].Get("message").String())
+			chS <- ""
+
+			close(chC)
+			close(chE)
+			close(chS)
+
+			//app.Window().Get("fetchController").Call("abort")
+			return nil
+		}))
+		//}
+		return nil
+
+		// Error catching callback for the main fetch() promise.
+	})).Call("catch", app.FuncOf(func(this app.Value, args []app.Value) interface{} {
+		chE <- fmt.Errorf("%s", args[0].Get("message").String())
+		chS <- ""
+
+		close(chC)
+		close(chE)
+		close(chS)
+
+		return nil
+	}))
+
+	// Catch the results.
+	output := <-chS
+	code := <-chC
+	err := <-chE
+
+	//app.Window().Get("fetchController").Call("abort")
+
+	return &output, code, err
+}

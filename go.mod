@@ -32,6 +32,7 @@ require (
 	github.com/labstack/gommon v0.4.2
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/madflojo/tasks v1.2.1
+	github.com/maxence-charriere/go-app/v10 v10.1.8
 	github.com/mdaverde/jsonpath v0.2.1
 	github.com/nats-io/nats.go v1.47.0
 	github.com/nicksnyder/go-i18n/v2 v2.6.0
