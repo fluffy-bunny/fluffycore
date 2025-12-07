@@ -18,6 +18,10 @@ type CallInput struct {
 	PageNo      int
 	HideReplies bool
 
+	// CustomHeaders allows adding additional headers to the request
+	// Example: map[string]string{"X-Csrf-Token": "token123", "X-Custom-Header": "value"}
+	CustomHeaders map[string]string
+
 	// Payload body for the API call.
 	Data interface{}
 }
@@ -70,6 +74,12 @@ func FetchData(ctx context.Context, input *CallInput, output *Response) bool {
 	headers := map[string]interface{}{
 		"Content-Type": "application/json",
 	}
+
+	// Merge custom headers if provided
+	for key, value := range input.CustomHeaders {
+		headers[key] = value
+	}
+
 	init["headers"] = headers
 
 	if input.CallerID != "" {
@@ -148,6 +158,12 @@ func FetchDataT[T any](ctx context.Context, input *CallInput) (*T, int, error) {
 	headers := map[string]interface{}{
 		"Content-Type": "application/json",
 	}
+
+	// Merge custom headers if provided
+	for key, value := range input.CustomHeaders {
+		headers[key] = value
+	}
+
 	init["headers"] = headers
 
 	if input.CallerID != "" {
