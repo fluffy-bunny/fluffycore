@@ -207,6 +207,7 @@ func (s *Runtime) phase3() error {
 	handlerFactory.RegisterHandlers(app)
 	scopeFactory := di.Get[di.ScopeFactory](s.Container)
 	scope := scopeFactory.CreateScope()
+	defer scope.Dispose()
 	scopedContainer := scope.Container()
 	descriptors := scopedContainer.GetDescriptors()
 

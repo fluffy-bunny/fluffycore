@@ -39,6 +39,7 @@ func (s *service) RegisterHandlers(app *echo.Group) {
 
 	scopeFactory := di.Get[di.ScopeFactory](rootContainer)
 	scope := scopeFactory.CreateScope()
+	defer scope.Dispose()
 	scopedContainer := scope.Container()
 	descriptors := scopedContainer.GetDescriptors()
 	// we need to build a map of paths because these can be overridden
