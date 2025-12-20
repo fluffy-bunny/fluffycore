@@ -82,10 +82,11 @@ func AddSingletonCookieSessionStore(b di.ContainerBuilder) {
 
 func (s *service) New(r *http.Request, name string) (*gorilla_sessions.Session, error) {
 	session, err := s.store.New(r, name)
-	if err != nil {
-		return nil, err
+	if session != nil {
+		// will be new if the old one is expired.  We still get an error in that case.
+		return session, nil
 	}
-	return session, nil
+	return nil, err
 
 }
 func (s *service) Get(r *http.Request, name string) (*gorilla_sessions.Session, error) {
