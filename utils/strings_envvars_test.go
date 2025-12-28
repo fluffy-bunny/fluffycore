@@ -58,7 +58,17 @@ func TestReplaceEnvVars(t *testing.T) {
 			pattern:  "${%s}",
 			expected: `{"database":{"host":"localhost","port":5432},"api":{"key":"secret123"}}`,
 		},
+		{
+			name:     "Azure AD style variable with hyphens and GUID",
+			input:    `{"secret":"${AZUREAD_3b918868-9bff-431f-bd9c-f9896d628e6b_CLIENT_SECRET}"}`,
+			pattern:  "${%s}",
+			expected: `{"secret":"azure_secret_value"}`,
+		},
 	}
+
+	// Set up Azure AD style test variable
+	os.Setenv("AZUREAD_3b918868-9bff-431f-bd9c-f9896d628e6b_CLIENT_SECRET", "azure_secret_value")
+	defer os.Unsetenv("AZUREAD_3b918868-9bff-431f-bd9c-f9896d628e6b_CLIENT_SECRET")
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

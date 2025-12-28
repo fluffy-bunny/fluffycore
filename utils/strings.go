@@ -50,7 +50,7 @@ func ReplaceEnvVars(original string, pattern string) string {
 	// Extract the format from pattern (e.g., "${%s}" -> extract prefix "${" and suffix "}")
 	// Build a regex to find all occurrences
 	escapedPattern := regexp.QuoteMeta(pattern)
-	regexPattern := strings.ReplaceAll(escapedPattern, `%s`, `([A-Za-z0-9_]+)`)
+	regexPattern := strings.ReplaceAll(escapedPattern, `%s`, `([A-Za-z0-9_-]+)`)
 
 	re := regexp.MustCompile(regexPattern)
 

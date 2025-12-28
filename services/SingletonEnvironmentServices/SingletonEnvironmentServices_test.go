@@ -47,9 +47,11 @@ func TestReplaceEnvironmentVariables(t *testing.T) {
 	// Set up test environment variables
 	os.Setenv("DB_HOST", "localhost")
 	os.Setenv("DB_PORT", "5432")
+	os.Setenv("AZUREAD_3b918868-9bff-431f-bd9c-f9896d628e6b_CLIENT_SECRET", "azure_secret_123")
 	defer func() {
 		os.Unsetenv("DB_HOST")
 		os.Unsetenv("DB_PORT")
+		os.Unsetenv("AZUREAD_3b918868-9bff-431f-bd9c-f9896d628e6b_CLIENT_SECRET")
 	}()
 
 	service := &service{}
@@ -78,6 +80,12 @@ func TestReplaceEnvironmentVariables(t *testing.T) {
 			input:    `{"undefined":"${UNDEFINED_VAR}"}`,
 			pattern:  "${%s}",
 			expected: `{"undefined":"${UNDEFINED_VAR}"}`,
+		},
+		{
+			name:     "Azure AD style variable with hyphens and GUID",
+			input:    `{"clientSecret":"${AZUREAD_3b918868-9bff-431f-bd9c-f9896d628e6b_CLIENT_SECRET}"}`,
+			pattern:  "${%s}",
+			expected: `{"clientSecret":"azure_secret_123"}`,
 		},
 	}
 
