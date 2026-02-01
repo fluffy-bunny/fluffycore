@@ -22,6 +22,7 @@ import (
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
 	fluffycore_contracts_config "github.com/fluffy-bunny/fluffycore/contracts/config"
 	contracts_profiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
+	fluffycore_contracts_ddprofiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
 	fluffycore_contract_endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	fluffycore_contracts_health "github.com/fluffy-bunny/fluffycore/contracts/health"
 	fluffycore_contract_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
@@ -60,17 +61,18 @@ type ServerInstance struct {
 	Scheduler     fluffycore_contracts_tasks.ISingletonScheduler
 
 	NATSMicroServicesContainer *fluffycore_nats_micro_service.NATSMicroServicesContainer
+	DataDogProfiler            fluffycore_contracts_ddprofiler.IDataDogProfiler
 }
 type Runtime struct {
-	ServerInstances *ServerInstance
-	waitChannel     chan os.Signal
+	ServerInstance *ServerInstance
+	waitChannel    chan os.Signal
 }
 
 // NewRuntime returns an instance of a new Runtime
 func NewRuntime() *Runtime {
 	return &Runtime{
-		waitChannel:     make(chan os.Signal, 1),
-		ServerInstances: &ServerInstance{},
+		waitChannel:    make(chan os.Signal, 1),
+		ServerInstance: &ServerInstance{},
 	}
 }
 
@@ -116,7 +118,7 @@ func getGRPCMsgSizeLimits() (int, int) {
 	return grpcMaxReceiveMsgSizeMegs * 1024 * 1024, grpcMaxSendMsgSizeMegs * 1024 * 1024
 }
 func (s *Runtime) SetNATSMicroServicesContainer(container *fluffycore_nats_micro_service.NATSMicroServicesContainer) {
-	s.ServerInstances.NATSMicroServicesContainer = container
+	s.ServerInstance.NATSMicroServicesContainer = container
 }
 
 func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contract_runtime.IStartup) {
@@ -178,7 +180,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 	// do once
 	// race condition here with zerolog under test
-	s.ServerInstances.logSetupOnce.Do(func() {
+	s.ServerInstance.logSetupOnce.Do(func() {
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 
@@ -302,6 +304,15 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	healthServer := di.Get[fluffycore_contracts_health.IHealthServer](si.RootContainer)
 	grpc_health.RegisterHealthServer(grpcServer, healthServer)
 
+	log.Info().Msg("Checking for DataDog Profiler")
+	si.DataDogProfiler, err = di.TryGet[fluffycore_contracts_ddprofiler.IDataDogProfiler](si.RootContainer)
+	if err == nil && si.DataDogProfiler != nil {
+		log.Info().Msg("Starting DataDog Profiler")
+		si.DataDogProfiler.Start(ctx)
+	} else {
+		log.Info().Msg("DataDog Profiler not configured")
+	}
+
 	err = startup.OnPreServerStartup(ctx)
 	if err != nil {
 		log.Error().Err(err).Msgf("OnPreServerStartup failed")
@@ -406,6 +417,10 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	startup.OnPostServerShutdown(ctx)
 	if si.FutureGRPCGatewayMux != nil {
 		si.FutureGRPCGatewayMux.Join()
+	}
+	if si.DataDogProfiler != nil {
+		log.Info().Msg("Stopping DataDog Profiler")
+		si.DataDogProfiler.Stop(ctx)
 	}
 	si.Future.Join()
 
