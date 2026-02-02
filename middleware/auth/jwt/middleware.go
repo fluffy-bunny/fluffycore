@@ -230,10 +230,20 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 				ContextOrigin: "ctxOrigin",
 			}
 		} else {
-			requestContextClaimsToPropagate.ClaimToContextMap["sub"] = "sub"
-			requestContextClaimsToPropagate.ClaimToContextMap["client_id"] = "client_id"
-			requestContextClaimsToPropagate.ClaimToContextMap["email"] = "email"
-			requestContextClaimsToPropagate.ClaimToContextMap["aud"] = "aud"
+			// Create a new map instead of modifying the potentially shared one
+			// to avoid concurrent map writes when multiple goroutines access this
+			newMap := make(map[string]string, len(requestContextClaimsToPropagate.ClaimToContextMap)+4)
+			for k, v := range requestContextClaimsToPropagate.ClaimToContextMap {
+				newMap[k] = v
+			}
+			newMap["sub"] = "sub"
+			newMap["client_id"] = "client_id"
+			newMap["email"] = "email"
+			newMap["aud"] = "aud"
+			requestContextClaimsToPropagate = &fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig{
+				ClaimToContextMap: newMap,
+				ContextOrigin:     requestContextClaimsToPropagate.ContextOrigin,
+			}
 		}
 
 		rt, err := _validate(ctx)
