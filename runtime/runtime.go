@@ -34,6 +34,7 @@ import (
 	fluffycore_services_common_AppContext "github.com/fluffy-bunny/fluffycore/services/common/AppContext"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	viperEx "github.com/fluffy-bunny/viperEx"
+	"github.com/go-viper/mapstructure/v2"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	async "github.com/reugn/async"
 	zerolog "github.com/rs/zerolog"
@@ -515,7 +516,13 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 
 	// we need to do a viper Unmarshal because that is the only way we get the
 	// ENV variables to come in
-	err = v.Unmarshal(configOptions.Destination)
+	err = v.Unmarshal(configOptions.Destination, viper.DecodeHook(
+		mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			mapstructure.StringToSliceHookFunc(","),
+			mapstructure.TextUnmarshallerHookFunc(),
+		),
+	))
 	if err != nil {
 		return err
 	}
