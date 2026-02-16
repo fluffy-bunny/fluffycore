@@ -1,6 +1,6 @@
 module github.com/fluffy-bunny/fluffycore
 
-go 1.25
+go 1.25.0
 
 //replace github.com/fluffy-bunny/viperEx => ../ViperEx
 
@@ -48,7 +48,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	github.com/swaggo/echo-swagger v1.4.1
+	github.com/swaggo/echo-swagger v1.5.0
 	github.com/swaggo/swag v1.16.6
 	github.com/tkuchiki/parsetime v0.3.0
 	github.com/tufin/asciitree v0.0.0-20210127111056-bf70173ef677
@@ -113,7 +113,6 @@ require (
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -133,6 +132,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/labstack/echo/v5 v5.0.0 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.3 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
@@ -172,7 +172,9 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/sv-tools/openapi v0.2.1 // indirect
 	github.com/swaggo/files/v2 v2.0.2 // indirect
+	github.com/swaggo/swag/v2 v2.0.0-rc4 // indirect
 	github.com/theckman/httpforwarded v0.4.0 // indirect
 	github.com/tinylib/msgp v1.2.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
@@ -215,4 +217,5 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	sigs.k8s.io/yaml v1.4.0 // indirect
 )
