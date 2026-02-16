@@ -13,7 +13,8 @@ require (
 	github.com/eko/gocache/store/redis/v4 v4.2.6
 	github.com/fatih/structs v1.1.0
 	github.com/fluffy-bunny/fluffy-dozm-di v0.0.5
-	github.com/fluffy-bunny/viperEx v0.0.34
+	github.com/fluffy-bunny/viperEx v0.0.36
+	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/gogo/status v1.1.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.19.1
@@ -121,7 +122,6 @@ require (
 	github.com/go-openapi/jsonreference v0.20.4 // indirect
 	github.com/go-openapi/spec v0.20.14 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
