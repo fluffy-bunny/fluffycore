@@ -440,8 +440,8 @@ github.com/yuin/goldmark v1.4.1/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
-github.com/ziflex/lecho/v3 v3.9.0 h1:R3BSPgCh11leN+VnGTvGie7Ktn4XGffNM3EAxXTCZVk=
-github.com/ziflex/lecho/v3 v3.9.0/go.mod h1:BSgjDOLVrElybEmJ8gA47xmN0gYk4Cx+u2DHMvcWtR4=
+github.com/ziflex/lecho/v3 v3.10.0 h1:9f665HhnjYbS49kVG5gTfL02g+pf/7RiXf5llvVUMcM=
+github.com/ziflex/lecho/v3 v3.10.0/go.mod h1:GvXRFhfBbGQ+cUo15RZkqQrrw4mPMDdsIoH164miBvU=
 go.mongodb.org/mongo-driver v1.17.9 h1:IexDdCuuNJ3BHrELgBlyaH9p60JXAvdzWR128q+U5tU=
 go.mongodb.org/mongo-driver v1.17.9/go.mod h1:LlOhpH5NUEfhxcAwG0UEkMqwYcc4JU18gtCdGudk/tQ=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
