@@ -7,7 +7,7 @@ RUN apk add bash curl && \
   chmod +x /wait-for-it.sh && \
   apk del curl
 
-FROM golang:1.25 AS build
+FROM golang:1.26 AS build
 
 #!!!DO NOT REMOVE THE BELOW 3 LINES!!! Needed for github action to work
 #GHAONLY:COPY dotssh/* /root/.ssh/

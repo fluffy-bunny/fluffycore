@@ -9,7 +9,7 @@ import (
 	contracts_cookies "github.com/fluffy-bunny/fluffycore/echo/contracts/cookies"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	status "github.com/gogo/status"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	codes "google.golang.org/grpc/codes"
 )
 

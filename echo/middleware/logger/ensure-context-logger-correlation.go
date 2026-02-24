@@ -8,13 +8,13 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 )
 
 // EnsureContextLoggerCorrelation ...
 func EnsureContextLoggerCorrelation(_ di.Container) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			var loggerMap = make(map[string]string)
 			headers := c.Request().Header
 

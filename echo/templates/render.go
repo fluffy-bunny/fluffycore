@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 )
 
 func GetTemplateRender(rootDir string) *TemplateRenderer {
@@ -23,7 +23,7 @@ func GetTemplateRender(rootDir string) *TemplateRenderer {
 	}
 }
 
-func Render(c echo.Context, code int, name string, data map[string]interface{}) error {
+func Render(c *echo.Context, code int, name string, data map[string]interface{}) error {
 
 	return c.Render(code, name, data)
 }
@@ -55,7 +55,7 @@ func FolderExists(filePath string) bool {
 	fmt.Println("Error checking folder:", err)
 	return false
 }
-func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+func (t *TemplateRenderer) Render(c *echo.Context, w io.Writer, name string, data any) error {
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 func FindAndParseTemplates(rootDir string, funcMap template.FuncMap) (*template.Template, error) {

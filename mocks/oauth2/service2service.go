@@ -11,7 +11,7 @@ import (
 
 	testservices "github.com/fluffy-bunny/fluffycore/mocks/testservices"
 	jwt "github.com/golang-jwt/jwt/v5"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	jwk "github.com/lestrrat-go/jwx/v2/jwk"
 	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
 )
@@ -229,7 +229,7 @@ func tokenEndpointRequestValidator(r *http.Request) int {
 	req := &tokenRequest{}
 	binder := &echo.DefaultBinder{}
 	ctx := echo.New().NewContext(r, nil)
-	binder.Bind(req, ctx)
+	binder.Bind(ctx, req)
 
 	switch req.GrantType {
 	case "client_credentials":
@@ -269,7 +269,7 @@ func tokenEndpointRequestHandler(r *http.Request) ([]byte, int) {
 	req := &tokenRequest{}
 	binder := &echo.DefaultBinder{}
 	ctx := echo.New().NewContext(r, nil)
-	binder.Bind(req, ctx)
+	binder.Bind(ctx, req)
 
 	switch req.GrantType {
 	case "client_credentials":

@@ -9,7 +9,7 @@ import (
 	middleware_claimsprincipal "github.com/fluffy-bunny/fluffycore/middleware/claimsprincipal"
 	middleware_oidc "github.com/fluffy-bunny/fluffycore/middleware/oidc"
 	core_utils "github.com/fluffy-bunny/fluffycore/utils"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	log "github.com/rs/zerolog/log"
 )
 
@@ -30,7 +30,7 @@ type EntryPointConfigEx struct {
 // FinalAuthVerificationMiddlewareUsingClaimsMap ...
 func FinalAuthVerificationMiddlewareUsingClaimsMap(entrypointClaimsMap map[string]*middleware_oidc.EntryPointConfig, enableZeroTrust bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			path := c.Path()
 			subLogger := log.With().
 				Bool("enableZeroTrust", enableZeroTrust).

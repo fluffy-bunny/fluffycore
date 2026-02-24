@@ -4,13 +4,13 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_contextaccessor "github.com/fluffy-bunny/fluffycore/echo/contracts/contextaccessor"
 	"github.com/fluffy-bunny/fluffycore/echo/wellknown"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // EnsureScopedContainer ...
 func EnsureScopedContainer(root di.Container) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			scopeFactory := di.Get[di.ScopeFactory](root)
 			scope := scopeFactory.CreateScope()
 			defer scope.Dispose()

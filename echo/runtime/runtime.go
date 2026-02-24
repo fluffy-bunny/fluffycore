@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_async "github.com/fluffy-bunny/fluffycore/async"
@@ -30,13 +28,11 @@ import (
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	uuid "github.com/google/uuid"
 	table "github.com/jedib0t/go-pretty/v6/table"
-	echo "github.com/labstack/echo/v4"
-	middleware "github.com/labstack/echo/v4/middleware"
+	echo "github.com/labstack/echo/v5"
 	async "github.com/reugn/async"
 	zerolog "github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
 	pkgerrors "github.com/rs/zerolog/pkgerrors"
-	lecho "github.com/ziflex/lecho/v3"
 )
 
 type (
@@ -48,6 +44,7 @@ type (
 		instanceID    string
 		configOptions *fluffycore_contracts_runtime.ConfigOptions
 		waitChannel   chan os.Signal
+		cancel        context.CancelFunc
 	}
 )
 
@@ -177,8 +174,6 @@ func (s *Runtime) phase2() error {
 }
 func (s *Runtime) phase3() error {
 	s.echo = echo.New()
-	//use our own zerolog logger
-	s.echo.Logger = lecho.New(os.Stdout)
 	//Set Renderer
 	s.echo.Renderer = core_echo_templates.GetTemplateRender("./static/templates")
 
@@ -199,7 +194,16 @@ func (s *Runtime) phase3() error {
 
 	// our middleware that runs at the end
 	//-------------------------------------------------------
-	s.echo.Use(middleware.Recover())
+	s.echo.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) (err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = echo.ErrInternalServerError
+				}
+			}()
+			return next(c)
+		}
+	})
 	s.Startup.RegisterStaticRoutes(s.echo)
 
 	// register our handlers
@@ -273,19 +277,16 @@ func (s *Runtime) finalPhase() error {
 			})
 		}()
 		log.Info().Msg("server starting up")
-		err = s.echo.Start(address)
-		if err != nil && http.ErrServerClosed == err {
-			err = nil
-		}
+		ctx, cancel := context.WithCancel(context.Background())
+		s.cancel = cancel
+		sc := echo.StartConfig{Address: address}
+		err = sc.Start(ctx, s.echo)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to start server")
 		}
 	})
 	// wait for an interupt to come in
 	s.Wait()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
 	for _, hooks := range s.Startup.GetHooks() {
 		if hooks.PreShutdownHook != nil {
@@ -296,10 +297,10 @@ func (s *Runtime) finalPhase() error {
 		}
 	}
 
-	err := s.echo.Shutdown(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to shutdown server")
+	if s.cancel != nil {
+		s.cancel()
 	}
+
 	response, err := future.Join()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to join future")

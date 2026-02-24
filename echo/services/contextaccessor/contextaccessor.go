@@ -5,12 +5,12 @@ import (
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_contextaccessor "github.com/fluffy-bunny/fluffycore/echo/contracts/contextaccessor"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 )
 
 type (
 	service struct {
-		context echo.Context
+		context *echo.Context
 	}
 )
 
@@ -31,9 +31,9 @@ func AddScopedIEchoContextAccessor(builder di.ContainerBuilder) {
 
 }
 
-func (s *service) SetContext(context echo.Context) {
+func (s *service) SetContext(context *echo.Context) {
 	s.context = context
 }
-func (s *service) GetContext() echo.Context {
+func (s *service) GetContext() *echo.Context {
 	return s.context
 }

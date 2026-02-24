@@ -8,7 +8,7 @@ import (
 	contracts_container "github.com/fluffy-bunny/fluffycore/echo/contracts/container"
 	contracts_handler "github.com/fluffy-bunny/fluffycore/echo/contracts/handler"
 	wellknown "github.com/fluffy-bunny/fluffycore/echo/wellknown"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	log "github.com/rs/zerolog/log"
 )
 
@@ -68,7 +68,7 @@ func (s *service) RegisterHandlers(app *echo.Group) {
 		metadata := descriptor.Metadata
 		path := metadata["path"].(string)
 		httpVerbs := metadata["httpVerbs"].([]contracts_handler.HTTPVERB)
-		doFunc := func(c echo.Context) error {
+		doFunc := func(c *echo.Context) error {
 			scopedContainer = c.Get(wellknown.SCOPED_CONTAINER_KEY).(di.Container)
 			handlerInstance := di.GetByLookupKey[contracts_handler.IHandler](scopedContainer, path)
 			return handlerInstance.Do(c)

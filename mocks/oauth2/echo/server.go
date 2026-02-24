@@ -1,6 +1,7 @@
 package echo
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,7 +10,7 @@ import (
 
 	mocks_contracts_oauth2 "github.com/fluffy-bunny/fluffycore/mocks/contracts/oauth2"
 	jwt "github.com/golang-jwt/jwt/v5"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	jwk "github.com/lestrrat-go/jwx/v2/jwk"
 )
 
@@ -125,11 +126,29 @@ func LoadSigningKey() (*SigningKey, error) {
 
 type MockOAuth2Service struct {
 	*echo.Echo
+	cancel context.CancelFunc
 	config *mocks_contracts_oauth2.MockOAuth2Config
 }
 
 func (s *MockOAuth2Service) GetEcho() *echo.Echo {
 	return s.Echo
+}
+
+// Start starts the mock OAuth2 server on the given address.
+// It overrides the embedded echo.Echo.Start to support programmatic shutdown via Shutdown().
+func (s *MockOAuth2Service) Start(address string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+	sc := echo.StartConfig{Address: address}
+	return sc.Start(ctx, s.Echo)
+}
+
+// Shutdown gracefully stops the mock OAuth2 server.
+func (s *MockOAuth2Service) Shutdown(_ context.Context) error {
+	if s.cancel != nil {
+		s.cancel()
+	}
+	return nil
 }
 func (s *MockOAuth2Service) GetClient(clientID string, clientSecret string) (bool, *mocks_contracts_oauth2.Client) {
 	for _, client := range s.config.Clients {
@@ -139,7 +158,7 @@ func (s *MockOAuth2Service) GetClient(clientID string, clientSecret string) (boo
 	}
 	return false, nil
 }
-func (s *MockOAuth2Service) tokenHandler(c echo.Context) error {
+func (s *MockOAuth2Service) tokenHandler(c *echo.Context) error {
 	// get basic auth
 	clientID, clientSecret, ok := c.Request().BasicAuth()
 	if !ok {
@@ -188,10 +207,10 @@ func (s *MockOAuth2Service) tokenHandler(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, response)
 }
-func (s *MockOAuth2Service) jwks(c echo.Context) error {
+func (s *MockOAuth2Service) jwks(c *echo.Context) error {
 	return c.JSON(http.StatusOK, jwksKeys)
 }
-func (s *MockOAuth2Service) discovery(c echo.Context) error {
+func (s *MockOAuth2Service) discovery(c *echo.Context) error {
 	baseUrl := "http://" + c.Request().Host
 	wellKnownOpenidConfigurationResponse := WellKnownOpenidConfiguration{
 		Issuer:          baseUrl,

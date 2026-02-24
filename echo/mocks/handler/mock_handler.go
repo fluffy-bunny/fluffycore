@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 )
 
 // MockIHandler is a mock of IHandler interface.
@@ -35,7 +35,7 @@ func (m *MockIHandler) EXPECT() *MockIHandlerMockRecorder {
 }
 
 // Do mocks base method.
-func (m *MockIHandler) Do(arg0 echo.Context) error {
+func (m *MockIHandler) Do(arg0 *echo.Context) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Do", arg0)
 	ret0, _ := ret[0].(error)
