@@ -2,14 +2,14 @@ package logger
 
 import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	log "github.com/rs/zerolog/log"
 )
 
 // EnsureContextLogger ...
 func EnsureContextLogger(_ di.Container) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			ctx := c.Request().Context()
 			logger := log.With().Caller().Logger()
 			newCtx := logger.WithContext(ctx)

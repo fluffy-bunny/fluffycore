@@ -3,7 +3,7 @@ package startup
 import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 )
 
 type (

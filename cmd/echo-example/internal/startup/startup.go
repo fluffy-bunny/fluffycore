@@ -9,7 +9,7 @@ import (
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	contracts_startup "github.com/fluffy-bunny/fluffycore/echo/contracts/startup"
 	services_startup "github.com/fluffy-bunny/fluffycore/echo/services/startup"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	log "github.com/rs/zerolog/log"
 )
 

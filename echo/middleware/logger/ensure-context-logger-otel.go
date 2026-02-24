@@ -7,7 +7,7 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	zerolog "github.com/rs/zerolog"
 	otel "go.opentelemetry.io/otel"
 	attribute "go.opentelemetry.io/otel/attribute"
@@ -68,7 +68,7 @@ func EnsureContextLoggerOTEL(_ di.Container, opt ...TraceOption) echo.Middleware
 	}
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			r := c.Request()
 			requestCtx := r.Context()
 			// extract the OpenTelemetry span context from the context.Context object.

@@ -8,8 +8,7 @@ import (
 	go_runtime "runtime"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/gommon/log"
+	"github.com/labstack/echo/v5"
 	"github.com/reugn/async"
 	zlog "github.com/rs/zerolog/log"
 )
@@ -19,6 +18,7 @@ type Control struct {
 	waitChannel chan os.Signal
 	future      async.Future[string]
 	e           *echo.Echo
+	cancel      context.CancelFunc
 	runtime     *Runtime
 }
 
@@ -36,8 +36,8 @@ func (s *Control) Stop() {
 		return
 	}
 	zlog.Info().Msg("Stopping Control Web Server")
-	if err := s.e.Shutdown(context.Background()); err != nil {
-		s.e.Logger.Error(err)
+	if s.cancel != nil {
+		s.cancel()
 	}
 	s.future.Join()
 	zlog.Info().Msg("Control Web Server stopped")
@@ -57,27 +57,29 @@ func (s *Control) Start() {
 
 		s.e = echo.New()
 		e := s.e
-		e.Logger.SetLevel(log.DEBUG)
-		e.GET("/", func(c echo.Context) error {
+		e.GET("/", func(c *echo.Context) error {
 			return c.String(http.StatusOK, "Hello from Control")
 		})
-		e.GET("/stop", func(c echo.Context) error {
+		e.GET("/stop", func(c *echo.Context) error {
 			s.runtime.Stop()
 			return c.String(http.StatusOK, "Signalled server to stop")
 		})
-		e.GET("/gc", func(c echo.Context) error {
+		e.GET("/gc", func(c *echo.Context) error {
 			go_runtime.GC()
 			return c.String(http.StatusOK, "Called GC")
 		})
+		ctx, cancel := context.WithCancel(context.Background())
+		s.cancel = cancel
 		asyncAction := func() async.Future[string] {
 			promise := async.NewPromise[string]()
 			go func() {
-				port := fmt.Sprintf(":%d", port)
-				if err := e.Start(port); err != nil {
-					e.Logger.Info("shutting down the server")
-					promise.Success("OK")
-				} else {
+				addr := fmt.Sprintf(":%d", port)
+				sc := echo.StartConfig{Address: addr}
+				if err := sc.Start(ctx, e); err != nil {
+					zlog.Error().Err(err).Msg("control server error")
 					promise.Failure(err)
+				} else {
+					promise.Success("OK")
 				}
 			}()
 

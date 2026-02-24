@@ -4,7 +4,7 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	wellknown "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/wellknown"
 	contracts_handler "github.com/fluffy-bunny/fluffycore/echo/contracts/handler"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
@@ -38,6 +38,6 @@ func (s *service) GetMiddleware() []echo.MiddlewareFunc {
 	return []echo.MiddlewareFunc{}
 }
 
-func (s *service) Do(c echo.Context) error {
+func (s *service) Do(c *echo.Context) error {
 	return s.swaggerFunc(c)
 }

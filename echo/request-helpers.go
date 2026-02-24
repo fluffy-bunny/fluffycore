@@ -2,7 +2,7 @@ package echo
 
 import (
 	"github.com/fluffy-bunny/fluffycore/utils"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // HasWellknownAuthHeaders checks for wellknown auth headers

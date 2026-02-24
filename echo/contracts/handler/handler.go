@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	log "github.com/rs/zerolog/log"
 )
 
@@ -54,7 +54,7 @@ type (
 	// IHandler ...
 	IHandler interface {
 		GetMiddleware() []echo.MiddlewareFunc
-		Do(c echo.Context) error
+		Do(c *echo.Context) error
 	}
 
 	// IHandlerFactory ...
