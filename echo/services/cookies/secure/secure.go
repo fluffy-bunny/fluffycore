@@ -8,7 +8,7 @@ import (
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	status "github.com/gogo/status"
 	securecookie "github.com/gorilla/securecookie"
-	echo "github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v5"
 	codes "google.golang.org/grpc/codes"
 )
 
