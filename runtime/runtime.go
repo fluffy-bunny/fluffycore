@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -158,12 +159,15 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		target = os.Stdout
 	default:
 		// Open the log file
-
 		logFileName = fixPath(logFileName)
 		if logFile, err = os.Create(logFileName); err != nil {
 			log.Fatal().Err(err).Msg("Creating log file")
 		}
-
+		defer func() {
+			if logFile != nil {
+				logFile.Close()
+			}
+		}()
 		// Pass the ioWriter to the logger
 		target = logFile
 	}
@@ -185,24 +189,12 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-		switch strings.ToLower(logLevel) {
-		case "debug":
-			zerolog.SetGlobalLevel(zerolog.DebugLevel)
-		case "info":
-			zerolog.SetGlobalLevel(zerolog.InfoLevel)
-		case "warn":
-			zerolog.SetGlobalLevel(zerolog.WarnLevel)
-		case "error":
-			zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-		case "fatal":
-			zerolog.SetGlobalLevel(zerolog.FatalLevel)
-		case "panic":
-			zerolog.SetGlobalLevel(zerolog.PanicLevel)
-		case "trace":
-			zerolog.SetGlobalLevel(zerolog.TraceLevel)
+		level, parseErr := zerolog.ParseLevel(strings.ToLower(logLevel))
+		if parseErr != nil {
+			log.Warn().Str("LOG_LEVEL", logLevel).Msg("Unknown log level, defaulting to info")
+			level = zerolog.InfoLevel
 		}
-
+		zerolog.SetGlobalLevel(level)
 	})
 	builder := di.Builder()
 	builder.ConfigureOptions(func(o *di.Options) {
@@ -215,7 +207,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 	configOptions := startup.GetConfigOptions()
 	if configOptions == nil {
-		panic("configOptions is nil")
+		log.Fatal().Msg("configOptions is nil")
 	}
 	if configOptions.Destination == nil {
 		log.Info().Msg("configOptions.Destination is nil, use default")
@@ -223,24 +215,24 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 	err = LoadConfig(configOptions)
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("Failed to load config")
 	}
 	// configOptions.Destination contains *fluffycore_contracts_config.CoreConfig
 	configBytes, err := json.Marshal(configOptions.Destination)
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("Failed to marshal config")
 	}
 	var coreConfig *fluffycore_contracts_config.CoreConfig
 	err = json.Unmarshal(configBytes, &coreConfig)
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("Failed to unmarshal core config")
 	}
 	di.AddInstance[*fluffycore_contracts_config.CoreConfig](builder, coreConfig)
 	// set the global context
 	fluffycore_services_common_AppContext.SetAppContext(ctx)
 	// register a func to access it
 	fluffycore_services_common_AppContext.AddAppContext(builder)
-	si := &ServerInstance{}
+	si := s.ServerInstance
 	startup.ConfigureServices(ctx, builder)
 	si.RootContainer = builder.Build()
 	defer func() {
@@ -251,7 +243,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	si.Scheduler = di.Get[fluffycore_contracts_tasks.ISingletonScheduler](si.RootContainer)
 	err = si.Scheduler.Start()
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("Failed to start scheduler")
 	}
 	unaryServerInterceptorBuilder := fluffycore_middleware.NewUnaryServerInterceptorBuilder()
 	streamServerInterceptorBuilder := fluffycore_middleware.NewStreamServerInterceptorBuilder()
@@ -295,7 +287,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		grpc_reflection.Register(grpcServer)
 	}
 	if grpcServer == nil {
-		panic("server is nil")
+		log.Fatal().Msg("grpc server is nil")
 	}
 	endpoints := di.Get[[]fluffycore_contract_endpoint.IEndpointRegistration](si.RootContainer)
 	for _, endpoint := range endpoints {
@@ -316,13 +308,12 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 	err = startup.OnPreServerStartup(ctx)
 	if err != nil {
-		log.Error().Err(err).Msgf("OnPreServerStartup failed")
-		panic(err)
+		log.Fatal().Err(err).Msg("OnPreServerStartup failed")
 	}
 
 	if lis == nil {
 		if coreConfig.PORT == 0 {
-			panic("port is not set")
+			log.Fatal().Msg("port is not set")
 		}
 		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", coreConfig.PORT))
 		if err != nil {
@@ -344,6 +335,15 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	// Create a client connection to the gRPC server we just started
 	// This is where the gRPC-Gateway proxies the requests
 	conn, err := grpc.NewClient(endpoint, opts...)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create gRPC client connection")
+	}
+	defer func() {
+		if cerr := conn.Close(); cerr != nil {
+			log.Warn().Err(cerr).Msgf("Failed to close conn to %s", endpoint)
+		}
+	}()
+
 	// now we add NATS
 	// ===============================================================
 	StartNATSHandlerGateway(ctx, &StartNATSHandlerGatewayRequest{
@@ -353,24 +353,6 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	})
 
 	if coreConfig.GRPCGateWayEnabled {
-
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to dial server")
-		}
-		defer func() {
-			if err != nil {
-				if cerr := conn.Close(); cerr != nil {
-					log.Info().Msgf("Failed to close conn to %s: %v", endpoint, cerr)
-				}
-				return
-			}
-			go func() {
-				<-ctx.Done()
-				if cerr := conn.Close(); cerr != nil {
-					log.Info().Msgf("Failed to close conn to %s: %v", endpoint, cerr)
-				}
-			}()
-		}()
 		// the framework already is putting in the metadata like authorization when it forwards the request
 		// the POST request has
 		// --header 'Authorization: Bearer {{token}}
@@ -398,7 +380,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		si.FutureGRPCGatewayMux = future
 	}
 	s.Wait()
-	log.Info().Msg("Interupt triggered")
+	log.Info().Msg("Interrupt triggered")
 	if coreConfig.NATSEnabled {
 		if si.NATSMicroServicesContainer != nil {
 			err = si.NATSMicroServicesContainer.Shutdown(ctx)
@@ -410,8 +392,9 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 	startup.OnPreServerShutdown(ctx)
 	if si.ServerGRPCGatewayMux != nil {
-
-		si.ServerGRPCGatewayMux.Shutdown(context.Background())
+		if shutdownErr := si.ServerGRPCGatewayMux.Shutdown(context.Background()); shutdownErr != nil {
+			log.Error().Err(shutdownErr).Msg("Failed to shutdown gRPC gateway HTTP server")
+		}
 	}
 	si.Scheduler.Stop()
 	si.Server.GracefulStop()
@@ -451,10 +434,10 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	}
 
 	if _, ok := rootConfigMap["APPLICATION_ENVIRONMENT"]; !ok {
-		rootConfigMap["APPLICATION_ENVIRONMENT"] = "in-enviroment"
+		rootConfigMap["APPLICATION_ENVIRONMENT"] = "in-environment"
 	}
 	if _, ok := rootConfigMap["APPLICATION_NAME"]; !ok {
-		rootConfigMap["APPLICATION_NAME"] = "in-enviroment"
+		rootConfigMap["APPLICATION_NAME"] = "in-environment"
 	}
 	if _, ok := rootConfigMap["PORT"]; !ok {
 		rootConfigMap["PORT"] = 0
@@ -477,9 +460,9 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	if _, ok := rootConfigMap["ddProfilerConfig"]; !ok {
 		rootConfigMap["ddProfilerConfig"] = map[string]interface{}{
 			"enabled":                false,
-			"serviceName":            "in-enviroment",
-			"applicationEnvironment": "in-enviroment",
-			"version":                "in-enviroment",
+			"serviceName":            "in-environment",
+			"applicationEnvironment": "in-environment",
+			"version":                "in-environment",
 		}
 	}
 	rootConfig, err := json.Marshal(rootConfigMap)
@@ -576,45 +559,39 @@ func asyncServeGRPC(ctx context.Context, grpcServer *grpc.Server, lis net.Listen
 	log := zerolog.Ctx(ctx).With().Logger()
 	return fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[*fluffycore_async.AsyncResponse]) {
 		var err error
-		log.Info().Msg("gRPC Server Starting up")
+		log.Info().Msg("gRPC server starting up")
 
 		defer func() {
 			promise.Success(&fluffycore_async.AsyncResponse{
 				Message: "End Serve - grpc Server",
 				Error:   err,
 			})
-			if err != nil {
-				log.Error().Err(err).Msg("gRPC Server exit")
-				os.Exit(1)
-			}
 		}()
 
 		if err = grpcServer.Serve(lis); err != nil {
+			log.Error().Err(err).Msg("gRPC server exited with error")
 			return
 		}
-		log.Info().Msg("grpc Server has shut down....")
+		log.Info().Msg("gRPC server has shut down")
 	})
 }
 func asyncServeGRPCGatewayMux(httpServer *http.Server) async.Future[*fluffycore_async.AsyncResponse] {
 	return fluffycore_async.ExecuteWithPromiseAsync(func(promise async.Promise[*fluffycore_async.AsyncResponse]) {
 		var err error
-		log.Info().Msg("gRPC Server Starting up")
+		log.Info().Msg("gRPC gateway HTTP server starting up")
 
 		defer func() {
 			promise.Success(&fluffycore_async.AsyncResponse{
 				Message: "End Serve - http Server",
 				Error:   err,
 			})
-			if err != nil {
-				log.Error().Err(err).Msg("gRPC Server exit")
-				os.Exit(1)
-			}
 		}()
 
-		if err = httpServer.ListenAndServe(); err != nil {
-			log.Fatal().Err(err).Msg("Failed to listen")
+		if err = httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error().Err(err).Msg("gRPC gateway HTTP server exited with error")
 			return
 		}
-		log.Info().Msg("GRPCGatewayMux Server has shut down....")
+		err = nil // http.ErrServerClosed is expected during graceful shutdown
+		log.Info().Msg("gRPC gateway HTTP server has shut down")
 	})
 }
