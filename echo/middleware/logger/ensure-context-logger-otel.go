@@ -45,7 +45,7 @@ func Proto(proto string) string {
 	}
 }
 
-// EnsureContextLoggerCorrelation ...
+// EnsureContextLoggerOTEL ...
 func EnsureContextLoggerOTEL(_ di.Container, opt ...TraceOption) echo.MiddlewareFunc {
 	// initialize an empty traceConfig.
 	config := &traceConfig{}
@@ -87,7 +87,7 @@ func EnsureContextLoggerOTEL(_ di.Container, opt ...TraceOption) echo.Middleware
 				trace.WithAttributes(semconv.NetworkProtocolVersion(Proto(r.Proto))),
 				trace.WithAttributes(semconv.ServerAddress(r.Host)),
 				trace.WithAttributes(semconv.TelemetrySDKLanguageGo),
-				trace.WithSpanKind(trace.SpanKindClient),
+				trace.WithSpanKind(trace.SpanKindServer),
 			}
 			// check for the traceConfig.attributes if present apply them to the trace.Span.
 			if len(config.attributes) > 0 {
@@ -113,7 +113,9 @@ func EnsureContextLoggerOTEL(_ di.Container, opt ...TraceOption) echo.Middleware
 			carrier := propagation.HeaderCarrier(r.Header)
 			otel.GetTextMapPropagator().Inject(ctx, carrier)
 
-			// old
+			// propagate the updated request (with span context) to downstream handlers.
+			c.SetRequest(r)
+
 			var loggerMap = make(map[string]string)
 			headers := c.Request().Header
 
@@ -130,6 +132,9 @@ func EnsureContextLoggerOTEL(_ di.Container, opt ...TraceOption) echo.Middleware
 			// add the correlation id to the context
 			ctx = context.
 				WithValue(ctx, wellknown.XCorrelationIDName, correlationID)
+
+			// update the request again with the correlation context.
+			c.SetRequest(c.Request().WithContext(ctx))
 
 			log := zerolog.Ctx(ctx)
 			log.UpdateContext(func(c zerolog.Context) zerolog.Context {

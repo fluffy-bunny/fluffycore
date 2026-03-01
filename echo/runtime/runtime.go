@@ -104,22 +104,12 @@ func (s *Runtime) phase1() error {
 	if len(logLevel) == 0 {
 		logLevel = "info"
 	}
-	switch strings.ToLower(logLevel) {
-	case "debug":
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	case "info":
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case "warn":
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	case "error":
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-	case "fatal":
-		zerolog.SetGlobalLevel(zerolog.FatalLevel)
-	case "panic":
-		zerolog.SetGlobalLevel(zerolog.PanicLevel)
-	case "trace":
-		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	level, err := zerolog.ParseLevel(strings.ToLower(logLevel))
+	if err != nil {
+		log.Warn().Str("LOG_LEVEL", logLevel).Msg("Unknown log level, defaulting to info")
+		level = zerolog.InfoLevel
 	}
+	zerolog.SetGlobalLevel(level)
 	log.Info().Msgf("Starting %s", log.Logger.GetLevel().String())
 	return nil
 }
@@ -177,23 +167,9 @@ func (s *Runtime) phase3() error {
 	//Set Renderer
 	s.echo.Renderer = core_echo_templates.GetTemplateRender("./static/templates")
 
-	// MIDDELWARE
+	// MIDDLEWARE
 	//-------------------------------------------------------
-	s.echo.Use(middleware_logger.EnsureContextLogger(s.Container))
-	//s.echo.Use(middleware_logger.EnsureContextLoggerCorrelation(s.Container))
-
-	s.echo.Use(middleware_logger.EnsureContextLoggerOTEL(s.Container))
-
-	s.echo.Use(middleware_container.EnsureScopedContainer(s.Container))
-
-	app := s.echo.Group("")
-
-	// we have all our required upfront middleware running
-	// now we can add the optional startup ones.
-	s.Startup.Configure(s.echo, s.Container)
-
-	// our middleware that runs at the end
-	//-------------------------------------------------------
+	// Recovery middleware first so it catches panics from all subsequent middleware and handlers.
 	s.echo.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) (err error) {
 			defer func() {
@@ -204,6 +180,18 @@ func (s *Runtime) phase3() error {
 			return next(c)
 		}
 	})
+
+	s.echo.Use(middleware_logger.EnsureContextLogger(s.Container))
+
+	s.echo.Use(middleware_logger.EnsureContextLoggerOTEL(s.Container))
+
+	s.echo.Use(middleware_container.EnsureScopedContainer(s.Container))
+
+	app := s.echo.Group("")
+
+	// we have all our required upfront middleware running
+	// now we can add the optional startup ones.
+	s.Startup.Configure(s.echo, s.Container)
 	s.Startup.RegisterStaticRoutes(s.echo)
 
 	// register our handlers
@@ -322,14 +310,16 @@ func (s *Runtime) Run() error {
 	// Setup Logger
 	err := s.phase1()
 	if err != nil {
-		log.Fatal().Err(err).Msg("phase1")
+		log.Error().Err(err).Msg("phase1")
+		return err
 	}
 	// Phase 2
 	// Setup our DI Container
 	// Configure services
 	err = s.phase2()
 	if err != nil {
-		log.Fatal().Err(err).Msg("phase2")
+		log.Error().Err(err).Msg("phase2")
+		return err
 	}
 
 	// Phase 3
@@ -337,12 +327,12 @@ func (s *Runtime) Run() error {
 	// Configure middlewares
 	err = s.phase3()
 	if err != nil {
-		log.Fatal().Err(err).Msg("phase3")
+		log.Error().Err(err).Msg("phase3")
+		return err
 	}
 
 	// Final Phase
-	// Setup Echo
-	// Configure middlewares
+	// Start server and wait
 	err = s.finalPhase()
 	if err != nil {
 		log.Error().Err(err).Msg("finalPhase")
