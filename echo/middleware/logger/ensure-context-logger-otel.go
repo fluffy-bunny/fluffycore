@@ -124,7 +124,7 @@ func EnsureContextLoggerOTEL(_ di.Container, opt ...TraceOption) echo.Middleware
 			if fluffycore_utils.IsEmptyOrNil(correlationID) {
 				correlationID = fluffycore_utils.GenerateUniqueID()
 			}
-			loggerMap["correlation_id"] = correlationID
+			loggerMap[wellknown.LogCorrelationIDName] = correlationID
 			if fluffycore_utils.IsNotEmptyOrNil(traceS) {
 				loggerMap["trace_id"] = traceS
 			}

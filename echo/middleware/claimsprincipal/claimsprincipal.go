@@ -46,7 +46,7 @@ func FinalAuthVerificationMiddlewareUsingClaimsMap(entrypointClaimsMap map[strin
 				if enableZeroTrust {
 					subLogger.Debug().Msg("FullMethod not found in entrypoint claims map")
 					if !authenticated {
-						return c.String(http.StatusUnauthorized, "Unauthorized")
+						return c.String(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 					}
 					return c.Redirect(http.StatusFound, "/unauthorized")
 				}
@@ -60,7 +60,7 @@ func FinalAuthVerificationMiddlewareUsingClaimsMap(entrypointClaimsMap map[strin
 						if ok && directive == "login" {
 							return c.Redirect(http.StatusFound, "/login?redirect_url="+c.Request().URL.String())
 						}
-						return c.String(http.StatusUnauthorized, "Unauthorized")
+						return c.String(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 					}
 				}
 				return c.Redirect(http.StatusFound, "/unauthorized")

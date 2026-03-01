@@ -10,6 +10,7 @@ import (
 	proto "google.golang.org/protobuf/proto"
 )
 
+// ConvertStructToProto marshals a Go struct to JSON and then unmarshals it into a protobuf message.
 func ConvertStructToProto[FROM any](s FROM, pb proto.Message) error {
 	// Marshal the struct to JSON.
 	jsonBytes, err := json.Marshal(s)
@@ -25,6 +26,7 @@ func ConvertStructToProto[FROM any](s FROM, pb proto.Message) error {
 	return nil
 }
 
+// ConvertProtoToStruct marshals a protobuf message to JSON and then unmarshals it into a Go struct.
 func ConvertProtoToStruct[TO any](pb proto.Message, s TO) error {
 	// Marshal the protobuf message to JSON.
 	jsonBytes, err := protojson.Marshal(pb)
@@ -40,6 +42,7 @@ func ConvertProtoToStruct[TO any](pb proto.Message, s TO) error {
 	return nil
 }
 
+// ConvertProtoToMap marshals a protobuf message to JSON and then unmarshals it into a map.
 func ConvertProtoToMap(pb proto.Message) (map[string]interface{}, error) {
 	// Marshal the protobuf message to JSON.
 	jsonBytes, err := protojson.Marshal(pb)
@@ -56,6 +59,7 @@ func ConvertProtoToMap(pb proto.Message) (map[string]interface{}, error) {
 	return m, nil
 }
 
+// ConvertMapToProto marshals a map to JSON and then unmarshals it into a protobuf message.
 func ConvertMapToProto(m map[string]interface{}, pb proto.Message) error {
 	// Marshal the map to JSON.
 	jsonBytes, err := json.Marshal(m)
@@ -71,6 +75,7 @@ func ConvertMapToProto(m map[string]interface{}, pb proto.Message) error {
 	return nil
 }
 
+// ConvertProtoToProto converts one protobuf message to another by round-tripping through JSON.
 func ConvertProtoToProto(from proto.Message, to proto.Message) error {
 	// Marshal the from protobuf message to JSON.
 	jsonBytes, err := protojson.Marshal(from)

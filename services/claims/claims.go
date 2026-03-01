@@ -5,6 +5,7 @@ import (
 	"time"
 
 	fluffycore_contracts_claims "github.com/fluffy-bunny/fluffycore/contracts/claims"
+	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	jwt "github.com/golang-jwt/jwt/v5"
 )
 
@@ -35,7 +36,7 @@ func NewClaim(claimType string, claimValue interface{}) fluffycore_contracts_cla
 }
 
 func (a *Claims) GetAudience() (jwt.ClaimStrings, error) {
-	aud, ok := (*a)["aud"].([]string)
+	aud, ok := (*a)[fluffycore_wellknown.ClaimTypeAud].([]string)
 	if !ok {
 		return nil, fmt.Errorf("audience is not a string array")
 	}
@@ -43,7 +44,7 @@ func (a *Claims) GetAudience() (jwt.ClaimStrings, error) {
 }
 
 func (a *Claims) GetExpirationTime() (*jwt.NumericDate, error) {
-	exp, ok := (*a)["exp"].(float64)
+	exp, ok := (*a)[fluffycore_wellknown.ClaimTypeExp].(float64)
 	if !ok {
 		return nil, fmt.Errorf("expiration time is not a float64")
 	}
@@ -54,7 +55,7 @@ func (a *Claims) GetExpirationTime() (*jwt.NumericDate, error) {
 	}, nil
 }
 func (a *Claims) GetIssuedAt() (*jwt.NumericDate, error) {
-	iat, ok := (*a)["iat"].(float64)
+	iat, ok := (*a)[fluffycore_wellknown.ClaimTypeIat].(float64)
 	if !ok {
 		return nil, fmt.Errorf("issued at time is not a float64")
 	}
@@ -65,7 +66,7 @@ func (a *Claims) GetIssuedAt() (*jwt.NumericDate, error) {
 	}, nil
 }
 func (a *Claims) GetNotBefore() (*jwt.NumericDate, error) {
-	nbf, ok := (*a)["nbf"].(float64)
+	nbf, ok := (*a)[fluffycore_wellknown.ClaimTypeNbf].(float64)
 	if !ok {
 		return nil, fmt.Errorf("not before time is not a float64")
 	}
@@ -76,14 +77,14 @@ func (a *Claims) GetNotBefore() (*jwt.NumericDate, error) {
 	}, nil
 }
 func (a *Claims) GetIssuer() (string, error) {
-	iss, ok := (*a)["iss"].(string)
+	iss, ok := (*a)[fluffycore_wellknown.ClaimTypeIss].(string)
 	if !ok {
 		return "", fmt.Errorf("issuer is not a string")
 	}
 	return iss, nil
 }
 func (a *Claims) GetSubject() (string, error) {
-	sub, ok := (*a)["sub"].(string)
+	sub, ok := (*a)[fluffycore_wellknown.ClaimTypeSub].(string)
 	if !ok {
 		return "", fmt.Errorf("subject is not a string")
 	}

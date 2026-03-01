@@ -99,7 +99,6 @@ func (s *Runtime) phase1() error {
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	logLevel := os.Getenv("LOG_LEVEL")
 	if len(logLevel) == 0 {
 		logLevel = "info"

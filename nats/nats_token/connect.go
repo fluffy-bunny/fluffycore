@@ -42,6 +42,9 @@ func CreateNATSConnectTokenClientCredentials(request *CreateNATSConnectTokenClie
 }
 
 func CreateNatsConnectionWithClientCredentials(request *NATSConnectTokenClientCredentialsRequest) (*nats.Conn, error) {
+	if request == nil {
+		return nil, fmt.Errorf("request is nil")
+	}
 	token, err := CreateNATSConnectTokenClientCredentials(&CreateNATSConnectTokenClientCredentialsRequest{
 		ClientID:     request.ClientID,
 		ClientSecret: request.ClientSecret,

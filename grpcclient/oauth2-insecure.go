@@ -3,7 +3,9 @@ package grpcclient
 import (
 	"context"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+
+	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc/credentials"
@@ -30,14 +32,16 @@ func NewOauthAccess(token *oauth2.Token, sidecarTLS bool) credentials.PerRPCCred
 func (oa oauthAccess) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	// If a sidecar service mesh is not in use, make sure we are on a secure transport
 	if !oa.sidecarSecured {
-		ri, _ := credentials.RequestInfoFromContext(ctx)
-		if err := credentials.CheckSecurityLevel(ri.AuthInfo, credentials.PrivacyAndIntegrity); err != nil {
-			log.Warn().Msg("SENDING AUTHENTICATION IN THE CLEAR (NON-TLS) - DO NOT USE IN PRODUCTION")
+		ri, ok := credentials.RequestInfoFromContext(ctx)
+		if ok {
+			if err := credentials.CheckSecurityLevel(ri.AuthInfo, credentials.PrivacyAndIntegrity); err != nil {
+				zerolog.Ctx(ctx).Warn().Msg("SENDING AUTHENTICATION IN THE CLEAR (NON-TLS) - DO NOT USE IN PRODUCTION")
+			}
 		}
 	}
 
 	return map[string]string{
-		"authorization": oa.token.Type() + " " + oa.token.AccessToken,
+		fluffycore_wellknown.MetadataKeyAuthorization: oa.token.Type() + " " + oa.token.AccessToken,
 	}, nil
 }
 
@@ -62,9 +66,11 @@ func NewOauthAccessFromTokenSource(tokenSource oauth2.TokenSource, sidecarTLS bo
 func (oa tokenSourceAccess) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	// If a sidecar service mesh is not in use, make sure we are on a secure transport
 	if !oa.sidecarSecured {
-		ri, _ := credentials.RequestInfoFromContext(ctx)
-		if err := credentials.CheckSecurityLevel(ri.AuthInfo, credentials.PrivacyAndIntegrity); err != nil {
-			log.Warn().Msg("SENDING AUTHENTICATION IN THE CLEAR (NON-TLS) - DO NOT USE IN PRODUCTION")
+		ri, ok := credentials.RequestInfoFromContext(ctx)
+		if ok {
+			if err := credentials.CheckSecurityLevel(ri.AuthInfo, credentials.PrivacyAndIntegrity); err != nil {
+				zerolog.Ctx(ctx).Warn().Msg("SENDING AUTHENTICATION IN THE CLEAR (NON-TLS) - DO NOT USE IN PRODUCTION")
+			}
 		}
 	}
 	token, err := oa.tokenSource.Token()
@@ -73,7 +79,7 @@ func (oa tokenSourceAccess) GetRequestMetadata(ctx context.Context, uri ...strin
 	}
 
 	return map[string]string{
-		"authorization": token.Type() + " " + token.AccessToken,
+		fluffycore_wellknown.MetadataKeyAuthorization: token.Type() + " " + token.AccessToken,
 	}, nil
 
 }

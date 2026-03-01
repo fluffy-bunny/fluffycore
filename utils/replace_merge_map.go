@@ -9,6 +9,7 @@ import (
 
 const MaxDepth = 32
 
+// ReplaceMergeMap merges src into dst, replacing values for existing keys recursively up to MaxDepth.
 func ReplaceMergeMap(dst, src map[string]interface{}) error {
 	return replaceOnlyMergeMap(dst, src, 0)
 }

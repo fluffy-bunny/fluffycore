@@ -205,12 +205,20 @@ func (c *GrpcClient) GetConnection() *grpc.ClientConn {
 // Options
 //
 
-func WithDataDpgTracer(enable bool) GrpcClientOption {
+// WithDataDogTracer returns a GrpcClientOption that enables or disables Datadog tracing.
+func WithDataDogTracer(enable bool) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.enableDataDogTracing = enable
 		return nil
 	}
 }
+
+// Deprecated: Use WithDataDogTracer instead.
+func WithDataDpgTracer(enable bool) GrpcClientOption {
+	return WithDataDogTracer(enable)
+}
+
+// WithOTELTracer returns a GrpcClientOption that enables or disables OpenTelemetry tracing.
 func WithOTELTracer(enable bool) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.enableOTELTracing = enable
@@ -226,6 +234,7 @@ func WithTarget(target string) GrpcClientOption {
 	}
 }
 
+// WithAuthority returns a GrpcClientOption that sets the :authority header value for gRPC calls.
 func WithAuthority(authority string) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.authority = authority
@@ -257,6 +266,7 @@ func WithTokenSource(tokenSource oauth2.TokenSource) GrpcClientOption {
 	}
 }
 
+// WithCertBundle returns a GrpcClientOption that sets the CA certificate bundle file for TLS.
 func WithCertBundle(certBundleFile string) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.certBundleFile = certBundleFile
@@ -264,6 +274,7 @@ func WithCertBundle(certBundleFile string) GrpcClientOption {
 	}
 }
 
+// WithClientCert returns a GrpcClientOption that appends a client TLS certificate.
 func WithClientCert(clientCert tls.Certificate) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.clientCerts = append(c.clientCerts, clientCert)
@@ -271,6 +282,7 @@ func WithClientCert(clientCert tls.Certificate) GrpcClientOption {
 	}
 }
 
+// WithInsecure returns a GrpcClientOption that enables or disables insecure (non-TLS) connections.
 func WithInsecure(insecure bool) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.insecure = insecure
@@ -278,6 +290,7 @@ func WithInsecure(insecure bool) GrpcClientOption {
 	}
 }
 
+// WithSidecarSecured returns a GrpcClientOption for connections secured by a sidecar proxy (e.g., Envoy).
 func WithSidecarSecured(sidecarSecured bool) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.insecure = sidecarSecured
@@ -298,6 +311,7 @@ func WithContext(ctx context.Context) GrpcClientOption {
 // Global settings
 //
 
+// SetDefaultGrpcCallTimeout sets the global default timeout in seconds for gRPC calls.
 func SetDefaultGrpcCallTimeout(timeoutInSeconds int) {
 	defaultGrpcCallTimeoutInSeconds = &timeoutInSeconds
 }

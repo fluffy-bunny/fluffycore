@@ -46,7 +46,7 @@ func (s *metadataFilterMiddleware) GetUnaryServerInterceptor() grpc.UnaryServerI
 			if exists {
 				continue
 			}
-			// is it explictly allowed for this entry point?
+			// is it explicitly allowed for this entry point?
 			if entryPointExists {
 				exists := entryPointAllowed.Contains(strings.ToLower(header))
 				if exists {

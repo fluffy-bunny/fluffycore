@@ -74,61 +74,7 @@ func (s *service) _reloadKeys() error {
 			return fmt.Errorf("failed to decrypt signing key: %w", err)
 		}
 		s.signingKey.DecryptedPrivateKey = string(decrtypedPrivateKey)
-		/*
-			// strip off the encryption and store the open key for downstream ease of use
-			var method jwt.SigningMethod
-			signingKey := s.signingKey
-			switch signingKey.PrivateJwk.Alg {
-			case "RS256":
-				method = jwt.SigningMethodRS256
-			case "RS384":
-				method = jwt.SigningMethodRS384
-			case "RS512":
-				method = jwt.SigningMethodRS512
-			case "ES256":
-				method = jwt.SigningMethodES256
-			case "ES384":
-				method = jwt.SigningMethodES384
-			case "ES512":
-				method = jwt.SigningMethodES512
-			case "EdDSA":
-				method = jwt.SigningMethodEdDSA
-			default:
-				panic("unsupported signing method")
-			}
-			signedKey := []byte(signingKey.PrivateKey)
 
-			var getKey = func() (interface{}, error) {
-				var key interface{}
-
-				if strings.HasPrefix(signingKey.PrivateJwk.Alg, "Ed") {
-					v, err := jwt.ParseEdPrivateKeyFromPEM(signedKey)
-					if err != nil {
-						return "", err
-					}
-					key = v
-					return key, nil
-				}
-
-				if strings.HasPrefix(signingKey.PrivateJwk.Alg, "ES") {
-					v, err := jwt.ParseECPrivateKeyFromPEM(signedKey)
-					if err != nil {
-						return "", err
-					}
-					key = v
-					return key, nil
-				}
-
-				v, err := jwt.ParseRSAPrivateKeyFromPEM(signedKey)
-				if err != nil {
-					return "", err
-				}
-				key = v
-				return key, nil
-			}
-
-			s.signingKey.PrivateKey = signingKey.PrivateKey
-		*/
 		var jwks []*fluffycore_contracts_jwtminter.PublicJwk
 		linq.From(s.keyMaterial.SigningKeys).Where(func(c interface{}) bool {
 			signingKey := c.(*fluffycore_contracts_jwtminter.SigningKey)
@@ -175,7 +121,10 @@ func (s *service) CreateKeySet() (jwk.Set, error) {
 	}
 	set := jwk.NewSet()
 	for _, key := range keys {
-		keyB, _ := json.Marshal(key.PrivateJwk)
+		keyB, err := json.Marshal(key.PrivateJwk)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal private JWK: %w", err)
+		}
 		privkey, err := jwk.ParseKey(keyB)
 		if err != nil {
 			return nil, err
@@ -200,6 +149,8 @@ func (s *service) GetPublicWebKeys() ([]*fluffycore_contracts_jwtminter.PublicJw
 	return s.jwks, nil
 }
 
+// DecryptPEM decrypts a PEM-encoded block using the provided password.
+// If the PEM block is not encrypted, it is returned as-is.
 func DecryptPEM(encryptedPEM []byte, password []byte) ([]byte, error) {
 	// Parse PEM block
 	block, _ := pem.Decode(encryptedPEM)
@@ -227,7 +178,7 @@ func DecryptPEM(encryptedPEM []byte, password []byte) ([]byte, error) {
 	// Decode IV from hex
 	iv, err := hex.DecodeString(dekInfo[1])
 	if err != nil {
-		return nil, fmt.Errorf("invalid IV: %v", err)
+		return nil, fmt.Errorf("invalid IV: %w", err)
 	}
 	if len(iv) != aes.BlockSize {
 		return nil, fmt.Errorf("invalid IV length: expected %d, got %d", aes.BlockSize, len(iv))
@@ -242,7 +193,7 @@ func DecryptPEM(encryptedPEM []byte, password []byte) ([]byte, error) {
 	// Create cipher
 	block_cipher, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cipher: %v", err)
+		return nil, fmt.Errorf("failed to create cipher: %w", err)
 	}
 
 	// Decrypt
@@ -276,7 +227,7 @@ func DecryptPEM(encryptedPEM []byte, password []byte) ([]byte, error) {
 	out := new(bytes.Buffer)
 	err = pem.Encode(out, decryptedBlock)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode decrypted key: %v", err)
+		return nil, fmt.Errorf("failed to encode decrypted key: %w", err)
 	}
 
 	return out.Bytes(), nil

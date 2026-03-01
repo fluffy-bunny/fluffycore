@@ -45,11 +45,18 @@ func WithServiceMicroOptionGroupName(groupName string) ConfigServiceMicroOption 
 		return config
 	}
 }
-func WithMicroConfigNamne(name string) ConfigNATSMicroConfig {
+
+// WithMicroConfigName sets the name on the NATS micro config.
+func WithMicroConfigName(name string) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {
 		config.Name = name
 		return config
 	}
+}
+
+// Deprecated: Use WithMicroConfigName instead.
+func WithMicroConfigNamne(name string) ConfigNATSMicroConfig {
+	return WithMicroConfigName(name)
 }
 func WithMicroConfigVersion(version string) ConfigNATSMicroConfig {
 	return func(config *micro.Config) *micro.Config {

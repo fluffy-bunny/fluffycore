@@ -137,7 +137,7 @@ func (s *NATSClient) createNATSRequestHeaders(ctx context.Context) (nats.Header,
 		if err != nil {
 			return nil, err
 		}
-		headers.Set("Authorization", "Bearer "+token.AccessToken)
+		headers.Set(wellknown.HeaderAuthorization, wellknown.AuthSchemeBearerPrefix+token.AccessToken)
 	}
 	return headers, nil
 }

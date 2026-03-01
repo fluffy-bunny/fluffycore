@@ -9,6 +9,7 @@ import (
 	i18n "github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
+// ReplaceStrings performs bulk string replacement using the provided key-value map.
 func ReplaceStrings(original string, replace map[string]string) string {
 	if replace == nil {
 		return original
@@ -18,6 +19,8 @@ func ReplaceStrings(original string, replace map[string]string) string {
 	}
 	return original
 }
+
+// CurlyBraceReplaceStrings replaces {key} placeholders in the string with values from the map.
 func CurlyBraceReplaceStrings(original string, replace map[string]string) string {
 	if replace == nil {
 		return original
@@ -28,6 +31,7 @@ func CurlyBraceReplaceStrings(original string, replace map[string]string) string
 	return original
 }
 
+// LocalizeWithInterperlate localizes a message by ID and interpolates curly-brace placeholders.
 func LocalizeWithInterperlate(localizer *i18n.Localizer, id string, replace map[string]string) string {
 	template, err := localizer.LocalizeMessage(&i18n.Message{ID: id})
 	if err != nil {
@@ -38,6 +42,7 @@ func LocalizeWithInterperlate(localizer *i18n.Localizer, id string, replace map[
 	return s
 }
 
+// LocalizeSimple localizes a message by ID without any placeholder interpolation.
 func LocalizeSimple(localizer *i18n.Localizer, id string) string {
 	return LocalizeWithInterperlate(localizer, id, nil)
 }

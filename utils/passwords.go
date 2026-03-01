@@ -12,6 +12,7 @@ type (
 	}
 )
 
+// GeneratePasswordHash creates an argon2id hash of the given password.
 func GeneratePasswordHash(password string) (string, error) {
 	hash, err := argon2id.CreateHash(password, argon2id.DefaultParams)
 	if err != nil {
@@ -20,6 +21,7 @@ func GeneratePasswordHash(password string) (string, error) {
 	return hash, nil
 }
 
+// ComparePasswordHash compares a plaintext password against an argon2id hash.
 func ComparePasswordHash(password string, hash string) (bool, error) {
 	return argon2id.ComparePasswordAndHash(password, hash)
 }
@@ -32,6 +34,8 @@ func GeneratePassword() (string, error) {
 
 }
 
+// GeneratePasswordHashSet generates a password (or uses the provided secret) and returns
+// both the password and its argon2id hash.
 func GeneratePasswordHashSet(secret *string) (*PasswordHashSet, error) {
 	var pass string
 	var err error

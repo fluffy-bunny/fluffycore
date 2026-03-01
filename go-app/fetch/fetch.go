@@ -223,7 +223,7 @@ func FetchWrappedResponseT[T any](ctx context.Context, input *CallInput) (*Wrapp
 // Fetch is a raw implementation of http.Client to omit the `net/*` packages completely. The main purpose is to further optimize the disk and memory space needed by the WASM app client.
 func Fetch(input *map[string]interface{}) (*string, int, error) {
 	if (*input)["url"] == "" {
-		return nil, 0, fmt.Errorf("URL not specified for Fetch()")
+		return nil, 0, fmt.Errorf("url not specified for fetch")
 	}
 
 	// Start channels to catch the outputs.

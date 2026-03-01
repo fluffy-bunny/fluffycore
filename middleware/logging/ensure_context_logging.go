@@ -10,6 +10,7 @@ import (
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
+	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	status "github.com/gogo/status"
 	zerolog "github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
@@ -36,7 +37,7 @@ func getIncomingOriginContextJson(ctx context.Context) (map[string]interface{}, 
 		return nil, status.Errorf(codes.Unauthenticated, "no metadata found")
 	}
 	// its an Authorization : Bearer {{token}}
-	ctxOrigin := md.Get("ctxOrigin")
+	ctxOrigin := md.Get(fluffycore_wellknown.ContextOriginKey)
 	if len(ctxOrigin) == 0 {
 		// not having anything is ok.
 		return nil, nil
@@ -57,7 +58,7 @@ func EnsureContextLoggingUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		scopedContainer := middleware_dicontext.GetRequestContainer(ctx)
 		propertyBag := di.Get[fluffycore_contracts_propertybag.IRequestContextLoggingPropertyBag](scopedContainer)
 
-		ctxOriginName := "ctxOrigin"
+		ctxOriginName := fluffycore_wellknown.ContextOriginKey
 		requestContextClaimsToPropagate, err := di.TryGet[*fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig](scopedContainer)
 		if err == nil {
 			if fluffycore_utils.IsNotEmptyOrNil(requestContextClaimsToPropagate.ContextOrigin) {

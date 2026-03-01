@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 func NewDiscoveryDocument(discoveryURL url.URL) *DiscoveryDocument {
@@ -28,7 +29,8 @@ func (document *DiscoveryDocument) Initialize() error {
 }
 
 func loadDiscoveryDocument(document *DiscoveryDocument) error {
-	resp, err := http.Get(document.DiscoveryURL.String())
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(document.DiscoveryURL.String())
 	if err != nil {
 		return fmt.Errorf("could not fetch discovery url: %w", err)
 	}
@@ -46,9 +48,10 @@ func loadDiscoveryDocument(document *DiscoveryDocument) error {
 }
 
 func loadJwksData(document *DiscoveryDocument) error {
-	resp, err := http.Get(document.JWKSURL)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(document.JWKSURL)
 	if err != nil {
-		return fmt.Errorf("could not fetch jwks URL")
+		return fmt.Errorf("could not fetch jwks URL %s: %w", document.JWKSURL, err)
 	}
 
 	defer func() {

@@ -50,10 +50,9 @@ func StartNATSHandlerGateway(ctx context.Context, request *StartNATSHandlerGatew
 	}
 
 	go func() {
-		// pause a bit to let things settle down.
+		// Pause briefly to let services settle before registering NATS handlers.
+		// The hosting service may also serve as the NATS auth service.
 		time.Sleep(1 * time.Second)
-		// special case as the hosting service may also be the nats auth service so
-		// we will wait a bit before the handlers come on line.
 
 		anyNatsHandler := fluffycore_nats_micro_service.IsAnyNatsHandler(request.Container)
 		// no need to do anything if nothing here to be registered
