@@ -60,6 +60,9 @@ func (s *service) RegisterHandlers(app *echo.Group) {
 		path := metadata["path"].(string)
 		path = strings.ToLower(path)
 		// when we find a duplicate path, the last one wins
+		if _, exists := pathToDescriptors[path]; exists {
+			log.Warn().Str("path", path).Msg("Duplicate handler path registered, last one wins")
+		}
 		pathToDescriptors[path] = descriptor
 	}
 
@@ -69,8 +72,8 @@ func (s *service) RegisterHandlers(app *echo.Group) {
 		path := metadata["path"].(string)
 		httpVerbs := metadata["httpVerbs"].([]contracts_handler.HTTPVERB)
 		doFunc := func(c *echo.Context) error {
-			scopedContainer = c.Get(wellknown.SCOPED_CONTAINER_KEY).(di.Container)
-			handlerInstance := di.GetByLookupKey[contracts_handler.IHandler](scopedContainer, path)
+			sc := c.Get(wellknown.SCOPED_CONTAINER_KEY).(di.Container)
+			handlerInstance := di.GetByLookupKey[contracts_handler.IHandler](sc, path)
 			return handlerInstance.Do(c)
 		}
 		handlerInstance := di.GetByLookupKey[contracts_handler.IHandler](scopedContainer, path)
