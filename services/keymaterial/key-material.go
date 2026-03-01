@@ -45,7 +45,7 @@ func AddSingletonIKeyMaterial(builder di.ContainerBuilder) {
 	di.AddSingleton[fluffycore_contracts_jwtminter.IKeyMaterial](builder, stemService.Ctor)
 }
 
-func (s *service) _reloadKeys() {
+func (s *service) _reloadKeys() error {
 	now := time.Now()
 	if now.After(s.nextFetchTime) {
 		//--~--~--~--~--~-- BARBED WIRE --~--~--~--~--~--~--
@@ -63,12 +63,15 @@ func (s *service) _reloadKeys() {
 			signingKey := c.(*fluffycore_contracts_jwtminter.SigningKey)
 			return signingKey
 		}).ToSlice(&signingKeys)
+		if len(signingKeys) == 0 {
+			return fmt.Errorf("no valid signing keys found for current time")
+		}
 		// return the last one.
 		s.signingKey = signingKeys[len(signingKeys)-1]
 
 		decrtypedPrivateKey, err := DecryptPEM([]byte(s.signingKey.PrivateKey), []byte(s.signingKey.Password))
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to decrypt signing key: %w", err)
 		}
 		s.signingKey.DecryptedPrivateKey = string(decrtypedPrivateKey)
 		/*
@@ -139,10 +142,13 @@ func (s *service) _reloadKeys() {
 		}).ToSlice(&jwks)
 		s.jwks = jwks
 	}
+	return nil
 }
 
 func (s *service) GetSigningKey() (*fluffycore_contracts_jwtminter.SigningKey, error) {
-	s._reloadKeys()
+	if err := s._reloadKeys(); err != nil {
+		return nil, err
+	}
 	//--~--~--~--~--~-- BARBED WIRE --~--~--~--~--~--~--
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -151,7 +157,9 @@ func (s *service) GetSigningKey() (*fluffycore_contracts_jwtminter.SigningKey, e
 	return s.signingKey, nil
 }
 func (s *service) GetSigningKeys() ([]*fluffycore_contracts_jwtminter.SigningKey, error) {
-	s._reloadKeys()
+	if err := s._reloadKeys(); err != nil {
+		return nil, err
+	}
 	//--~--~--~--~--~-- BARBED WIRE --~--~--~--~--~--~--
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -182,7 +190,9 @@ func (s *service) CreateKeySet() (jwk.Set, error) {
 }
 
 func (s *service) GetPublicWebKeys() ([]*fluffycore_contracts_jwtminter.PublicJwk, error) {
-	s._reloadKeys()
+	if err := s._reloadKeys(); err != nil {
+		return nil, err
+	}
 	//--~--~--~--~--~-- BARBED WIRE --~--~--~--~--~--~--
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -219,6 +229,12 @@ func DecryptPEM(encryptedPEM []byte, password []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid IV: %v", err)
 	}
+	if len(iv) != aes.BlockSize {
+		return nil, fmt.Errorf("invalid IV length: expected %d, got %d", aes.BlockSize, len(iv))
+	}
+	if len(block.Bytes) == 0 || len(block.Bytes)%aes.BlockSize != 0 {
+		return nil, fmt.Errorf("encrypted data length (%d) is not a multiple of AES block size (%d)", len(block.Bytes), aes.BlockSize)
+	}
 
 	// Generate key from password and IV
 	key := generateKeyFromPassword(password, iv[:8], 32) // AES-256 needs 32 bytes
@@ -235,7 +251,19 @@ func DecryptPEM(encryptedPEM []byte, password []byte) ([]byte, error) {
 	mode.CryptBlocks(decrypted, block.Bytes)
 
 	// Remove PKCS7 padding
+	if len(decrypted) == 0 {
+		return nil, fmt.Errorf("decrypted data is empty")
+	}
 	paddingLen := int(decrypted[len(decrypted)-1])
+	if paddingLen == 0 || paddingLen > aes.BlockSize || paddingLen > len(decrypted) {
+		return nil, fmt.Errorf("invalid PKCS7 padding length: %d", paddingLen)
+	}
+	// Verify all padding bytes are consistent
+	for i := 0; i < paddingLen; i++ {
+		if decrypted[len(decrypted)-1-i] != byte(paddingLen) {
+			return nil, fmt.Errorf("invalid PKCS7 padding at byte %d", i)
+		}
+	}
 	decrypted = decrypted[:len(decrypted)-paddingLen]
 
 	// Encode decrypted key in PEM format

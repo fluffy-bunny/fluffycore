@@ -40,9 +40,11 @@ func ExecuteAsync(f func() (interface{}, error)) *PromiseResponse[*FutureRespons
 	p := async.NewPromise[*FutureResponse]()
 	done := make(chan struct{})
 	go func() {
-		if err := recover(); err != nil {
-			p.Success(&FutureResponse{Value: nil, Err: fmt.Errorf("%v", err)})
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				p.Success(&FutureResponse{Value: nil, Err: fmt.Errorf("panic: %v", r)})
+			}
+		}()
 		value, err := f()
 		p.Success(&FutureResponse{Value: value, Err: err})
 	}()

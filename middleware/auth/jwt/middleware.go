@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
@@ -34,6 +35,7 @@ type (
 
 var _cache *jwxk.Cache
 var _issuerConfigs map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig
+var _validatorsOnce sync.Once
 
 func init() {
 	var _ fluffycore_contracts_middleware_auth_jwt.IValidator = &service{}
@@ -190,10 +192,9 @@ func _validate(ctx context.Context) (*fluffycore_contracts_middleware_auth_jwt.P
 
 }
 func _loadValidators(rootContainer di.Container) {
-	if _validators != nil {
-		return
-	}
-	_validators = di.Get[[]fluffycore_contracts_middleware_auth_jwt.IValidator](rootContainer)
+	_validatorsOnce.Do(func() {
+		_validators = di.Get[[]fluffycore_contracts_middleware_auth_jwt.IValidator](rootContainer)
+	})
 }
 
 type Validation struct {

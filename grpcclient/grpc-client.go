@@ -308,13 +308,13 @@ func SetDefaultGrpcCallTimeout(timeoutInSeconds int) {
 
 // Creates context with timeout.
 func ContextWithTimeout(ctx context.Context, duration ...time.Duration) (context.Context, context.CancelFunc) {
-	if len(duration) == 0 && defaultGrpcCallTimeoutInSeconds == nil {
-		panic("GRPC client: Default grpc call timeout was not set")
-	}
-
-	timeoutDuration := time.Second * time.Duration(*defaultGrpcCallTimeoutInSeconds)
+	var timeoutDuration time.Duration
 	if len(duration) > 0 {
 		timeoutDuration = duration[0]
+	} else if defaultGrpcCallTimeoutInSeconds != nil {
+		timeoutDuration = time.Second * time.Duration(*defaultGrpcCallTimeoutInSeconds)
+	} else {
+		panic("GRPC client: Default grpc call timeout was not set")
 	}
 
 	return context.WithTimeout(ctx, timeoutDuration)

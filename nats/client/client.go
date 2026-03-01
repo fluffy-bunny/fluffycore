@@ -113,16 +113,17 @@ func (s *NATSClient) createNATSRequestHeaders(ctx context.Context) (nats.Header,
 
 	// we are a client so the metadata here is outgoing.  we just need to propogate that to
 	// the nats headers
-	md, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
-		md = metadata.Pairs()
-	}
 	var err error
 	for _, ctxModifier := range s.ctxModifiers {
 		ctx, err = ctxModifier(ctx, "")
 		if err != nil {
 			return nil, err
 		}
+	}
+	// Read metadata AFTER modifiers have had a chance to update the context
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		md = metadata.Pairs()
 	}
 	headers := nats.Header{}
 	// propogate the grpc metadata to the nats headers

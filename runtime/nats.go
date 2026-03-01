@@ -73,7 +73,8 @@ func StartNATSHandlerGateway(ctx context.Context, request *StartNATSHandlerGatew
 				},
 			)
 			if err != nil {
-				log.Fatal().Err(err).Msg("Failed to connect to NATS")
+				log.Error().Err(err).Msg("Failed to connect to NATS")
+				return
 			}
 			natsMicroServicesContainer := fluffycore_nats_micro_service.NewNATSMicroServicesContainer(
 				nc, request.Container,
@@ -81,7 +82,8 @@ func StartNATSHandlerGateway(ctx context.Context, request *StartNATSHandlerGatew
 
 			err = natsMicroServicesContainer.Register(ctx, request.Conn)
 			if err != nil {
-				log.Fatal().Err(err).Msg("failed to RegisterNATSMicroServiceHandlers")
+				log.Error().Err(err).Msg("failed to RegisterNATSMicroServiceHandlers")
+				return
 			}
 			request.Callback.SetNATSMicroServicesContainer(natsMicroServicesContainer)
 		}

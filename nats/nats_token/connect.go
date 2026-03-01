@@ -3,6 +3,7 @@ package nats_token
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 
 	status "github.com/gogo/status"
 	nats "github.com/nats-io/nats.go"
@@ -31,18 +32,24 @@ func CreateNATSConnectTokenClientCredentials(request *CreateNATSConnectTokenClie
 			Account:      request.Account,
 		},
 	}
-	natsConnectTokenJson, _ := json.Marshal(natsConnectToken)
+	natsConnectTokenJson, err := json.Marshal(natsConnectToken)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal NATS connect token: %w", err)
+	}
 	encodedToken := base64.StdEncoding.EncodeToString(natsConnectTokenJson)
 
 	return encodedToken, nil
 }
 
 func CreateNatsConnectionWithClientCredentials(request *NATSConnectTokenClientCredentialsRequest) (*nats.Conn, error) {
-	token, _ := CreateNATSConnectTokenClientCredentials(&CreateNATSConnectTokenClientCredentialsRequest{
+	token, err := CreateNATSConnectTokenClientCredentials(&CreateNATSConnectTokenClientCredentialsRequest{
 		ClientID:     request.ClientID,
 		ClientSecret: request.ClientSecret,
 		Account:      request.Account,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create NATS connect token: %w", err)
+	}
 	tokenHandler := nats.TokenHandler(func() string {
 		return token
 	})

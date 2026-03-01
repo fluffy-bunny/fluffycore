@@ -12,15 +12,15 @@ import (
 	echo "github.com/labstack/echo/v5"
 )
 
-func GetTemplateRender(rootDir string) *TemplateRenderer {
+func GetTemplateRender(rootDir string) (*TemplateRenderer, error) {
 	t, err := FindAndParseTemplates(rootDir, nil)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to parse templates from %s: %w", rootDir, err)
 	}
 
 	return &TemplateRenderer{
 		templates: t,
-	}
+	}, nil
 }
 
 func Render(c *echo.Context, code int, name string, data map[string]interface{}) error {
