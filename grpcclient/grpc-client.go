@@ -59,8 +59,8 @@ func Test() error {
 
 var defaultGrpcCallTimeoutInSeconds *int
 
-// GrpcClient object
-type GrpcClient struct {
+// GRPCClient object
+type GRPCClient struct {
 	conn                 *grpc.ClientConn
 	target               string
 	authority            string
@@ -76,14 +76,20 @@ type GrpcClient struct {
 	enableDataDogTracing bool
 }
 
-// ClientOption is used for option pattern calling
-type GrpcClientOption func(*GrpcClient) error
+// Deprecated: Use GRPCClient instead.
+type GrpcClient = GRPCClient
 
-// Create a client to access other microservices that expose grpc
-// Do not use this client to call external systems since it create insecure channel. Envoy provides security for internal networking.
-func NewGrpcClient(opts ...GrpcClientOption) (*GrpcClient, error) {
+// GRPCClientOption is used for option pattern calling.
+type GRPCClientOption func(*GRPCClient) error
+
+// Deprecated: Use GRPCClientOption instead.
+type GrpcClientOption = GRPCClientOption
+
+// NewGRPCClient creates a client to access other microservices that expose gRPC.
+// Do not use this client to call external systems since it creates an insecure channel. Envoy provides security for internal networking.
+func NewGRPCClient(opts ...GRPCClientOption) (*GRPCClient, error) {
 	// Create a client
-	c := &GrpcClient{
+	c := &GRPCClient{
 		insecure:          true, // By default Envoy cares about security
 		sidecarSecured:    true, // TODO: sidecarSecured/insecure should be set based on a cmdline/env option
 		enableOTELTracing: true,
@@ -311,9 +317,19 @@ func WithContext(ctx context.Context) GrpcClientOption {
 // Global settings
 //
 
-// SetDefaultGrpcCallTimeout sets the global default timeout in seconds for gRPC calls.
-func SetDefaultGrpcCallTimeout(timeoutInSeconds int) {
+// SetDefaultGRPCCallTimeout sets the global default timeout in seconds for gRPC calls.
+func SetDefaultGRPCCallTimeout(timeoutInSeconds int) {
 	defaultGrpcCallTimeoutInSeconds = &timeoutInSeconds
+}
+
+// Deprecated: Use SetDefaultGRPCCallTimeout instead.
+func SetDefaultGrpcCallTimeout(timeoutInSeconds int) {
+	SetDefaultGRPCCallTimeout(timeoutInSeconds)
+}
+
+// Deprecated: Use NewGRPCClient instead.
+func NewGrpcClient(opts ...GRPCClientOption) (*GRPCClient, error) {
+	return NewGRPCClient(opts...)
 }
 
 //

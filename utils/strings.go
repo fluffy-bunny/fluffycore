@@ -31,8 +31,8 @@ func CurlyBraceReplaceStrings(original string, replace map[string]string) string
 	return original
 }
 
-// LocalizeWithInterperlate localizes a message by ID and interpolates curly-brace placeholders.
-func LocalizeWithInterperlate(localizer *i18n.Localizer, id string, replace map[string]string) string {
+// LocalizeWithInterpolate localizes a message by ID and interpolates curly-brace placeholders.
+func LocalizeWithInterpolate(localizer *i18n.Localizer, id string, replace map[string]string) string {
 	template, err := localizer.LocalizeMessage(&i18n.Message{ID: id})
 	if err != nil {
 		return id
@@ -40,6 +40,11 @@ func LocalizeWithInterperlate(localizer *i18n.Localizer, id string, replace map[
 
 	s := CurlyBraceReplaceStrings(template, replace)
 	return s
+}
+
+// Deprecated: Use LocalizeWithInterpolate instead.
+func LocalizeWithInterperlate(localizer *i18n.Localizer, id string, replace map[string]string) string {
+	return LocalizeWithInterpolate(localizer, id, replace)
 }
 
 // LocalizeSimple localizes a message by ID without any placeholder interpolation.
