@@ -3,6 +3,7 @@ package nats_micro_service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -53,7 +54,8 @@ type NATSClientOption struct {
 	Timeout time.Duration
 }
 
-func InjectParamaterizedRoutesIntoProtoMessage(route string, parameterizedRoute string, m protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
+// InjectParameterizedRoutesIntoProtoMessage injects route parameters into a proto message.
+func InjectParameterizedRoutesIntoProtoMessage(route string, parameterizedRoute string, m protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
 	pJson, err := protojson.Marshal(m)
 	if err != nil {
 		return nil, err
@@ -103,6 +105,12 @@ func InjectParamaterizedRoutesIntoProtoMessage(route string, parameterizedRoute 
 	return m, nil
 }
 
+// Deprecated: Use InjectParameterizedRoutesIntoProtoMessage instead.
+func InjectParamaterizedRoutesIntoProtoMessage(route string, parameterizedRoute string, m protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
+	return InjectParameterizedRoutesIntoProtoMessage(route, parameterizedRoute, m)
+}
+
+// ExtractRouteParams extracts parameter values from a route by matching against a parameterized route pattern.
 func ExtractRouteParams(route string, parameterizedRoute string) (map[string]string, error) {
 	params := make(map[string]string)
 
@@ -140,11 +148,6 @@ func ExtractRouteParams(route string, parameterizedRoute string) (map[string]str
 		paramName := token[2 : len(token)-1]
 		params[paramName] = routeTokens[i]
 	}
-
-	// Ensure at least one parameter was extracted
-	//	if len(params) == 0 {
-	//		return nil, status.Error(codes.InvalidArgument, "no parameters extracted from the route")
-	//	}
 
 	return params, nil
 }
@@ -217,15 +220,15 @@ func isParameterToken(token string) bool {
 // func TokenToValue(token string) interface{}
 
 // ReplaceTokens replaces tokens in the input string using TokenToValue
-func ReplaceTokens(paramaterizedToken string, m protoreflect.ProtoMessage) (string, error) {
+func ReplaceTokens(parameterizedToken string, m protoreflect.ProtoMessage) (string, error) {
 	// Regular expression to find tokens like ${token}
 	tokenRegex := regexp.MustCompile(`\$\{([^}]+)\}`)
 
 	// Find all matches
-	matches := tokenRegex.FindAllStringSubmatch(paramaterizedToken, -1)
+	matches := tokenRegex.FindAllStringSubmatch(parameterizedToken, -1)
 
 	// Create a copy of the input string to modify
-	replacedString := paramaterizedToken
+	replacedString := parameterizedToken
 
 	pJson, err := protojson.Marshal(m)
 	if err != nil {
@@ -270,6 +273,7 @@ func ReplaceTokens(paramaterizedToken string, m protoreflect.ProtoMessage) (stri
 	return replacedString, nil
 }
 
+// HandleNATSClientRequest sends a protobuf request over NATS and unmarshals the response.
 func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 	ctx context.Context,
 	client *nats_client.NATSClient,
@@ -291,7 +295,7 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 
 	natsResponse, err := client.RequestWithContext(ctx, subject, msg)
 	if err != nil {
-		return response, fmt.Errorf("NATS request failed: %w", err)
+		return response, fmt.Errorf("nats request failed: %w", err)
 	}
 
 	natsServiceError, ok := natsResponse.Header["Nats-Service-Error"]
@@ -317,6 +321,8 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 	return response, nil
 }
 
+// HandleRequest processes an incoming NATS micro request by unmarshaling it,
+// injecting parameterized route values, invoking the service method, and responding.
 func HandleRequest[Req, Resp any](
 	req micro.Request,
 	groupName string,
@@ -346,7 +352,7 @@ func HandleRequest[Req, Resp any](
 	if fluffycore_utils.IsNotEmptyOrNil(groupName) {
 		fixedParameterizedToken = groupName + "." + fixedParameterizedToken
 	}
-	rr, err := InjectParamaterizedRoutesIntoProtoMessage(
+	rr, err := InjectParameterizedRoutesIntoProtoMessage(
 		subject,
 		fixedParameterizedToken,
 		pm)
@@ -384,29 +390,29 @@ func HandleRequest[Req, Resp any](
 }
 
 type NATSMicroServicesContainer struct {
-	natsMicroSerivices []micro.Service
-	nc                 *nats.Conn
-	rootContainer      di.Container
-	mutex              sync.Mutex
-	registered         bool
+	natsMicroServices []micro.Service
+	nc                *nats.Conn
+	rootContainer     di.Container
+	mutex             sync.Mutex
+	registered        bool
 }
 
+// NewNATSMicroServicesContainer creates a new container for managing NATS micro service registrations.
 func NewNATSMicroServicesContainer(nc *nats.Conn, rootContainer di.Container) *NATSMicroServicesContainer {
 	return &NATSMicroServicesContainer{
 		nc:            nc,
 		rootContainer: rootContainer,
 	}
 }
+
+// IsAnyNatsHandler returns true if any NATS endpoint registrations exist in the DI container.
 func IsAnyNatsHandler(rootContainer di.Container) bool {
 	natsMicroServiceRegistrations := di.Get[[]contracts_endpoint.INATSEndpointRegistration](rootContainer)
 	return len(natsMicroServiceRegistrations) > 0
 }
 func (s *NATSMicroServicesContainer) Register(ctx context.Context, conn *grpc.ClientConn) error {
 	s.mutex.Lock()
-	defer func() {
-		s.mutex.Unlock()
-		s.registered = true
-	}()
+	defer s.mutex.Unlock()
 	if s.registered {
 		return nil
 	}
@@ -424,26 +430,25 @@ func (s *NATSMicroServicesContainer) Register(ctx context.Context, conn *grpc.Cl
 			log.Warn().Msg("AddService returned nil, most likely due to no NATS handlers")
 			continue
 		}
-		s.natsMicroSerivices = append(s.natsMicroSerivices, natsMicroService)
+		s.natsMicroServices = append(s.natsMicroServices, natsMicroService)
 	}
+	s.registered = true
 	return nil
 }
 
 func (s *NATSMicroServicesContainer) Shutdown(ctx context.Context) error {
 	s.mutex.Lock()
-	defer func() {
-		s.mutex.Unlock()
-	}()
+	defer s.mutex.Unlock()
 	if !s.registered {
 		return nil
 	}
 	log := zerolog.Ctx(ctx).With().Logger()
-	err := s.stopNATSMicroServices(ctx, s.natsMicroSerivices)
+	err := s.stopNATSMicroServices(ctx, s.natsMicroServices)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to StopNATSMicroServices")
 	}
 	s.nc.Close()
-	return nil
+	return err
 }
 
 func (s *NATSMicroServicesContainer) stopNATSMicroServices(ctx context.Context, ms []micro.Service) error {
@@ -457,10 +462,12 @@ func (s *NATSMicroServicesContainer) stopNATSMicroServices(ctx context.Context, 
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("failed to Stop some services %v", errs)
+		return errors.Join(errs...)
 	}
 	return nil
 }
+
+// ConvertToStringMap converts NATS micro headers to a flat string map, taking the first value per key.
 func ConvertToStringMap(h micro.Headers) map[string]string {
 	result := make(map[string]string)
 	for key, values := range h {
@@ -471,6 +478,8 @@ func ConvertToStringMap(h micro.Headers) map[string]string {
 	return result
 }
 
+// SendNATSRequestInterceptor returns a gRPC unary client interceptor that routes
+// gRPC calls over NATS using the provided method-to-subject mapping function.
 func SendNATSRequestInterceptor(natsClient *nats_client.NATSClient,
 	methodToSubject func(string) (string, bool)) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
@@ -479,20 +488,22 @@ func SendNATSRequestInterceptor(natsClient *nats_client.NATSClient,
 		if !ok {
 			return status.Error(codes.Internal, "methodToSubject failed")
 		}
-		// propegate all grpc metadata to the nats headers
+		// propagate all grpc metadata to the nats headers
 		md, ok := metadata.FromOutgoingContext(ctx)
 		if ok {
 			headers := nats.Header{}
 			for k, v := range md {
 				headers[k] = v
 			}
+			// TODO: pass headers to NATS request when supported
+			_ = headers
 		}
-		// typecase req to a protomessage
+		// typecast req to a protomessage
 		reqProto, ok := req.(protoreflect.ProtoMessage)
 		if !ok {
 			return status.Error(codes.Internal, "req is not a protoreflect.ProtoMessage")
 		}
-		// typecase reply to a protomessage
+		// typecast reply to a protomessage
 		replyProto, ok := reply.(protoreflect.ProtoMessage)
 		if !ok {
 			return status.Error(codes.Internal, "reply is not a protoreflect.ProtoMessage")

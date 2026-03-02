@@ -50,6 +50,8 @@ import (
 	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 )
 
+// ServerInstance holds the state for a running gRPC server, including the gRPC-Gateway HTTP server,
+// NATS micro services, and the DI root container.
 type ServerInstance struct {
 	Server *grpc.Server
 	Future async.Future[*fluffycore_async.AsyncResponse]
@@ -65,6 +67,8 @@ type ServerInstance struct {
 	NATSMicroServicesContainer *fluffycore_nats_micro_service.NATSMicroServicesContainer
 	DataDogProfiler            fluffycore_contracts_ddprofiler.IDataDogProfiler
 }
+
+// Runtime manages the lifecycle of a gRPC server instance and handles OS signal shutdown.
 type Runtime struct {
 	ServerInstance *ServerInstance
 	waitChannel    chan os.Signal
@@ -267,7 +271,7 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	startup.Configure(ctx, si.RootContainer, unaryServerInterceptorBuilder, streamServerInterceptorBuilder)
 
 	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepalive.ServerParameters{
-		MaxConnectionIdle: 5 * time.Minute, // <--- This fixes it!
+		MaxConnectionIdle: 5 * time.Minute,
 	}))
 	unaryInterceptors := unaryServerInterceptorBuilder.GetUnaryServerInterceptors()
 	if len(unaryInterceptors) != 0 {
@@ -346,11 +350,13 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 	// now we add NATS
 	// ===============================================================
-	StartNATSHandlerGateway(ctx, &StartNATSHandlerGatewayRequest{
+	if err := StartNATSHandlerGateway(ctx, &StartNATSHandlerGatewayRequest{
 		Container: si.RootContainer,
 		Conn:      conn,
 		Callback:  s,
-	})
+	}); err != nil {
+		log.Error().Err(err).Msg("Failed to start NATS handler gateway")
+	}
 
 	if coreConfig.GRPCGateWayEnabled {
 		// the framework already is putting in the metadata like authorization when it forwards the request
@@ -409,12 +415,17 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	si.Future.Join()
 
 }
+
+// FluffyGRPCGatewayDefaultHTTPErrorHandler is a gRPC-Gateway HTTP error handler that ensures
+// server metadata is present in the context before delegating to the default handler.
 func FluffyGRPCGatewayDefaultHTTPErrorHandler(ctx context.Context, mux *grpc_gateway_runtime.ServeMux, marshaler grpc_gateway_runtime.Marshaler, w http.ResponseWriter, r *http.Request, err error) {
 	// we need to set the metadata so we don't get a nonsense log that it doesn't exist
 	var metadata grpc_gateway_runtime.ServerMetadata
 	ctx = grpc_gateway_runtime.NewServerMetadataContext(ctx, metadata)
 	grpc_gateway_runtime.DefaultHTTPErrorHandler(ctx, mux, marshaler, w, r, err)
 }
+
+// LoadConfig loads configuration from JSON files and environment variables using viper.
 func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error {
 	v := viper.NewWithOptions(viper.KeyDelimiter("__"))
 	var err error
@@ -473,7 +484,7 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	configOptions.RootConfig = rootConfig
 	err = v.ReadConfig(bytes.NewBuffer(configOptions.RootConfig))
 	if err != nil {
-		log.Err(err).Msg("ConfigDefaultYaml did not read in")
+		log.Error().Err(err).Msg("ConfigDefaultJSON did not read in")
 		return err
 	}
 
@@ -509,7 +520,7 @@ func LoadConfig(configOptions *fluffycore_contract_runtime.ConfigOptions) error 
 	if err != nil {
 		return err
 	}
-	// we do all settings here, becuase a v.AllSettings will NOT bring in the ENV variables
+	// we do all settings here, because a v.AllSettings will NOT bring in the ENV variables
 	structs.DefaultTagName = "mapstructure"
 	allSettings := structs.Map(configOptions.Destination)
 
@@ -551,9 +562,12 @@ func fixPath(fpath string) string {
 	}
 
 	// Make it absolute
-	fpath, _ = filepath.Abs(fpath)
+	absPath, err := filepath.Abs(fpath)
+	if err != nil {
+		return fpath // Return original if Abs fails
+	}
 
-	return fpath
+	return absPath
 }
 func asyncServeGRPC(ctx context.Context, grpcServer *grpc.Server, lis net.Listener) async.Future[*fluffycore_async.AsyncResponse] {
 	log := zerolog.Ctx(ctx).With().Logger()

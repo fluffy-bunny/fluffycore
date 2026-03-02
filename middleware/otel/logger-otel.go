@@ -74,7 +74,7 @@ func EnsureOpenTelemetryUnaryServerInterceptor(opt ...TraceOption) grpc.UnarySer
 			md[fluffycore_wellknown.XCorrelationIDName] = []string{correlationID}
 		}
 
-		loggerMap["correlation_id"] = correlationID
+		loggerMap[fluffycore_wellknown.LogCorrelationIDName] = correlationID
 		// this came into us, so its a parent
 		items := md[fluffycore_wellknown.XSpanName]
 		if len(items) > 0 {

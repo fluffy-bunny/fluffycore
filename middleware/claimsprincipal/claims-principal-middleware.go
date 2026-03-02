@@ -130,9 +130,14 @@ func FinalAuthVerificationMiddlewareUsingClaimsMapWithTrustOptionV2(grpcEntrypoi
 		return handler(ctx, req)
 	}
 }
-func FinalAuthVerificationMiddlewareNilVefication() grpc.UnaryServerInterceptor {
-	log.Info().Msg("FinalAuthVerificationMiddlewareNilVefication")
+func FinalAuthVerificationMiddlewareNilVerification() grpc.UnaryServerInterceptor {
+	log.Info().Msg("FinalAuthVerificationMiddlewareNilVerification")
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		return handler(ctx, req)
 	}
+}
+
+// Deprecated: Use FinalAuthVerificationMiddlewareNilVerification instead.
+func FinalAuthVerificationMiddlewareNilVefication() grpc.UnaryServerInterceptor {
+	return FinalAuthVerificationMiddlewareNilVerification()
 }

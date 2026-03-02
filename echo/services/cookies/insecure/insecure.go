@@ -1,4 +1,4 @@
-package secure
+package insecure
 
 import (
 	"encoding/base64"
@@ -89,7 +89,7 @@ func (s *service) GetCookie(c echo.Context, name string) (*contracts_cookies.Get
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(cookie.Value)
+	decoded, err := base64.URLEncoding.DecodeString(cookie.Value)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

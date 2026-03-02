@@ -372,18 +372,18 @@ func hrvFromMethod(proto *descriptorpb.FileDescriptorProto, method *protogen.Met
 		}
 	}
 	wildcardToken := hr.WildcardToken
-	paramaterizedToken := hr.ParameterizedToken
+	parameterizedToken := hr.ParameterizedToken
 
 	if fluffycore_utils.IsNotEmptyOrNil(wildcardToken) {
 		wildcardToken = "." + wildcardToken
 	}
-	if fluffycore_utils.IsNotEmptyOrNil(paramaterizedToken) {
-		paramaterizedToken = "." + paramaterizedToken
+	if fluffycore_utils.IsNotEmptyOrNil(parameterizedToken) {
+		parameterizedToken = "." + parameterizedToken
 	}
 
 	return &nats_micro_service.NATSMicroHandlerInfo{
 		WildcardToken:      method.GoName + wildcardToken,
-		ParameterizedToken: method.GoName + paramaterizedToken,
+		ParameterizedToken: method.GoName + parameterizedToken,
 	}
 
 }

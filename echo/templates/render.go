@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,15 +11,15 @@ import (
 	echo "github.com/labstack/echo/v5"
 )
 
-func GetTemplateRender(rootDir string) *TemplateRenderer {
+func GetTemplateRender(rootDir string) (*TemplateRenderer, error) {
 	t, err := FindAndParseTemplates(rootDir, nil)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to parse templates from %s: %w", rootDir, err)
 	}
 
 	return &TemplateRenderer{
 		templates: t,
-	}
+	}, nil
 }
 
 func Render(c *echo.Context, code int, name string, data map[string]interface{}) error {
@@ -52,7 +51,6 @@ func FolderExists(filePath string) bool {
 	}
 	// Other errors might indicate permission issues or other problems.
 	// In this case, we'll consider the folder as not existing for simplicity.
-	fmt.Println("Error checking folder:", err)
 	return false
 }
 func (t *TemplateRenderer) Render(c *echo.Context, w io.Writer, name string, data any) error {
@@ -68,15 +66,14 @@ func FindAndParseTemplates(rootDir string, funcMap template.FuncMap) (*template.
 	root := template.New("")
 
 	err := filepath.Walk(cleanRoot, func(path string, info os.FileInfo, e1 error) error {
-		if info == nil {
+		if e1 != nil {
 			return e1
 		}
+		if info == nil {
+			return nil
+		}
 		if !info.IsDir() && strings.HasSuffix(path, ".tpl") {
-			if e1 != nil {
-				return e1
-			}
-
-			b, e2 := ioutil.ReadFile(path)
+			b, e2 := os.ReadFile(path)
 			if e2 != nil {
 				return e2
 			}

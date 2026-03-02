@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_profiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
@@ -107,7 +106,8 @@ func (s *service) Start(ctx context.Context) {
 }
 func (s *service) Stop(ctx context.Context) {
 	if s.config.DDProfilerConfig.Enabled {
-		log.Info().Msg("Stoping Datadog Tracer and Profiler")
+		log := zerolog.Ctx(ctx).With().Logger()
+		log.Info().Msg("Stopping Datadog Tracer and Profiler")
 		tracer.Stop()
 		if s.errProfiler == nil {
 			profiler.Stop()
