@@ -36,7 +36,7 @@ func EnsureCorrelationIDUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 			md[fluffycore_wellknown.XCorrelationIDName] = []string{correlationID}
 		}
 
-		loggerMap["correlation_id"] = correlationID
+		loggerMap[fluffycore_wellknown.LogCorrelationIDName] = correlationID
 		// this came into us, so its a parent
 		items := md[fluffycore_wellknown.XSpanName]
 		if items != nil && len(items) > 0 {
@@ -91,7 +91,7 @@ func EnsureOTELCorrelationIDUnaryServerInterceptor() grpc.UnaryServerInterceptor
 			md[fluffycore_wellknown.XCorrelationIDName] = []string{correlationID}
 		}
 
-		loggerMap["correlation_id"] = correlationID
+		loggerMap[fluffycore_wellknown.LogCorrelationIDName] = correlationID
 		loggerMap["trace_id"] = traceID
 
 		log := zerolog.Ctx(ctx)

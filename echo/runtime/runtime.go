@@ -99,7 +99,6 @@ func (s *Runtime) phase1() error {
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	logLevel := os.Getenv("LOG_LEVEL")
 	if len(logLevel) == 0 {
 		logLevel = "info"
@@ -165,7 +164,11 @@ func (s *Runtime) phase2() error {
 func (s *Runtime) phase3() error {
 	s.echo = echo.New()
 	//Set Renderer
-	s.echo.Renderer = core_echo_templates.GetTemplateRender("./static/templates")
+	renderer, err := core_echo_templates.GetTemplateRender("./static/templates")
+	if err != nil {
+		return fmt.Errorf("failed to initialize template renderer: %w", err)
+	}
+	s.echo.Renderer = renderer
 
 	// MIDDLEWARE
 	//-------------------------------------------------------

@@ -42,6 +42,17 @@ func FinalAuthVerificationMiddlewareUsingClaimsMap(entrypointClaimsMap map[strin
 
 			authenticated := claimsPrincipal.HasClaimType(wellknown.ClaimTypeAuthenticated)
 			elem, ok := entrypointClaimsMap[path]
+			if !ok {
+				if enableZeroTrust {
+					subLogger.Debug().Msg("FullMethod not found in entrypoint claims map")
+					if !authenticated {
+						return c.String(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+					}
+					return c.Redirect(http.StatusFound, "/unauthorized")
+				}
+				// Not in claims map and zero trust disabled — allow through
+				return next(c)
+			}
 			permissionDeniedFunc := func() error {
 				if !authenticated {
 					if !core_utils.IsNil(elem) {
@@ -49,14 +60,10 @@ func FinalAuthVerificationMiddlewareUsingClaimsMap(entrypointClaimsMap map[strin
 						if ok && directive == "login" {
 							return c.Redirect(http.StatusFound, "/login?redirect_url="+c.Request().URL.String())
 						}
-						return c.String(http.StatusUnauthorized, "Unauthorized")
+						return c.String(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 					}
 				}
 				return c.Redirect(http.StatusFound, "/unauthorized")
-			}
-			if !ok && enableZeroTrust {
-				subLogger.Debug().Msg("FullMethod not found in entrypoint claims map")
-				return permissionDeniedFunc()
 			}
 			if !middleware_claimsprincipal.Validate(&subLogger, elem.ClaimsConfig, claimsPrincipal) {
 				subLogger.Debug().Msg("ClaimsConfig validation failed")

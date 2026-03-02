@@ -61,10 +61,12 @@ func (s *service) GetCookieSession(name string) (contracts_sessions.ISession, er
 	}
 
 	obj := di.Get[contracts_sessions.IInternalCookieSession](s.container)
-	obj.Initialize(&contracts_sessions.InitializeRequest{
+	if err := obj.Initialize(&contracts_sessions.InitializeRequest{
 		Name:                name,
 		EchoContextAccessor: s.contextAccessor,
-	})
+	}); err != nil {
+		return nil, err
+	}
 	s.cookieSessions[name] = obj
 	return obj, nil
 }
@@ -79,10 +81,12 @@ func (s *service) GetBackendSession(name string) (contracts_sessions.ISession, e
 	}
 
 	obj := di.Get[contracts_sessions.IInternalBackendSession](s.container)
-	obj.Initialize(&contracts_sessions.InitializeRequest{
+	if err := obj.Initialize(&contracts_sessions.InitializeRequest{
 		Name:                name,
 		EchoContextAccessor: s.contextAccessor,
-	})
+	}); err != nil {
+		return nil, err
+	}
 	s.backendSessions[name] = obj
 	return obj, nil
 }

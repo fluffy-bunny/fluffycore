@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
 )
 
@@ -14,7 +15,7 @@ type jwtToken struct {
 func newJWTToken(innerToken jwxt.Token, bearer string) *jwtToken {
 	// Turn permissions in to a map
 	pMap := make(map[string]bool)
-	val, ok := innerToken.Get("permissions")
+	val, ok := innerToken.Get(fluffycore_wellknown.ClaimTypePermissions)
 	if ok {
 		perms, ok := val.([]interface{})
 		if ok {

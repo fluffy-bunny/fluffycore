@@ -47,7 +47,7 @@ func (c *claimsPrincipal) RemoveClaimType(claimTypes ...string) {
 	for _, claimType := range claimTypes {
 		_, ok := c.claims[claimType]
 		if !ok {
-			return
+			continue
 		}
 		delete(c.claims, claimType)
 		delete(c.fastMap, claimType)
@@ -60,7 +60,7 @@ func (c *claimsPrincipal) RemoveClaim(claims ...fluffycore_contracts_common.Clai
 	for _, claim := range claims {
 		claims, ok := c.claims[claim.Type]
 		if !ok {
-			return
+			continue
 		}
 
 		var foundidx *int
@@ -75,6 +75,9 @@ func (c *claimsPrincipal) RemoveClaim(claims ...fluffycore_contracts_common.Clai
 			if len(c.claims[claim.Type]) == 0 {
 				delete(c.claims, claim.Type)
 				delete(c.fastMap, claim.Type)
+			} else {
+				// Remove individual value from fastMap
+				delete(c.fastMap[claim.Type], claim.Value)
 			}
 		}
 	}
@@ -122,10 +125,10 @@ func (c *claimsPrincipal) addFastMapClaim(claim fluffycore_contracts_common.Clai
 func (c *claimsPrincipal) AddClaim(claims ...fluffycore_contracts_common.Claim) {
 	for _, claim := range claims {
 		if len(claim.Type) == 0 {
-			return
+			continue
 		}
 		if c.HasClaim(claim) {
-			return
+			continue
 		}
 
 		claims, ok := c.claims[claim.Type]

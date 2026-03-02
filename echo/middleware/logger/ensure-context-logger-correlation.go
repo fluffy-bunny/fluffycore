@@ -23,7 +23,7 @@ func EnsureContextLoggerCorrelation(_ di.Container) echo.MiddlewareFunc {
 			if fluffycore_utils.IsEmptyOrNil(correlationID) {
 				correlationID = fluffycore_utils.GenerateUniqueID()
 			}
-			loggerMap["correlation_id"] = correlationID
+			loggerMap[fluffycore_wellknown.LogCorrelationIDName] = correlationID
 
 			// SPANS
 			span := headers.Get(fluffycore_wellknown.XSpanName)

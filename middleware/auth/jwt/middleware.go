@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
@@ -14,12 +15,13 @@ import (
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_services_common_claimsprincipal "github.com/fluffy-bunny/fluffycore/services/common/claimsprincipal"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
+	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	status "github.com/gogo/status"
 	copier "github.com/jinzhu/copier"
 	jwxk "github.com/lestrrat-go/jwx/v2/jwk"
 	jws "github.com/lestrrat-go/jwx/v2/jws"
 	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
-	log "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	metadata "google.golang.org/grpc/metadata"
@@ -34,6 +36,7 @@ type (
 
 var _cache *jwxk.Cache
 var _issuerConfigs map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig
+var _validatorsOnce sync.Once
 
 func init() {
 	var _ fluffycore_contracts_middleware_auth_jwt.IValidator = &service{}
@@ -41,6 +44,7 @@ func init() {
 	_issuerConfigs = make(map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig)
 }
 
+// AddValidators registers JWT validators for each issuer configuration into the DI container.
 func AddValidators(builder di.ContainerBuilder, config *fluffycore_contracts_middleware_auth_jwt.IssuerConfigs) {
 	for _, issuerConfig := range config.IssuerConfigs {
 		dst := &fluffycore_contracts_middleware_auth_jwt.IssuerConfig{}
@@ -61,6 +65,7 @@ func AddValidators(builder di.ContainerBuilder, config *fluffycore_contracts_mid
 	}
 }
 
+// AddNilValidator registers a no-op JWT validator, replacing any existing validators.
 func AddNilValidator(builder di.ContainerBuilder) {
 	// we don't want any other validators in here.
 	builder.Remove(reflect.TypeOf((*fluffycore_contracts_middleware_auth_jwt.IValidator)(nil)).Elem())
@@ -134,7 +139,7 @@ func getTokenFromAuthorizationHeader(ctx context.Context) (*string, error) {
 		return nil, status.Errorf(codes.Unauthenticated, "no metadata found")
 	}
 	// its an Authorization : Bearer {{token}}
-	bear := md.Get("authorization")
+	bear := md.Get(fluffycore_wellknown.MetadataKeyAuthorization)
 	if len(bear) == 0 {
 		// not having anything is ok.
 		return nil, nil
@@ -143,7 +148,7 @@ func getTokenFromAuthorizationHeader(ctx context.Context) (*string, error) {
 	if len(authorization) != 2 {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid authorization")
 	}
-	if strings.ToLower(authorization[0]) != "bearer" {
+	if strings.ToLower(authorization[0]) != fluffycore_wellknown.AuthSchemeBearer {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid authorization")
 	}
 	token := authorization[1]
@@ -190,23 +195,29 @@ func _validate(ctx context.Context) (*fluffycore_contracts_middleware_auth_jwt.P
 
 }
 func _loadValidators(rootContainer di.Container) {
-	if _validators != nil {
-		return
-	}
-	_validators = di.Get[[]fluffycore_contracts_middleware_auth_jwt.IValidator](rootContainer)
+	_validatorsOnce.Do(func() {
+		_validators = di.Get[[]fluffycore_contracts_middleware_auth_jwt.IValidator](rootContainer)
+	})
 }
 
+// Validation holds configuration options for JWT validation interceptors.
 type Validation struct {
 	AnonymousOnFailure bool
 }
+
+// ValidationOption is a functional option for configuring JWT validation.
 type ValidationOption func(*Validation)
 
+// WithAnonymousOnFailure returns a ValidationOption that allows requests to proceed
+// as anonymous when JWT validation fails, instead of returning an error.
 func WithAnonymousOnFailure() ValidationOption {
 	return func(v *Validation) {
 		v.AnonymousOnFailure = true
 	}
 }
 
+// UnaryServerInterceptor returns a gRPC unary server interceptor that validates JWTs
+// and populates the scoped IClaimsPrincipal with token claims.
 func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption) grpc.UnaryServerInterceptor {
 	_loadValidators(rootContainer)
 	validation := &Validation{}
@@ -222,12 +233,12 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 		if err != nil && requestContextClaimsToPropagate == nil {
 			requestContextClaimsToPropagate = &fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig{
 				ClaimToContextMap: map[string]string{
-					"sub":       "sub",
-					"client_id": "client_id",
-					"email":     "email",
-					"aud":       "aud",
+					fluffycore_wellknown.ClaimTypeSub:      fluffycore_wellknown.ClaimTypeSub,
+					fluffycore_wellknown.ClaimTypeClientID: fluffycore_wellknown.ClaimTypeClientID,
+					fluffycore_wellknown.ClaimTypeEmail:    fluffycore_wellknown.ClaimTypeEmail,
+					fluffycore_wellknown.ClaimTypeAud:      fluffycore_wellknown.ClaimTypeAud,
 				},
-				ContextOrigin: "ctxOrigin",
+				ContextOrigin: fluffycore_wellknown.ContextOriginKey,
 			}
 		} else {
 			// Create a new map instead of modifying the potentially shared one
@@ -236,10 +247,10 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 			for k, v := range requestContextClaimsToPropagate.ClaimToContextMap {
 				newMap[k] = v
 			}
-			newMap["sub"] = "sub"
-			newMap["client_id"] = "client_id"
-			newMap["email"] = "email"
-			newMap["aud"] = "aud"
+			newMap[fluffycore_wellknown.ClaimTypeSub] = fluffycore_wellknown.ClaimTypeSub
+			newMap[fluffycore_wellknown.ClaimTypeClientID] = fluffycore_wellknown.ClaimTypeClientID
+			newMap[fluffycore_wellknown.ClaimTypeEmail] = fluffycore_wellknown.ClaimTypeEmail
+			newMap[fluffycore_wellknown.ClaimTypeAud] = fluffycore_wellknown.ClaimTypeAud
 			requestContextClaimsToPropagate = &fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig{
 				ClaimToContextMap: newMap,
 				ContextOrigin:     requestContextClaimsToPropagate.ContextOrigin,
@@ -250,20 +261,20 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 		if err != nil {
 			if validation.AnonymousOnFailure {
 				claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
-					Type:  string("sub"),
-					Value: "anonymous",
+					Type:  fluffycore_wellknown.ClaimTypeSub,
+					Value: fluffycore_wellknown.AnonymousSubject,
 				})
-				propertyBag.Set("sub", "anonymous")
+				propertyBag.Set(fluffycore_wellknown.ClaimTypeSub, fluffycore_wellknown.AnonymousSubject)
 				return handler(ctx, req)
 			}
 			e, ok := status.FromError(err)
 			if ok {
 				if e.Code() == codes.NotFound {
 					claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
-						Type:  string("sub"),
-						Value: "anonymous",
+						Type:  fluffycore_wellknown.ClaimTypeSub,
+						Value: fluffycore_wellknown.AnonymousSubject,
 					})
-					propertyBag.Set("sub", "anonymous")
+					propertyBag.Set(fluffycore_wellknown.ClaimTypeSub, fluffycore_wellknown.AnonymousSubject)
 					return handler(ctx, req)
 				}
 			}
@@ -275,7 +286,7 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 		claimsPrincipal.AddClaim(claimsPrincipalScratch.GetClaims()...)
 		if !fluffycore_utils.IsEmptyOrNil(jwtToken.GetID()) {
 			claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
-				Type:  string("sub"),
+				Type:  fluffycore_wellknown.ClaimTypeSub,
 				Value: jwtToken.GetID(),
 			})
 		}
@@ -299,6 +310,8 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 	}
 }
 
+// StreamServerInterceptor returns a gRPC stream server interceptor that validates JWTs
+// and populates the scoped IClaimsPrincipal with token claims.
 func StreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterceptor {
 	_loadValidators(rootContainer)
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
@@ -316,7 +329,7 @@ func StreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterc
 
 		if !fluffycore_utils.IsEmptyOrNil(jwtToken.GetID()) {
 			claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
-				Type:  string("sub"),
+				Type:  fluffycore_wellknown.ClaimTypeSub,
 				Value: jwtToken.GetID(),
 			})
 		}
@@ -331,7 +344,7 @@ func getRawToken(ctx context.Context, accessToken string) (*fluffycore_contracts
 		jwxt.WithVerify(false))
 	if err != nil {
 		msg := "Failed to parse JWT. Invalid format"
-		log.Warn().Err(err).Msg(msg)
+		zerolog.Ctx(ctx).Warn().Err(err).Msg(msg)
 		return nil, status.Error(codes.Unauthenticated, msg)
 	}
 
@@ -339,7 +352,7 @@ func getRawToken(ctx context.Context, accessToken string) (*fluffycore_contracts
 	notValidatedTokenMsg, err := jws.ParseString(accessToken)
 	if err != nil {
 		msg := "Failed to parse JWT. Invalid headers"
-		log.Warn().Err(err).Msg(msg)
+		zerolog.Ctx(ctx).Warn().Err(err).Msg(msg)
 		return nil, status.Error(codes.Unauthenticated, msg)
 	}
 	rt := &fluffycore_contracts_middleware_auth_jwt.ParsedToken{

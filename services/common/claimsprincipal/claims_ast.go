@@ -1,11 +1,10 @@
 package claimsprincipal
 
 import (
+	"fmt"
 	"strings"
 
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
-
-	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -153,8 +152,8 @@ func (p *ClaimsAST) _validate(claimsPrincipal fluffycore_contracts_common.IClaim
 		return false
 	}
 
-	log.Fatal().Int("op", int(op)).Msg("invalid operand")
-	return false
+	// This should be unreachable with valid operands
+	panic(fmt.Sprintf("invalid operand: %d", int(op)))
 }
 
 // String ...
@@ -197,6 +196,6 @@ func (p *ClaimsAST) _string(op fluffycore_contracts_common.Operand) string {
 		return "(" + strings.Join(groups, " OR ") + ")"
 	}
 
-	log.Fatal().Int("op", int(op)).Msg("invalid operand")
-	return ""
+	// This should be unreachable with valid operands
+	panic(fmt.Sprintf("invalid operand: %d", int(op)))
 }

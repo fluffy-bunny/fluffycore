@@ -7,7 +7,6 @@ package mongostore
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"net/http"
 	"time"
@@ -18,6 +17,7 @@ import (
 	xid "github.com/rs/xid"
 	bson "go.mongodb.org/mongo-driver/bson"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
+	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
 	codes "google.golang.org/grpc/codes"
 )
 
@@ -140,17 +140,8 @@ func (m *MongoStore) MaxAge(age int) {
 
 // VerifyID checks if the given ID is a valid rs/xid ID.
 func VerifyID(id string) bool {
-	decoded, err := hex.DecodeString(id)
-	if err != nil {
-		return false
-	}
-
-	// Check if the ID is 12 bytes long.
-	if len(decoded) != 12 {
-		return false
-	}
-
-	return true
+	_, err := xid.FromString(id)
+	return err == nil
 }
 func NewId() string {
 	return xid.New().String()
@@ -214,7 +205,7 @@ func (m *MongoStore) upsert(session *sessions.Session) error {
 		Modified: modified,
 	}
 	filter := bson.M{"_id": session.ID}
-	_, err = m.coll.ReplaceOne(ctxTimeout, filter, s)
+	_, err = m.coll.ReplaceOne(ctxTimeout, filter, s, mongo_options.Replace().SetUpsert(true))
 
 	if err != nil {
 		return err

@@ -61,7 +61,7 @@ func TestInject(t *testing.T) {
 		OrgId: "1234567890",
 		Age:   1,
 	}
-	rr, err := nats_micro_service.InjectParamaterizedRoutesIntoProtoMessage(
+	rr, err := nats_micro_service.InjectParameterizedRoutesIntoProtoMessage(
 		"norg.org1.nage.23.org.org1.age.23",
 		"norg.${orgId}.nage.${age}.org.${nestedMessage.orgId}.age.${nestedMessage.age}",
 		request)

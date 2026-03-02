@@ -37,7 +37,12 @@ func GetDbMigratePath() string {
 	var configPath string
 	_, err := os.Stat(relativePath)
 	if !os.IsNotExist(err) {
-		configPath, _ = filepath.Abs(relativePath)
+		absPath, absErr := filepath.Abs(relativePath)
+		if absErr != nil {
+			log.Error().Err(absErr).Str("path", relativePath).Msg("Failed to resolve absolute path")
+			return ""
+		}
+		configPath = absPath
 		log.Info().Str("path", configPath).Msg("Configuration Root Folder")
 	}
 	return configPath

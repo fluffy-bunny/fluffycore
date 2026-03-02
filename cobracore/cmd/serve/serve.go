@@ -46,17 +46,17 @@ func validateOsEnvs() error {
 	for _, e := range wellKnownEnvDefinitions {
 		env, ok := os.LookupEnv(e.Name)
 		if !ok {
-			return fmt.Errorf("ENV:%v is not present", e.Name)
+			return fmt.Errorf("env %v is not present", e.Name)
 		}
 		switch e.Type {
 		case Int:
 			_, err := strconv.ParseInt(env, 0, 64)
 			if err != nil {
-				return fmt.Errorf("ENV:%v=%v must be an int", e, env)
+				return fmt.Errorf("env %v=%v must be an int", e, env)
 			}
 		case String:
 			if len(env) == 0 {
-				return fmt.Errorf("ENV:%v is nil or empty", e)
+				return fmt.Errorf("env %v is nil or empty", e)
 			}
 		}
 	}
