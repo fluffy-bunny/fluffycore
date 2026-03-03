@@ -13,7 +13,7 @@ require (
 	github.com/eko/gocache/store/redis/v4 v4.2.6
 	github.com/fatih/structs v1.1.0
 	github.com/fluffy-bunny/fluffy-dozm-di v0.0.5
-	github.com/fluffy-bunny/viperEx v0.0.36
+	github.com/fluffy-bunny/viperEx v0.0.38
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gogo/status v1.1.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -203,7 +203,7 @@ require (
 	golang.org/x/mod v0.32.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.41.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
