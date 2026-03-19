@@ -12,12 +12,12 @@ import (
 )
 
 type CookieOptions struct {
-	Path     string
-	MaxAge   int // in seconds, 0 means session cookie, -1 deletes cookie
-	Domain   string
-	Secure   bool
-	HttpOnly bool   // Note: cannot be set via JavaScript
-	SameSite string // "Strict", "Lax", or "None"
+	Path     string `json:"path"`
+	MaxAge   int    `json:"max_age"` // in seconds, 0 means session cookie, -1 deletes cookie
+	Domain   string `json:"domain"`
+	Secure   bool   `json:"secure"`
+	HttpOnly bool   `json:"http_only"` // Note: cannot be set via JavaScript
+	SameSite string `json:"same_site"` // "Strict", "Lax", or "None"
 }
 
 // DefaultCookieOptions returns sensible defaults

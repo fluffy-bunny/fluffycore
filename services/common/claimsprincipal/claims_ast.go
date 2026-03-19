@@ -43,11 +43,11 @@ const (
 // Is the equivalent to:
 // if A && B && ((C || D) || (E || F || (G && H))) && !(I || J)
 type ClaimsAST struct {
-	ClaimFacts []fluffycore_contracts_common.IClaimFact
+	ClaimFacts []fluffycore_contracts_common.IClaimFact `json:"claim_facts"`
 
-	And []fluffycore_contracts_common.IClaimsValidator
-	Or  []fluffycore_contracts_common.IClaimsValidator
-	Not []fluffycore_contracts_common.IClaimsValidator
+	And []fluffycore_contracts_common.IClaimsValidator `json:"and"`
+	Or  []fluffycore_contracts_common.IClaimsValidator `json:"or"`
+	Not []fluffycore_contracts_common.IClaimsValidator `json:"not"`
 }
 
 func init() {

@@ -9,7 +9,7 @@ import (
 
 // EntryPointClaimsBuilder struct
 type EntryPointClaimsBuilder struct {
-	EntrypointClaimsMap map[string]contracts_common.IEntryPointConfig
+	EntrypointClaimsMap map[string]contracts_common.IEntryPointConfig `json:"entrypoint_claims_map"`
 }
 
 // NewEntryPointClaimsBuilder ...

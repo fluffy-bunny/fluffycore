@@ -5,7 +5,7 @@ import (
 	wellknown "github.com/fluffy-bunny/fluffycore/cmd/echo-example/internal/wellknown"
 	contracts_handler "github.com/fluffy-bunny/fluffycore/echo/contracts/handler"
 	echo "github.com/labstack/echo/v5"
-	echoSwagger "github.com/swaggo/echo-swagger"
+	echoSwagger "github.com/swaggo/echo-swagger/v2"
 )
 
 type (

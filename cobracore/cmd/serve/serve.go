@@ -22,13 +22,13 @@ const (
 )
 
 type EnvDefinition struct {
-	Type  EnvType
-	Name  string
-	Regex string
+	Type  EnvType `json:"type"`
+	Name  string  `json:"name"`
+	Regex string  `json:"regex"`
 }
 type env struct {
-	Name  string
-	Value string
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 var wellKnownEnvDefinitions = []EnvDefinition{

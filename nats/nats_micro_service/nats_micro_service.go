@@ -47,11 +47,11 @@ func AddCommonNATSServices(builder di.ContainerBuilder) {
 }
 
 type NATSRequestHeaderContainer struct {
-	Header map[string][]string
+	Header map[string][]string `json:"header"`
 }
 type NATSClientOption struct {
-	NC      *nats.Conn
-	Timeout time.Duration
+	NC      *nats.Conn    `json:"-"`
+	Timeout time.Duration `json:"timeout"`
 }
 
 // InjectParameterizedRoutesIntoProtoMessage injects route parameters into a proto message.

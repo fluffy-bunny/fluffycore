@@ -19,8 +19,8 @@ window.isAppConfigReady = function() {}
 window.getAppConfig = function() {}
 */
 type LoadConfigOptions struct {
-	IsReadyFuncName   string // i.e. "isAppConfigReady"
-	GetConfigFuncName string // i.e. "getAppConfig"
+	IsReadyFuncName   string `json:"is_ready_func_name"`   // i.e. "isAppConfigReady"
+	GetConfigFuncName string `json:"get_config_func_name"` // i.e. "getAppConfig"
 }
 
 // LoadConfigFromJS retrieves the app config that was pre-loaded by JavaScript

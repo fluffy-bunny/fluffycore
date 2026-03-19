@@ -16,8 +16,8 @@ type (
 	ClaimFactDirective int64
 	// ClaimFact ...
 	ClaimFact struct {
-		Claim     contracts_core_claimsprincipal.Claim
-		Directive ClaimFactDirective
+		Claim     contracts_core_claimsprincipal.Claim `json:"claim"`
+		Directive ClaimFactDirective                   `json:"directive"`
 	}
 )
 
@@ -56,9 +56,9 @@ const (
 
 // ClaimsConfig ...
 type ClaimsConfig struct {
-	OR    []*services_claimfact.ClaimFact `mapstructure:"OR"`
-	AND   []*services_claimfact.ClaimFact `mapstructure:"AND"`
-	Child *ClaimsConfig
+	OR    []*services_claimfact.ClaimFact `json:"or" mapstructure:"OR"`
+	AND   []*services_claimfact.ClaimFact `json:"and" mapstructure:"AND"`
+	Child *ClaimsConfig                   `json:"child"`
 }
 
 // GetChild gets or creates a child config that will be changed to the parent for evalutation
@@ -87,17 +87,17 @@ func (s *ClaimsConfig) WithGrpcEntrypointPermissionsClaimFactsMapAND(claimFacts 
 
 // EntryPointConfig ...
 type EntryPointConfig struct {
-	FullMethodName string                 `mapstructure:"FULL_METHOD_NAME"`
-	ClaimsConfig   *ClaimsConfig          `mapstructure:"CLAIMS_CONFIG"`
-	MetaData       map[string]interface{} `mapstructure:"META_DATA"`
+	FullMethodName string                 `json:"full_method_name" mapstructure:"FULL_METHOD_NAME"`
+	ClaimsConfig   *ClaimsConfig          `json:"claims_config" mapstructure:"CLAIMS_CONFIG"`
+	MetaData       map[string]interface{} `json:"meta_data" mapstructure:"META_DATA"`
 }
 
 // OIDCConfig  env:OIDC_CONFIG
 type OIDCConfig struct {
-	Authority string `mapstructure:"AUTHORITY"`
+	Authority string `json:"authority" mapstructure:"AUTHORITY"`
 	// CronRefreshSchedule i.e. @every 0h1m0s
-	CronRefreshSchedule string                       `mapstructure:"CRON_REFRESH_SCHEDULE"`
-	EntryPoints         map[string]*EntryPointConfig `mapstructure:"ENTRY_POINTS"`
+	CronRefreshSchedule string                       `json:"cron_refresh_schedule" mapstructure:"CRON_REFRESH_SCHEDULE"`
+	EntryPoints         map[string]*EntryPointConfig `json:"entry_points" mapstructure:"ENTRY_POINTS"`
 }
 
 // IOIDCConfig ...
@@ -149,38 +149,38 @@ type JSONWebKey struct {
 
 // DiscoveryDocument ...
 type DiscoveryDocument struct {
-	DiscoveryURL          url.URL
-	Algorithms            []string `json:"id_token_signing_alg_values_supported"`
-	IntrospectionEndpoint string
-	Issuer                string `json:"issuer"`
-	JWKSURL               string `json:"jwks_uri"`
-	KeyResponse           *JSONWebKeyResponse
+	DiscoveryURL          url.URL             `json:"discovery_url"`
+	Algorithms            []string            `json:"id_token_signing_alg_values_supported"`
+	IntrospectionEndpoint string              `json:"introspection_endpoint"`
+	Issuer                string              `json:"issuer"`
+	JWKSURL               string              `json:"jwks_uri"`
+	KeyResponse           *JSONWebKeyResponse `json:"key_response"`
 }
 
 // User ...
 type User struct {
-	Claims jwt.MapClaims
+	Claims jwt.MapClaims `json:"claims"`
 }
 
 // NewOIDCAuthenticationOptions ...
 type NewOIDCAuthenticationOptions struct {
-	Authority *url.URL
+	Authority *url.URL `json:"authority"`
 }
 
 // NewJWTValidationMiddlewareOptions ...
 type NewJWTValidationMiddlewareOptions struct {
-	Out      io.Writer
-	LogLevel logrus.Level
+	Out      io.Writer    `json:"-"`
+	LogLevel logrus.Level `json:"log_level"`
 
-	DiscoveryURL *url.URL
+	DiscoveryURL *url.URL `json:"discovery_url"`
 }
 
 // NewGinIntrospectionValidationMiddlewareOptions ...
 type NewGinIntrospectionValidationMiddlewareOptions struct {
-	Out      io.Writer
-	LogLevel logrus.Level
+	Out      io.Writer    `json:"-"`
+	LogLevel logrus.Level `json:"log_level"`
 
-	DiscoveryURL *url.URL
-	ClientID     string
-	ClientSecret string
+	DiscoveryURL *url.URL `json:"discovery_url"`
+	ClientID     string   `json:"client_id"`
+	ClientSecret string   `json:"client_secret"`
 }

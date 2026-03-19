@@ -12,24 +12,24 @@ import (
 
 // DTO-in structure for the API call.
 type CallInput struct {
-	Method      string
-	Url         string
-	CallerID    string
-	PageNo      int
-	HideReplies bool
+	Method      string `json:"method"`
+	Url         string `json:"url"`
+	CallerID    string `json:"caller_id"`
+	PageNo      int    `json:"page_no"`
+	HideReplies bool   `json:"hide_replies"`
 
 	// CustomHeaders allows adding additional headers to the request
 	// Example: map[string]string{"X-Csrf-Token": "token123", "X-Custom-Header": "value"}
-	CustomHeaders map[string]string
+	CustomHeaders map[string]string `json:"custom_headers"`
 
 	// Payload body for the API call.
-	Data interface{}
+	Data interface{} `json:"data"`
 }
 
 // Standardized common response from API.
 type Response struct {
-	Code      int
-	Error     error
+	Code      int    `json:"code"`
+	Error     error  `json:"-"`
 	Message   string `json:"message"`
 	Timestamp int64  `json:"timestamp"`
 

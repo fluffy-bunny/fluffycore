@@ -20,8 +20,8 @@ const (
 
 // ClaimFact used for authorization
 type ClaimFact struct {
-	Claim     fluffycore_contracts_common.Claim
-	Directive Directive
+	Claim     fluffycore_contracts_common.Claim `json:"claim"`
+	Directive Directive                         `json:"directive"`
 }
 
 func init() {
