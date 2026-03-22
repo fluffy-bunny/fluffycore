@@ -26,6 +26,7 @@ import (
 	"github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	fluffycore_runtime "github.com/fluffy-bunny/fluffycore/runtime"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
+	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	uuid "github.com/google/uuid"
 	table "github.com/jedib0t/go-pretty/v6/table"
 	echo "github.com/labstack/echo/v5"
@@ -248,7 +249,11 @@ func (s *Runtime) finalPhase() error {
 		log.Error().Err(err).Msg("Failed to start server")
 		return err
 	}
-	address := fmt.Sprintf(":%v", startupOptions.Port)
+	bindAddr := ""
+	if fluffycore_utils.BoolEnv("DEV_BIND_LOCALHOST", false) {
+		bindAddr = "127.0.0.1"
+	}
+	address := fmt.Sprintf("%s:%v", bindAddr, startupOptions.Port)
 
 	for _, hooks := range s.Startup.GetHooks() {
 		if hooks.PreStartHook != nil {

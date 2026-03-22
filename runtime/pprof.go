@@ -130,7 +130,7 @@ func (s *PProfServer) Start() {
 		asyncAction := func() async.Future[string] {
 			promise := async.NewPromise[string]()
 			go func() {
-				addr := fmt.Sprintf(":%d", port)
+				addr := fmt.Sprintf("%s:%d", getBindAddress(), port)
 				sc := echo.StartConfig{Address: addr}
 				if err := sc.Start(ctx, e); err != nil {
 					zlog.Error().Err(err).Msg("pprof server error")

@@ -104,6 +104,15 @@ const (
 	minMsgSizeMegs = 4   // 4MB
 )
 
+// getBindAddress returns "127.0.0.1" when DEV_BIND_LOCALHOST is true,
+// otherwise returns "" (all interfaces).
+func getBindAddress() string {
+	if fluffycore_utils.BoolEnv("DEV_BIND_LOCALHOST", false) {
+		return "127.0.0.1"
+	}
+	return ""
+}
+
 func getGRPCMsgSizeLimits() (int, int) {
 	grpcMaxReceiveMsgSizeMegs := fluffycore_utils.IntEnv("GRPC_MAX_RECEIVE_MSG_SIZE_MEGS", minMsgSizeMegs)
 	grpcMaxSendMsgSizeMegs := fluffycore_utils.IntEnv("GRPC_MAX_SEND_MSG_SIZE_MEGS", minMsgSizeMegs)
@@ -319,7 +328,8 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		if coreConfig.PORT == 0 {
 			log.Fatal().Msg("port is not set")
 		}
-		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", coreConfig.PORT))
+		bindAddr := getBindAddress()
+		lis, err = net.Listen("tcp", fmt.Sprintf("%s:%d", bindAddr, coreConfig.PORT))
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to listen")
 		}
@@ -335,7 +345,11 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 
-	endpoint := fmt.Sprintf("0.0.0.0:%d", coreConfig.PORT)
+	bindAddr := getBindAddress()
+	if bindAddr == "" {
+		bindAddr = "0.0.0.0"
+	}
+	endpoint := fmt.Sprintf("%s:%d", bindAddr, coreConfig.PORT)
 	// Create a client connection to the gRPC server we just started
 	// This is where the gRPC-Gateway proxies the requests
 	conn, err := grpc.NewClient(endpoint, opts...)
@@ -377,8 +391,9 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 			endpoint.RegisterFluffyCoreHandler(gwmux, conn)
 		}
 
+		restBindAddr := getBindAddress()
 		gwServer := &http.Server{
-			Addr:    fmt.Sprintf(":%d", coreConfig.RESTPort),
+			Addr:    fmt.Sprintf("%s:%d", restBindAddr, coreConfig.RESTPort),
 			Handler: gwmux,
 		}
 		si.ServerGRPCGatewayMux = gwServer
