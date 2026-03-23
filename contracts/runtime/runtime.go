@@ -20,6 +20,22 @@ type (
 		EnvPrefix   string
 	}
 
+	// ConfigOptionsV2 is the v2 configuration options.
+	// Destination must be a pointer to a pre-populated struct (defaults set in Go code).
+	// JSON sources are applied as sparse overlays in order. Environment variables
+	// (PREFIX__section__field) are applied last with the highest priority.
+	ConfigOptionsV2 struct {
+		// Destination is a pointer to the config struct, pre-populated with Go defaults.
+		Destination interface{}
+		// JSONSources are optional sparse JSON overlays applied in order.
+		JSONSources [][]byte
+		// ConfigPath for appsettings.{env}.json file merging.
+		ConfigPath string
+		// EnvPrefix for environment variable filtering (e.g., "MYAPP").
+		// Env vars: PREFIX__section__field using __ as the path delimiter.
+		EnvPrefix string
+	}
+
 	UnimplementedStartup struct {
 		RootContainer di.Container
 	}
@@ -81,4 +97,11 @@ type IStartup interface {
 	OnPreServerStartup(ctx context.Context) error
 	OnPreServerShutdown(ctx context.Context)
 	OnPostServerShutdown(ctx context.Context)
+}
+
+// IStartupConfigV2 is an optional interface that IStartup implementations can
+// also implement to use the v2 config system. When the runtime detects this
+// interface, it calls GetConfigOptionsV2 + LoadConfigV2 instead of GetConfigOptions + LoadConfig.
+type IStartupConfigV2 interface {
+	GetConfigOptionsV2() *ConfigOptionsV2
 }

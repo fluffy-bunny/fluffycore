@@ -13,7 +13,6 @@ import (
 	fluffycore_contracts_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory"
 	fluffycore_contracts_ddprofiler "github.com/fluffy-bunny/fluffycore/contracts/ddprofiler"
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
-	fluffycore_contracts_otel "github.com/fluffy-bunny/fluffycore/contracts/otel"
 	fluffycore_contracts_runtime "github.com/fluffy-bunny/fluffycore/contracts/runtime"
 	fluffycore_contracts_tasks "github.com/fluffy-bunny/fluffycore/contracts/tasks"
 	internal_auth "github.com/fluffy-bunny/fluffycore/example/internal/auth"
@@ -41,8 +40,9 @@ type (
 	startup struct {
 		*fluffycore_runtime_otel.FluffyCoreOTELStartup
 
-		configOptions *fluffycore_contracts_runtime.ConfigOptions
-		config        *contracts_config.Config
+		configOptions   *fluffycore_contracts_runtime.ConfigOptions
+		configOptionsV2 *fluffycore_contracts_runtime.ConfigOptionsV2
+		configV2        *contracts_config.ConfigV2
 
 		mockOAuth2Server       *mocks_oauth2_echo.MockOAuth2Service
 		mockOAuth2ServerFuture async.Future[*fluffycore_async.AsyncResponse]
@@ -58,56 +58,61 @@ func NewStartup() fluffycore_contracts_runtime.IStartup {
 	}
 }
 
+// GetConfigOptions satisfies IStartup (v1 compat — returns a stub since v2 is used).
 func (s *startup) GetConfigOptions() *fluffycore_contracts_runtime.ConfigOptions {
-	s.config = &contracts_config.Config{}
+	defaultCfg := contracts_config.NewDefaultConfigV2()
+	s.configV2 = &defaultCfg
 	s.configOptions = &fluffycore_contracts_runtime.ConfigOptions{
-		Destination: s.config,
-		RootConfig:  contracts_config.ConfigDefaultJSON,
+		Destination: s.configV2,
 		EnvPrefix:   "EXAMPLE",
 	}
 	return s.configOptions
 }
+
+// GetConfigOptionsV2 opts into the v2 config pipeline.
+func (s *startup) GetConfigOptionsV2() *fluffycore_contracts_runtime.ConfigOptionsV2 {
+	s.configOptionsV2 = &fluffycore_contracts_runtime.ConfigOptionsV2{
+		Destination: s.configV2,
+		EnvPrefix:   "EXAMPLE",
+	}
+	return s.configOptionsV2
+}
+
 func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBuilder) {
 	log := zerolog.Ctx(ctx).With().Str("method", "Configure").Logger()
-	dst, err := fluffycore_utils_redact.CloneAndRedact(s.configOptions.Destination)
+	dst, err := fluffycore_utils_redact.CloneAndRedact(s.configV2)
 	if err != nil {
 		panic(err)
 	}
 	log.Info().Interface("config", dst).Msg("config")
-	config := s.configOptions.Destination.(*contracts_config.Config)
-	// need to set the OTEL Config in the base startup
-	if config.OTELConfig == nil {
-		config.OTELConfig = &fluffycore_contracts_otel.OTELConfig{}
-	}
-	config.OTELConfig.ServiceName = config.ApplicationName
-	s.FluffyCoreOTELStartup.SetConfig(config.OTELConfig)
-	// add grpcclient factory that is config aware.  Will make sure that you get one that has otel tracing if enabled.
+
+	// v2: no nil checks needed — all value types with Go defaults
+	s.configV2.OTELConfig.ServiceName = s.configV2.ApplicationName
+	s.FluffyCoreOTELStartup.SetConfig(&s.configV2.OTELConfig)
 
 	fluffycore_services_GRPCClientFactory.AddSingletonIGRPCClientFactory(builder,
 		&fluffycore_contracts_GRPCClientFactory.GRPCClientConfig{
-			OTELTracingEnabled:    config.OTELConfig.TracingConfig.Enabled,
-			DataDogTracingEnabled: config.DDConfig.TracingEnabled,
+			OTELTracingEnabled:    s.configV2.OTELConfig.TracingConfig.Enabled,
+			DataDogTracingEnabled: s.configV2.DDConfig.TracingEnabled,
 		})
-	if config.DDConfig == nil {
-		config.DDConfig = &fluffycore_contracts_ddprofiler.Config{}
-	}
-	config.DDConfig.ApplicationEnvironment = config.ApplicationEnvironment
-	config.DDConfig.ServiceName = config.ApplicationName
-	config.DDConfig.Version = internal_version.Version()
-	contracts_config.AddConfig(builder, config)
 
-	fluffycore_services_ddprofiler.AddSingletonIProfiler(builder, config.DDConfig)
+	s.configV2.DDConfig.ApplicationEnvironment = s.configV2.ApplicationEnvironment
+	s.configV2.DDConfig.ServiceName = s.configV2.ApplicationName
+	s.configV2.DDConfig.Version = internal_version.Version()
+	contracts_config.AddConfigV2(builder, s.configV2)
+
+	fluffycore_services_ddprofiler.AddSingletonIProfiler(builder, &s.configV2.DDConfig)
 	services_health.AddHealthService(builder)
 	services_greeter.AddGreeterService(builder)
 	services_somedisposable.AddScopedSomeDisposable(builder)
 	services_mystream.AddMyStreamService(builder)
 	issuerConfigs := &fluffycore_contracts_middleware_auth_jwt.IssuerConfigs{}
-	for idx := range s.config.JWTValidators.Issuers {
+	for idx := range s.configV2.JWTValidators.Issuers {
 		issuerConfigs.IssuerConfigs = append(issuerConfigs.IssuerConfigs,
 			&fluffycore_contracts_middleware_auth_jwt.IssuerConfig{
 				OAuth2Config: &fluffycore_contracts_middleware_auth_jwt.OAuth2Config{
-					Issuer:  s.config.JWTValidators.Issuers[idx],
-					JWKSUrl: s.config.JWTValidators.JWKSURLS[idx],
+					Issuer:  s.configV2.JWTValidators.Issuers[idx],
+					JWKSUrl: s.configV2.JWTValidators.JWKSURLS[idx],
 				},
 			})
 	}
@@ -115,8 +120,8 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 
 	services_auth_FinalAuthVerificationServerOptionAccessor_claimsprincipal.AddFinalAuthVerificationServerOptionAccessor(builder, internal_auth.BuildGrpcEntrypointPermissionsClaimsMap())
 
-	if config.NATSEnabled {
-		fluffycore_nats_micro_service.AddNatsMicroConfig(builder, config.NATSMicroConfig)
+	if s.configV2.NATSEnabled {
+		fluffycore_nats_micro_service.AddNatsMicroConfig(builder, &s.configV2.NATSMicroConfig)
 	}
 }
 
@@ -158,7 +163,7 @@ func (s *startup) OnPreServerStartup(ctx context.Context) error {
 	}
 	myTaskTracker.ID = taskID
 
-	clientsJSON, err := os.ReadFile(s.config.ConfigFiles.ClientPath)
+	clientsJSON, err := os.ReadFile(s.configV2.ConfigFiles.ClientPath)
 	var clients []mocks_contracts_oauth2.Client
 	if err != nil {
 		return err
@@ -181,7 +186,7 @@ func (s *startup) OnPreServerStartup(ctx context.Context) error {
 			})
 		}()
 		log.Info().Msg("mockOAuth2Server starting up")
-		err = s.mockOAuth2Server.Start(fmt.Sprintf(":%d", s.config.OAuth2Port))
+		err = s.mockOAuth2Server.Start(fmt.Sprintf(":%d", s.configV2.OAuth2Port))
 		if err != nil && http.ErrServerClosed == err {
 			err = nil
 		}

@@ -222,13 +222,27 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	if configOptions == nil {
 		log.Fatal().Msg("configOptions is nil")
 	}
-	if configOptions.Destination == nil {
-		log.Info().Msg("configOptions.Destination is nil, use default")
-		configOptions.Destination = &fluffycore_contracts_config.CoreConfig{}
-	}
-	err = LoadConfig(configOptions)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to load config")
+	// Check if startup implements v2 config
+	if v2, ok := startup.(fluffycore_contract_runtime.IStartupConfigV2); ok {
+		configOptionsV2 := v2.GetConfigOptionsV2()
+		if configOptionsV2 != nil {
+			err = LoadConfigV2(configOptionsV2)
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to load config v2")
+			}
+			// For backward compat, copy Destination into v1 ConfigOptions so
+			// downstream code that reads configOptions.Destination still works.
+			configOptions.Destination = configOptionsV2.Destination
+		}
+	} else {
+		if configOptions.Destination == nil {
+			log.Info().Msg("configOptions.Destination is nil, use default")
+			configOptions.Destination = &fluffycore_contracts_config.CoreConfig{}
+		}
+		err = LoadConfig(configOptions)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to load config")
+		}
 	}
 	// configOptions.Destination contains *fluffycore_contracts_config.CoreConfig
 	configBytes, err := json.Marshal(configOptions.Destination)

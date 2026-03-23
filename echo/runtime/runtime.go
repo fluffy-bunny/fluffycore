@@ -81,9 +81,21 @@ func (s *Runtime) GetContainer() di.Container {
 }
 func (s *Runtime) phase1() error {
 	s.configOptions = s.Startup.GetConfigOptions()
-	err := fluffycore_runtime.LoadConfig(s.configOptions)
-	if err != nil {
-		return err
+	// Check if startup implements v2 config
+	if v2, ok := s.Startup.(fluffycore_contracts_runtime.IStartupConfigV2); ok {
+		configOptionsV2 := v2.GetConfigOptionsV2()
+		if configOptionsV2 != nil {
+			err := fluffycore_runtime.LoadConfigV2(configOptionsV2)
+			if err != nil {
+				return err
+			}
+			s.configOptions.Destination = configOptionsV2.Destination
+		}
+	} else {
+		err := fluffycore_runtime.LoadConfig(s.configOptions)
+		if err != nil {
+			return err
+		}
 	}
 	prettyLog := false
 	prettyLogValue := os.Getenv("PRETTY_LOG")
