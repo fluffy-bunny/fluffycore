@@ -171,6 +171,34 @@ func TestApply_CaseInsensitive(t *testing.T) {
 	assert.True(t, cfg.Tracing.Enabled)
 }
 
+func TestApply_CaseInsensitive_MixedCasePrefix(t *testing.T) {
+	type cfg struct {
+		ApplicationName string `json:"applicationName"`
+		Port            int    `json:"port"`
+	}
+
+	tests := []struct {
+		name string
+		envs map[string]string
+	}{
+		{"ALL_UPPER", map[string]string{"EXAMPLE__APPLICATIONNAME": "app1", "EXAMPLE__PORT": "8080"}},
+		{"all_lower", map[string]string{"example__applicationname": "app1", "example__port": "8080"}},
+		{"Mixed_Prefix", map[string]string{"Example__ApplicationName": "app1", "Example__Port": "8080"}},
+		{"SCREAMING_with_camel_key", map[string]string{"EXAMPLE__applicationName": "app1", "EXAMPLE__port": "8080"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := cfg{ApplicationName: "default", Port: 3000}
+			setEnvs(t, tt.envs)
+
+			err := Apply("EXAMPLE", "__", &c)
+			require.NoError(t, err)
+			assert.Equal(t, "app1", c.ApplicationName)
+			assert.Equal(t, 8080, c.Port)
+		})
+	}
+}
+
 func TestApply_SkipsNonMatchingEnvVars(t *testing.T) {
 	type simple struct {
 		Name string `json:"name"`

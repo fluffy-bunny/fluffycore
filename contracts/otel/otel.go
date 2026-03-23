@@ -32,6 +32,7 @@ type (
 	}
 
 	OTELConfig struct {
+		Enabled       bool          `json:"enabled"`
 		ServiceName   string        `json:"serviceName"`
 		TracingConfig TracingConfig `json:"tracingConfig"`
 		MetricConfig  MetricConfig  `json:"metricConfig"`
