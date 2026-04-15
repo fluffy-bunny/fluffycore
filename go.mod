@@ -34,7 +34,7 @@ require (
 	github.com/madflojo/tasks v1.2.1
 	github.com/maxence-charriere/go-app/v10 v10.1.11
 	github.com/mdaverde/jsonpath v0.2.1
-	github.com/nats-io/nats.go v1.50.0
+	github.com/nats-io/nats.go v1.51.0
 	github.com/nicksnyder/go-i18n/v2 v2.6.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
