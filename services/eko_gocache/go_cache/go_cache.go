@@ -29,11 +29,8 @@ type (
 
 var stemService = (*service)(nil)
 
-func init() {
-	var _ fluffycore_contracts_eko_gocache.ISingletonInMemoryCache = stemService
-	var _ fluffycore_contracts_eko_gocache.IGoCache = stemService
+var _ fluffycore_contracts_eko_gocache.ISingletonInMemoryCache = stemService
 
-}
 func (s *service) Ctor() (*service, error) {
 	gocacheClient := gocache.New(gocache.NoExpiration, 10*time.Minute)
 	gocacheStore := gocache_store.NewGoCache(gocacheClient)
