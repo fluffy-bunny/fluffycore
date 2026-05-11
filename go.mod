@@ -31,7 +31,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v5 v5.1.1
 	github.com/lestrrat-go/jwx/v2 v2.1.6
-	github.com/madflojo/tasks v1.2.1
+	github.com/madflojo/tasks v1.3.0
 	github.com/maxence-charriere/go-app/v10 v10.1.11
 	github.com/mdaverde/jsonpath v0.2.1
 	github.com/nats-io/nats.go v1.51.0
