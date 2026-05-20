@@ -4,6 +4,7 @@ package helloworld
 
 import (
 	context "context"
+	errors "errors"
 	fluffy_dozm_di "github.com/fluffy-bunny/fluffy-dozm-di"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	nats_micro_service1 "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
@@ -280,7 +281,9 @@ func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *Hel
 }
 
 var methodGreeter2HandlerRuleMap = map[string]*nats_micro_service.NATSMicroHandlerInfo{
-	"/helloworld.Greeter2/SayHello": {WildcardToken: "SayHello", ParameterizedToken: "SayHello"},
+	"/helloworld.Greeter2/SayHello":      {WildcardToken: "SayHello", ParameterizedToken: "SayHello"},
+	"/helloworld.Greeter2/RequestPoints": {WildcardToken: "RequestPoints", ParameterizedToken: "RequestPoints"},
+	"/helloworld.Greeter2/StreamPoints":  {WildcardToken: "StreamPoints", ParameterizedToken: "StreamPoints"},
 }
 
 func MethodToSubject_Greeter2(method string) (string, bool) {
@@ -421,6 +424,16 @@ func (s *Greeter2NATSMicroClient) SayHello(ctx context.Context, in *HelloRequest
 		response,
 	)
 	return result, err
+}
+
+// RequestPoints - streaming not supported via NATS...
+func (s *Greeter2NATSMicroClient) RequestPoints(ctx context.Context, in *PointsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Point], error) {
+	return nil, errors.New("streaming not supported via NATS")
+}
+
+// StreamPoints - streaming not supported via NATS...
+func (s *Greeter2NATSMicroClient) StreamPoints(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[Point, RouteSummary], error) {
+	return nil, errors.New("streaming not supported via NATS")
 }
 
 type MyStreamServiceFluffyCoreServerNATSMicroRegistration struct {
