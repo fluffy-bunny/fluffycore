@@ -5,8 +5,6 @@ package helloworld
 
 import (
 	context "context"
-	sync "sync"
-
 	fluffy_dozm_di "github.com/fluffy-bunny/fluffy-dozm-di"
 	GRPCClientFactory "github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
@@ -15,6 +13,7 @@ import (
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	grpc "google.golang.org/grpc"
+	sync "sync"
 )
 
 // IAppGreeterClientAccessor defines the grpc client
@@ -83,6 +82,11 @@ func (s *AppGreeterClientAccessor) GetClient() (GreeterClient, error) {
 	s.rwLock.Lock()
 	defer s.rwLock.Unlock()
 	//--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+
+	// Re-check after acquiring write lock (double-checked locking)
+	if s.client != nil {
+		return s.client, nil
+	}
 
 	grpcClient, err := s.grpcClientFactory.NewGrpcClient(
 		grpcclient.WithTarget(s.config.Url),
@@ -219,6 +223,11 @@ func (s *AppGreeter2ClientAccessor) GetClient() (Greeter2Client, error) {
 	defer s.rwLock.Unlock()
 	//--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
 
+	// Re-check after acquiring write lock (double-checked locking)
+	if s.client != nil {
+		return s.client, nil
+	}
+
 	grpcClient, err := s.grpcClientFactory.NewGrpcClient(
 		grpcclient.WithTarget(s.config.Url),
 		grpcclient.WithTokenSource(tokenSource),
@@ -271,6 +280,22 @@ func (s *Greeter2FluffyCoreServer) SayHello(ctx context.Context, request *HelloR
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeter2Server](requestContainer)
 	return downstreamService.SayHello(ctx, request)
+}
+
+// RequestPoints...
+func (s *Greeter2FluffyCoreServer) RequestPoints(request *PointsRequest, stream Greeter2_RequestPointsServer) error {
+	ctx := stream.Context()
+	requestContainer := dicontext.GetRequestContainer(ctx)
+	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeter2Server](requestContainer)
+	return downstreamService.RequestPoints(request, stream)
+}
+
+// StreamPoints...
+func (s *Greeter2FluffyCoreServer) StreamPoints(stream Greeter2_StreamPointsServer) error {
+	ctx := stream.Context()
+	requestContainer := dicontext.GetRequestContainer(ctx)
+	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeter2Server](requestContainer)
+	return downstreamService.StreamPoints(stream)
 }
 
 // IAppMyStreamServiceClientAccessor defines the grpc client
@@ -339,6 +364,11 @@ func (s *AppMyStreamServiceClientAccessor) GetClient() (MyStreamServiceClient, e
 	s.rwLock.Lock()
 	defer s.rwLock.Unlock()
 	//--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+
+	// Re-check after acquiring write lock (double-checked locking)
+	if s.client != nil {
+		return s.client, nil
+	}
 
 	grpcClient, err := s.grpcClientFactory.NewGrpcClient(
 		grpcclient.WithTarget(s.config.Url),

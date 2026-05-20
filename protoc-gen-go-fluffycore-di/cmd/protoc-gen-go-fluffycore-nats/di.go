@@ -84,6 +84,18 @@ func isServiceIgnored(service *protogen.Service) bool {
 
 	return strings.Contains(string(service.Comments.Leading), ignore)
 }
+
+func isMethodIgnored(method *protogen.Method) bool {
+	// Look for a comment consisting of "fluffycore:nats:ignore"
+	const ignore = "fluffycore:nats:ignore"
+	for _, comment := range method.Comments.LeadingDetached {
+		if strings.Contains(string(comment), ignore) {
+			return true
+		}
+	}
+
+	return strings.Contains(string(method.Comments.Leading), ignore)
+}
 func ExtractLastPart(namespace string) string {
 	parts := strings.Split(namespace, ":")
 	if len(parts) == 0 {
@@ -203,8 +215,8 @@ func (s *serviceGenContext) genClient() {
 
 	atLeastOneMethod := false
 	for _, method := range service.Methods {
-		// only do it if it is not streaming
-		if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
+		// only do it if it is not streaming and not ignored
+		if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() && !isMethodIgnored(method) {
 			atLeastOneMethod = true
 			break
 		}
@@ -280,10 +292,17 @@ func (s *serviceGenContext) genClient() {
 	*/
 
 	for _, method := range service.Methods {
+		if isMethodIgnored(method) {
+			continue
+		}
 		serverType := method.Parent.GoName
 		key := "/" + *s.file.Proto.Package + "." + serverType + "/" + method.GoName
 		methodGenCtx := s.MethodMapGenCtx[key]
-		methodGenCtx.generateClientMethodShim()
+		if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
+			methodGenCtx.generateStreamingClientMethodStub()
+		} else {
+			methodGenCtx.generateClientMethodShim()
+		}
 	}
 }
 func (s *methodGenContext) grpcClientMethodSignature() string {
@@ -293,16 +312,38 @@ func (s *methodGenContext) grpcClientMethodSignature() string {
 	method := s.ProtogenMethod
 	var reqArgs []string
 	ret := ""
+	reqArgs = append(reqArgs, "ctx "+g.QualifiedGoIdent(contextPackage.Ident("Context")))
 	if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
-		reqArgs = append(reqArgs, "ctx "+g.QualifiedGoIdent(contextPackage.Ident("Context")))
-
+		// Unary
 		reqArgs = append(reqArgs, "in *"+g.QualifiedGoIdent(method.Input.GoIdent))
-		reqArgs = append(reqArgs, "opts ... "+g.QualifiedGoIdent(grpcPackage.Ident("CallOption")))
+		reqArgs = append(reqArgs, "opts ..."+g.QualifiedGoIdent(grpcPackage.Ident("CallOption")))
 		ret = "(*" + g.QualifiedGoIdent(method.Output.GoIdent) + ", error)"
-
+	} else if !method.Desc.IsStreamingClient() && method.Desc.IsStreamingServer() {
+		// Server streaming
+		reqArgs = append(reqArgs, "in *"+g.QualifiedGoIdent(method.Input.GoIdent))
+		reqArgs = append(reqArgs, "opts ..."+g.QualifiedGoIdent(grpcPackage.Ident("CallOption")))
+		ret = "(" + g.QualifiedGoIdent(grpcPackage.Ident("ServerStreamingClient")) + "[" + g.QualifiedGoIdent(method.Output.GoIdent) + "], error)"
+	} else if method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
+		// Client streaming
+		reqArgs = append(reqArgs, "opts ..."+g.QualifiedGoIdent(grpcPackage.Ident("CallOption")))
+		ret = "(" + g.QualifiedGoIdent(grpcPackage.Ident("ClientStreamingClient")) + "[" + g.QualifiedGoIdent(method.Input.GoIdent) + ", " + g.QualifiedGoIdent(method.Output.GoIdent) + "], error)"
+	} else {
+		// Bidi streaming
+		reqArgs = append(reqArgs, "opts ..."+g.QualifiedGoIdent(grpcPackage.Ident("CallOption")))
+		ret = "(" + g.QualifiedGoIdent(grpcPackage.Ident("BidiStreamingClient")) + "[" + g.QualifiedGoIdent(method.Input.GoIdent) + ", " + g.QualifiedGoIdent(method.Output.GoIdent) + "], error)"
 	}
 
 	return method.GoName + "(" + strings.Join(reqArgs, ", ") + ") " + ret
+}
+func (s *methodGenContext) generateStreamingClientMethodStub() {
+	method := s.ProtogenMethod
+	g := s.g
+	internalClientName := fmt.Sprintf("%vNATSMicroClient", s.service.GoName)
+	g.P("// ", method.GoName, " - streaming not supported via NATS...")
+	g.P("func (s *", internalClientName, ") ", s.grpcClientMethodSignature(), "{")
+	g.P("\treturn nil, ", errorsPackage.Ident("New"), "(\"streaming not supported via NATS\")")
+	g.P("}")
+	g.P()
 }
 func (s *methodGenContext) generateClientMethodShim() {
 	/*
@@ -413,8 +454,8 @@ func (s *serviceGenContext) genService() {
 	}
 	atLeastOneMethod := false
 	for _, method := range service.Methods {
-		// only do it if it is not streaming
-		if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() {
+		// only do it if it is not streaming and not ignored
+		if !method.Desc.IsStreamingClient() && !method.Desc.IsStreamingServer() && !isMethodIgnored(method) {
 			atLeastOneMethod = true
 			break
 		}
@@ -424,6 +465,9 @@ func (s *serviceGenContext) genService() {
 
 		g.P("var method", service.GoName, "HandlerRuleMap = map[string]*", serviceNatsMicroServicePackage.Ident("NATSMicroHandlerInfo"), " {")
 		for _, method := range service.Methods {
+			if isMethodIgnored(method) {
+				continue
+			}
 			hr := hrvFromMethod(proto, method)
 			if hr == nil {
 				continue
@@ -610,7 +654,9 @@ func (s *serviceGenContext) genService() {
 
 		//mm := make(map[string]bool)
 		for _, method := range service.Methods {
-
+			if isMethodIgnored(method) {
+				continue
+			}
 			serverType := method.Parent.GoName
 			key := "/" + *proto.Package + "." + serverType + "/" + method.GoName
 			methodGenCtx := s.MethodMapGenCtx[key]
