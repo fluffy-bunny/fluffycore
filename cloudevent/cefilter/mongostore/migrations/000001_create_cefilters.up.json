@@ -1,0 +1,17 @@
+[
+  {
+    "createIndexes": "cefilters",
+    "indexes": [
+      {
+        "key": { "deletedAt": 1, "updatedAt": -1 },
+        "name": "idx_deletedAt_updatedAt",
+        "comment": "ListActive (deletedAt=null) and CDC catch-up ordering"
+      },
+      {
+        "key": { "updatedAt": -1 },
+        "name": "idx_updatedAt",
+        "comment": "Full-scan ordering during CDC cold start"
+      }
+    ]
+  }
+]
