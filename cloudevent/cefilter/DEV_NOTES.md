@@ -152,3 +152,166 @@ The inverted index makes `IndexedFilterSet` ~650× faster than `FilterSet` for t
 - **Inverted index keyed on `type`.** Most CE filters constrain `type`; indexing on it gives the best hit rate for the hash lookup.
 - **`LIKE` compiled to `*regexp.Regexp` at parse time**, never per event call.
 - **`IN` uses a `map[string]struct{}` set** at parse time — O(1) membership, never O(M·N).
+
+---
+
+## mongostore — persisting filter rules in MongoDB
+
+`cloudevent/cefilter/mongostore` is the durable backing store for cefilter registrations.  
+Its role in the overall system is:
+
+```
+Admin API / CLI
+     │
+     ▼
+FilterStore (CRUD)  ──writes──▶  MongoDB "cefilters" collection
+                                         │
+                                   Change stream
+                                         │
+                                         ▼
+                                    FilterCDC
+                                         │
+                                         ▼
+                              IndexedFilterSet (in-memory)
+                                         │
+                                         ▼
+                              CloudEvent ingress handler
+```
+
+Every running process keeps its own in-memory `IndexedFilterSet`. `FilterCDC` seeds it on startup and keeps it current as rules change, so writes to the DB are automatically propagated to all instances without polling.
+
+### Files
+
+| File | Contents |
+|---|---|
+| `doc.go` | `FilterDocument`, `ChangeOp` constants, `FilterChange` event struct |
+| `store.go` | `FilterStore` — CRUD on the `cefilters` collection |
+| `cdc.go` | `FilterCDC` — change-data-capture watcher (snapshot + live tail) |
+| `migrations/000001_create_cefilters.up.json` | creates collection + compound indexes |
+| `migrations/000001_create_cefilters.down.json` | drops collection |
+
+### `FilterDocument` (stored in `cefilters`, `_id = Name`)
+
+```go
+type FilterDocument struct {
+    Name      string            // _id — unique filter identifier
+    Hint      string            // routing target (URL, NATS subject, …)
+    Metadata  map[string]string // optional caller annotations
+    Expr      string            // cefilter expression, e.g. `type = "com.example.order"`
+    CreatedAt time.Time
+    UpdatedAt time.Time
+    DeletedAt *time.Time        // nil = active; non-nil = soft-deleted
+}
+```
+
+Using `Name` as `_id` means uniqueness is enforced by the primary key and hard-delete events carry the name in `documentKey._id` — no secondary lookup required.
+
+### `FilterStore` — CRUD
+
+```go
+store := mongostore.NewFilterStore(col)
+
+// Insert or update (clears DeletedAt if previously soft-deleted)
+store.Upsert(ctx, mongostore.FilterDocument{
+    Name: "order-hook",
+    Hint: "https://svc/webhook",
+    Expr: `type = "com.shop.order.placed"`,
+})
+
+// Soft delete — sets deletedAt; CDC emits ChangeOpDelete
+store.SoftDelete(ctx, "order-hook")
+
+// Hard delete — removes document; CDC emits ChangeOpDelete
+store.HardDelete(ctx, "order-hook")
+
+// Point read (returns nil, nil if not found)
+doc, err := store.Get(ctx, "order-hook")
+
+// All active (deletedAt = nil), sorted by Name
+docs, err := store.ListActive(ctx)
+```
+
+Expression validation (`cefilter.Parse`) is the caller's responsibility — `FilterStore` does not import the filter parser so the two packages stay decoupled.
+
+### `FilterCDC` — snapshot + live tail
+
+`FilterCDC` implements the standard **snapshot-then-tail** CDC pattern using MongoDB change streams.
+
+**First run (no persisted resume token):**
+1. Pin the current oplog position (`hello` command) — writes that arrive during the scan won't be missed.
+2. Stream all active documents as `ChangeOpUpsert` events (the snapshot).
+3. Emit `ChangeOpReady` — the caller's `IndexedFilterSet` is fully initialised.
+4. Open a change stream starting at the pinned position and tail indefinitely.
+
+**Reconnect (resume token present):**
+1. Emit `ChangeOpReady` immediately — local state was preserved across the connection drop.
+2. Open a change stream resuming from the saved token and tail live changes.
+
+The resume token is persisted to a separate Tokens collection after every delivered event, so a process restart at worst replays one event (callers should make their `Add`/`Remove` idempotent — `IndexedFilterSet` already is).
+
+```go
+cdc := &mongostore.FilterCDC{
+    Filters: db.Collection("cefilters"),
+    Tokens:  db.Collection("cdc_tokens"),
+    TokenID: "my-service-cefilters", // unique per logical CDC process
+}
+
+changes := make(chan mongostore.FilterChange, 64)
+
+go func() {
+    for {
+        if err := cdc.Run(ctx, changes); err != nil && ctx.Err() != nil {
+            return // context cancelled — normal shutdown
+        }
+        // Transient error (network blip). Backoff then restart.
+        time.Sleep(5 * time.Second)
+    }
+}()
+```
+
+### Wiring CDC → IndexedFilterSet
+
+```go
+var gate cefilter.IndexedFilterSet
+
+// Block serving until snapshot is complete.
+for change := range changes {
+    switch change.Op {
+    case mongostore.ChangeOpUpsert:
+        entry := contracts.FilterEntry{
+            Name:     change.Doc.Name,
+            Hint:     change.Doc.Hint,
+            Metadata: change.Doc.Metadata,
+        }
+        gate.Add(entry, change.Doc.Expr) // parse error = corrupt DB row; log and skip
+    case mongostore.ChangeOpDelete:
+        gate.Remove(change.Name)
+    case mongostore.ChangeOpReady:
+        // Gate is now fully populated — start serving CloudEvents.
+        go serveEvents(&gate, changes) // hand off the channel to live-update loop
+        return
+    }
+}
+```
+
+### Indexes (migration 000001)
+
+| Index | Purpose |
+|---|---|
+| `{ deletedAt: 1, updatedAt: -1 }` | `ListActive` filter + ordering during cold-start snapshot |
+| `{ updatedAt: -1 }` | Full-scan ordering when CDC needs to replay unindexed deletes |
+
+### CDC change operations
+
+| `ChangeOp` | When emitted | `Doc` populated? |
+|---|---|---|
+| `ChangeOpUpsert` | Insert, update, replace (and soft-un-delete) | Yes |
+| `ChangeOpDelete` | Soft delete (deletedAt set) or hard delete | No |
+| `ChangeOpReady` | After snapshot phase completes (or immediately on resume) | No |
+
+### Design decisions
+
+- **Soft delete vs hard delete.** Soft delete (`DeletedAt` field) gives an audit trail and lets CDC emit a `ChangeOpDelete` via an update event (which carries `fullDocument`). Hard delete also works — the change stream's `documentKey._id` provides the name without a secondary lookup.
+- **`Name` as `_id`.** Avoids a unique index on a separate `name` field and makes hard-delete CDC events self-contained.
+- **Resume token persistence.** Stored in a dedicated Tokens collection (not the filter document itself) so it can survive collection drops/migrations.
+- **`Run` is blocking + restartable.** Callers wrap it in a retry loop with backoff; `FilterCDC` itself has no internal retry to keep the failure handling strategy in the caller's hands.
