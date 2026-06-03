@@ -105,18 +105,12 @@ func (s *registrationServer) RegisterFluffyCoreHandler(gwmux *grpc_gateway_runti
 			if err := gwmux.HandlePath(http.MethodGet, uiPath, h); err != nil {
 				zerolog.Warn().Err(err).Str("path", uiPath).Msg("swagger: HandlePath failed")
 			}
-			if err := gwmux.HandlePath(http.MethodGet, uiPath+"/", h); err != nil {
-				zerolog.Warn().Err(err).Str("path", uiPath+"/").Msg("swagger: HandlePath failed")
-			}
 		}
 	}
 
 	if anyUI {
 		idx := htmlHandler([]byte(renderIndex(s.specs)))
 		if err := gwmux.HandlePath(http.MethodGet, "/swagger", idx); err != nil {
-			zerolog.Warn().Err(err).Msg("swagger: HandlePath failed")
-		}
-		if err := gwmux.HandlePath(http.MethodGet, "/swagger/", idx); err != nil {
 			zerolog.Warn().Err(err).Msg("swagger: HandlePath failed")
 		}
 	}
