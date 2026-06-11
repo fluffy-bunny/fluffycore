@@ -6,6 +6,7 @@ import (
 
 	nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
 	"github.com/fluffy-bunny/fluffycore/proto/helloworld"
+	helloworld_models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	"github.com/mdaverde/jsonpath"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -101,7 +102,7 @@ func TestExtraction(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, float64(1), value)
 
-	rr := &helloworld.HelloRequest{
+	rr := &helloworld_models.HelloRequest{
 		Name:  "world",
 		OrgId: "1234567890",
 	}
