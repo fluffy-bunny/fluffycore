@@ -141,25 +141,25 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 					WildcardToken:      "SayHelloAuth",
 					ParameterizedToken: "SayHelloAuth",
 				},
-				func(r *HelloRequest) error {
+				func(r *models.HelloRequest) error {
 					return proto.Unmarshal(req.Data(), r)
 				},
 				func() (protoreflect.ProtoMessage, error) {
-					request := &HelloRequest{}
+					request := &models.HelloRequest{}
 					err := proto.Unmarshal(req.Data(), request)
 					if err != nil {
 						return nil, err
 					}
 					return request, nil
 				},
-				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
+				func(pm protoreflect.ProtoMessage, req *models.HelloRequest) error {
 					pj, err := proto.Marshal(pm)
 					if err != nil {
 						return err
 					}
 					return proto.Unmarshal(pj, req)
 				},
-				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+				func(ctx context.Context, request *models.HelloRequest) (*models.HelloReply, error) {
 					return client.SayHelloAuth(ctx, request)
 				},
 			)
@@ -167,8 +167,8 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 		micro.WithEndpointMetadata(map[string]string{
 			"description":     "SayHelloAuth",
 			"format":          "application/json",
-			"request_schema":  utils.SchemaFor(&HelloRequest{}),
-			"response_schema": utils.SchemaFor(&HelloReply{}),
+			"request_schema":  utils.SchemaFor(&models.HelloRequest{}),
+			"response_schema": utils.SchemaFor(&models.HelloReply{}),
 		}),
 		micro.WithEndpointSubject("SayHelloAuth"),
 	)
@@ -186,25 +186,25 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 					WildcardToken:      "SayHelloDownstream",
 					ParameterizedToken: "SayHelloDownstream",
 				},
-				func(r *HelloRequest) error {
+				func(r *models.HelloRequest) error {
 					return proto.Unmarshal(req.Data(), r)
 				},
 				func() (protoreflect.ProtoMessage, error) {
-					request := &HelloRequest{}
+					request := &models.HelloRequest{}
 					err := proto.Unmarshal(req.Data(), request)
 					if err != nil {
 						return nil, err
 					}
 					return request, nil
 				},
-				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
+				func(pm protoreflect.ProtoMessage, req *models.HelloRequest) error {
 					pj, err := proto.Marshal(pm)
 					if err != nil {
 						return err
 					}
 					return proto.Unmarshal(pj, req)
 				},
-				func(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+				func(ctx context.Context, request *models.HelloRequest) (*models.HelloReply, error) {
 					return client.SayHelloDownstream(ctx, request)
 				},
 			)
@@ -212,8 +212,8 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 		micro.WithEndpointMetadata(map[string]string{
 			"description":     "SayHelloDownstream",
 			"format":          "application/json",
-			"request_schema":  utils.SchemaFor(&HelloRequest{}),
-			"response_schema": utils.SchemaFor(&HelloReply{}),
+			"request_schema":  utils.SchemaFor(&models.HelloRequest{}),
+			"response_schema": utils.SchemaFor(&models.HelloReply{}),
 		}),
 		micro.WithEndpointSubject("SayHelloDownstream"),
 	)
@@ -256,8 +256,8 @@ func (s *GreeterNATSMicroClient) SayHello(ctx context.Context, in *models.HelloR
 }
 
 // SayHelloAuth...
-func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
-	response := &HelloReply{}
+func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply, error) {
+	response := &models.HelloReply{}
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
@@ -269,8 +269,8 @@ func (s *GreeterNATSMicroClient) SayHelloAuth(ctx context.Context, in *HelloRequ
 }
 
 // SayHelloDownstream...
-func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
-	response := &HelloReply{}
+func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply, error) {
+	response := &models.HelloReply{}
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,
@@ -358,25 +358,25 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 					WildcardToken:      "SayHello",
 					ParameterizedToken: "SayHello",
 				},
-				func(r *HelloRequest) error {
+				func(r *models.HelloRequest) error {
 					return proto.Unmarshal(req.Data(), r)
 				},
 				func() (protoreflect.ProtoMessage, error) {
-					request := &HelloRequest{}
+					request := &models.HelloRequest{}
 					err := proto.Unmarshal(req.Data(), request)
 					if err != nil {
 						return nil, err
 					}
 					return request, nil
 				},
-				func(pm protoreflect.ProtoMessage, req *HelloRequest) error {
+				func(pm protoreflect.ProtoMessage, req *models.HelloRequest) error {
 					pj, err := proto.Marshal(pm)
 					if err != nil {
 						return err
 					}
 					return proto.Unmarshal(pj, req)
 				},
-				func(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
+				func(ctx context.Context, request *models.HelloRequest) (*models.HelloReply2, error) {
 					return client.SayHello(ctx, request)
 				},
 			)
@@ -384,8 +384,8 @@ func RegisterGreeter2NATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cl
 		micro.WithEndpointMetadata(map[string]string{
 			"description":     "SayHello",
 			"format":          "application/json",
-			"request_schema":  utils.SchemaFor(&HelloRequest{}),
-			"response_schema": utils.SchemaFor(&HelloReply2{}),
+			"request_schema":  utils.SchemaFor(&models.HelloRequest{}),
+			"response_schema": utils.SchemaFor(&models.HelloReply2{}),
 		}),
 		micro.WithEndpointSubject("SayHello"),
 	)
@@ -415,8 +415,8 @@ func NewGreeter2NATSMicroClient(opts ...client.NATSClientOption) (Greeter2Client
 }
 
 // SayHello...
-func (s *Greeter2NATSMicroClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply2, error) {
-	response := &HelloReply2{}
+func (s *Greeter2NATSMicroClient) SayHello(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply2, error) {
+	response := &models.HelloReply2{}
 	result, err := nats_micro_service.HandleNATSClientRequest(
 		ctx,
 		s.client,

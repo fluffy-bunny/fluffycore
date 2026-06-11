@@ -150,148 +150,6 @@ func (x *ParentMessage) GetAge() int32 {
 	return 0
 }
 
-// The request message containing the user's name.
-type HelloRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HelloRequest) Reset() {
-	*x = HelloRequest{}
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HelloRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HelloRequest) ProtoMessage() {}
-
-func (x *HelloRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HelloRequest.ProtoReflect.Descriptor instead.
-func (*HelloRequest) Descriptor() ([]byte, []int) {
-	return file_proto_helloworld_helloworld_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *HelloRequest) GetOrgId() string {
-	if x != nil {
-		return x.OrgId
-	}
-	return ""
-}
-
-func (x *HelloRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-// The response message containing the greetings
-type HelloReply struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HelloReply) Reset() {
-	*x = HelloReply{}
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HelloReply) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HelloReply) ProtoMessage() {}
-
-func (x *HelloReply) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HelloReply.ProtoReflect.Descriptor instead.
-func (*HelloReply) Descriptor() ([]byte, []int) {
-	return file_proto_helloworld_helloworld_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *HelloReply) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-type HelloReply2 struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HelloReply2) Reset() {
-	*x = HelloReply2{}
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HelloReply2) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HelloReply2) ProtoMessage() {}
-
-func (x *HelloReply2) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HelloReply2.ProtoReflect.Descriptor instead.
-func (*HelloReply2) Descriptor() ([]byte, []int) {
-	return file_proto_helloworld_helloworld_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *HelloReply2) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
 type PointsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Points        []string               `protobuf:"bytes,1,rep,name=points,proto3" json:"points,omitempty"`
@@ -301,7 +159,7 @@ type PointsRequest struct {
 
 func (x *PointsRequest) Reset() {
 	*x = PointsRequest{}
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[5]
+	mi := &file_proto_helloworld_helloworld_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -313,7 +171,7 @@ func (x *PointsRequest) String() string {
 func (*PointsRequest) ProtoMessage() {}
 
 func (x *PointsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[5]
+	mi := &file_proto_helloworld_helloworld_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -326,7 +184,7 @@ func (x *PointsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PointsRequest.ProtoReflect.Descriptor instead.
 func (*PointsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_helloworld_helloworld_proto_rawDescGZIP(), []int{5}
+	return file_proto_helloworld_helloworld_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PointsRequest) GetPoints() []string {
@@ -350,7 +208,7 @@ type Point struct {
 
 func (x *Point) Reset() {
 	*x = Point{}
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[6]
+	mi := &file_proto_helloworld_helloworld_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -362,7 +220,7 @@ func (x *Point) String() string {
 func (*Point) ProtoMessage() {}
 
 func (x *Point) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[6]
+	mi := &file_proto_helloworld_helloworld_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -375,7 +233,7 @@ func (x *Point) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Point.ProtoReflect.Descriptor instead.
 func (*Point) Descriptor() ([]byte, []int) {
-	return file_proto_helloworld_helloworld_proto_rawDescGZIP(), []int{6}
+	return file_proto_helloworld_helloworld_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Point) GetLatitude() int32 {
@@ -404,7 +262,7 @@ type RouteSummary struct {
 
 func (x *RouteSummary) Reset() {
 	*x = RouteSummary{}
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[7]
+	mi := &file_proto_helloworld_helloworld_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -416,7 +274,7 @@ func (x *RouteSummary) String() string {
 func (*RouteSummary) ProtoMessage() {}
 
 func (x *RouteSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_helloworld_helloworld_proto_msgTypes[7]
+	mi := &file_proto_helloworld_helloworld_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -429,7 +287,7 @@ func (x *RouteSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteSummary.ProtoReflect.Descriptor instead.
 func (*RouteSummary) Descriptor() ([]byte, []int) {
-	return file_proto_helloworld_helloworld_proto_rawDescGZIP(), []int{7}
+	return file_proto_helloworld_helloworld_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RouteSummary) GetPointCount() int32 {
@@ -458,15 +316,7 @@ const file_proto_helloworld_helloworld_proto_rawDesc = "" +
 	"\rParentMessage\x12@\n" +
 	"\x0enested_message\x18\x01 \x01(\v2\x19.helloworld.NestedMessageR\rnestedMessage\x12\x15\n" +
 	"\x06org_id\x18\x02 \x01(\tR\x05orgId\x12\x10\n" +
-	"\x03age\x18\x03 \x01(\x05R\x03age\"9\n" +
-	"\fHelloRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"&\n" +
-	"\n" +
-	"HelloReply\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"'\n" +
-	"\vHelloReply2\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"'\n" +
+	"\x03age\x18\x03 \x01(\x05R\x03age\"'\n" +
 	"\rPointsRequest\x12\x16\n" +
 	"\x06points\x18\x01 \x03(\tR\x06points\"A\n" +
 	"\x05Point\x12\x1a\n" +
@@ -475,14 +325,14 @@ const file_proto_helloworld_helloworld_proto_rawDesc = "" +
 	"\fRouteSummary\x12\x1f\n" +
 	"\vpoint_count\x18\x01 \x01(\x05R\n" +
 	"pointCount\x12!\n" +
-	"\felapsed_time\x18\x02 \x01(\x05R\velapsedTime2\xdc\x02\n" +
+	"\felapsed_time\x18\x02 \x01(\x05R\velapsedTime2\xcc\x02\n" +
 	"\aGreeter\x12p\n" +
 	"\bSayHello\x12\x14.models.HelloRequest\x1a\x12.models.HelloReply\":\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/v1/greeter/sayhello\x82\xe1\xfd\x97\x02\x15\n" +
-	"\forg.${orgId}\x12\x05org.*\x12f\n" +
-	"\fSayHelloAuth\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/greeter/sayhello-auth\x12w\n" +
-	"\x12SayHelloDownstream\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"/\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/greeter/sayhellodownstream\x82\xe1\xfd\x97\x02\x002\xc3\x02\n" +
-	"\bGreeter2\x12Z\n" +
-	"\bSayHello\x12\x18.helloworld.HelloRequest\x1a\x17.helloworld.HelloReply2\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/v2/example/echo\x12n\n" +
+	"\forg.${orgId}\x12\x05org.*\x12^\n" +
+	"\fSayHelloAuth\x12\x14.models.HelloRequest\x1a\x12.models.HelloReply\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/greeter/sayhello-auth\x12o\n" +
+	"\x12SayHelloDownstream\x12\x14.models.HelloRequest\x1a\x12.models.HelloReply\"/\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/greeter/sayhellodownstream\x82\xe1\xfd\x97\x02\x002\xbb\x02\n" +
+	"\bGreeter2\x12R\n" +
+	"\bSayHello\x12\x14.models.HelloRequest\x1a\x13.models.HelloReply2\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/v2/example/echo\x12n\n" +
 	"\rRequestPoints\x12\x19.helloworld.PointsRequest\x1a\x11.helloworld.Point\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/mystreamservice/request-points0\x01\x12k\n" +
 	"\fStreamPoints\x12\x11.helloworld.Point\x1a\x18.helloworld.RouteSummary\",\x82\xd3\xe4\x93\x02&:\x01*\"!/v1/mystreamservice/upload-points(\x012\xee\x01\n" +
 	"\x0fMyStreamService\x12n\n" +
@@ -502,37 +352,35 @@ func file_proto_helloworld_helloworld_proto_rawDescGZIP() []byte {
 	return file_proto_helloworld_helloworld_proto_rawDescData
 }
 
-var file_proto_helloworld_helloworld_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_proto_helloworld_helloworld_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_proto_helloworld_helloworld_proto_goTypes = []any{
 	(*NestedMessage)(nil),       // 0: helloworld.NestedMessage
 	(*ParentMessage)(nil),       // 1: helloworld.ParentMessage
-	(*HelloRequest)(nil),        // 2: helloworld.HelloRequest
-	(*HelloReply)(nil),          // 3: helloworld.HelloReply
-	(*HelloReply2)(nil),         // 4: helloworld.HelloReply2
-	(*PointsRequest)(nil),       // 5: helloworld.PointsRequest
-	(*Point)(nil),               // 6: helloworld.Point
-	(*RouteSummary)(nil),        // 7: helloworld.RouteSummary
-	(*models.HelloRequest)(nil), // 8: models.HelloRequest
-	(*models.HelloReply)(nil),   // 9: models.HelloReply
+	(*PointsRequest)(nil),       // 2: helloworld.PointsRequest
+	(*Point)(nil),               // 3: helloworld.Point
+	(*RouteSummary)(nil),        // 4: helloworld.RouteSummary
+	(*models.HelloRequest)(nil), // 5: models.HelloRequest
+	(*models.HelloReply)(nil),   // 6: models.HelloReply
+	(*models.HelloReply2)(nil),  // 7: models.HelloReply2
 }
 var file_proto_helloworld_helloworld_proto_depIdxs = []int32{
 	0, // 0: helloworld.ParentMessage.nested_message:type_name -> helloworld.NestedMessage
-	8, // 1: helloworld.Greeter.SayHello:input_type -> models.HelloRequest
-	2, // 2: helloworld.Greeter.SayHelloAuth:input_type -> helloworld.HelloRequest
-	2, // 3: helloworld.Greeter.SayHelloDownstream:input_type -> helloworld.HelloRequest
-	2, // 4: helloworld.Greeter2.SayHello:input_type -> helloworld.HelloRequest
-	5, // 5: helloworld.Greeter2.RequestPoints:input_type -> helloworld.PointsRequest
-	6, // 6: helloworld.Greeter2.StreamPoints:input_type -> helloworld.Point
-	5, // 7: helloworld.MyStreamService.RequestPoints:input_type -> helloworld.PointsRequest
-	6, // 8: helloworld.MyStreamService.StreamPoints:input_type -> helloworld.Point
-	9, // 9: helloworld.Greeter.SayHello:output_type -> models.HelloReply
-	3, // 10: helloworld.Greeter.SayHelloAuth:output_type -> helloworld.HelloReply
-	3, // 11: helloworld.Greeter.SayHelloDownstream:output_type -> helloworld.HelloReply
-	4, // 12: helloworld.Greeter2.SayHello:output_type -> helloworld.HelloReply2
-	6, // 13: helloworld.Greeter2.RequestPoints:output_type -> helloworld.Point
-	7, // 14: helloworld.Greeter2.StreamPoints:output_type -> helloworld.RouteSummary
-	6, // 15: helloworld.MyStreamService.RequestPoints:output_type -> helloworld.Point
-	7, // 16: helloworld.MyStreamService.StreamPoints:output_type -> helloworld.RouteSummary
+	5, // 1: helloworld.Greeter.SayHello:input_type -> models.HelloRequest
+	5, // 2: helloworld.Greeter.SayHelloAuth:input_type -> models.HelloRequest
+	5, // 3: helloworld.Greeter.SayHelloDownstream:input_type -> models.HelloRequest
+	5, // 4: helloworld.Greeter2.SayHello:input_type -> models.HelloRequest
+	2, // 5: helloworld.Greeter2.RequestPoints:input_type -> helloworld.PointsRequest
+	3, // 6: helloworld.Greeter2.StreamPoints:input_type -> helloworld.Point
+	2, // 7: helloworld.MyStreamService.RequestPoints:input_type -> helloworld.PointsRequest
+	3, // 8: helloworld.MyStreamService.StreamPoints:input_type -> helloworld.Point
+	6, // 9: helloworld.Greeter.SayHello:output_type -> models.HelloReply
+	6, // 10: helloworld.Greeter.SayHelloAuth:output_type -> models.HelloReply
+	6, // 11: helloworld.Greeter.SayHelloDownstream:output_type -> models.HelloReply
+	7, // 12: helloworld.Greeter2.SayHello:output_type -> models.HelloReply2
+	3, // 13: helloworld.Greeter2.RequestPoints:output_type -> helloworld.Point
+	4, // 14: helloworld.Greeter2.StreamPoints:output_type -> helloworld.RouteSummary
+	3, // 15: helloworld.MyStreamService.RequestPoints:output_type -> helloworld.Point
+	4, // 16: helloworld.MyStreamService.StreamPoints:output_type -> helloworld.RouteSummary
 	9, // [9:17] is the sub-list for method output_type
 	1, // [1:9] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -551,7 +399,7 @@ func file_proto_helloworld_helloworld_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_helloworld_helloworld_proto_rawDesc), len(file_proto_helloworld_helloworld_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   3,
 		},
