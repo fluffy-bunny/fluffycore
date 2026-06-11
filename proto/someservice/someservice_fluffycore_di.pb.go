@@ -6,11 +6,99 @@ package someservice
 import (
 	context "context"
 	fluffy_dozm_di "github.com/fluffy-bunny/fluffy-dozm-di"
+	GRPCClientFactory "github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
+	tokensource "github.com/fluffy-bunny/fluffycore/contracts/tokensource"
+	grpcclient "github.com/fluffy-bunny/fluffycore/grpcclient"
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	grpc "google.golang.org/grpc"
+	sync "sync"
 )
+
+// IAppSomeServiceClientAccessor defines the grpc client
+type IAppSomeServiceClientAccessor interface {
+	GetClient() (SomeServiceClient, error)
+}
+
+// AppSomeServiceClientAccessorConfig defines the grpc client struct
+type AppSomeServiceClientAccessorConfig struct {
+	Url string
+}
+
+// AppSomeServiceClientAccessor defines the grpc client struct
+type AppSomeServiceClientAccessor struct {
+	rwLock            sync.RWMutex
+	config            *AppSomeServiceClientAccessorConfig
+	appTokenSource    tokensource.IAppTokenSource
+	grpcClientFactory GRPCClientFactory.IGRPCClientFactory
+	client            SomeServiceClient
+}
+
+var stemAppSomeServiceClientAccessor = (*AppSomeServiceClientAccessor)(nil)
+var _ IAppSomeServiceClientAccessor = stemAppSomeServiceClientAccessor
+
+func (s *AppSomeServiceClientAccessor) Ctor(
+	config *AppSomeServiceClientAccessorConfig,
+	appTokenSource tokensource.IAppTokenSource,
+	grpcClientFactory GRPCClientFactory.IGRPCClientFactory,
+) (IAppSomeServiceClientAccessor, error) {
+	return &AppSomeServiceClientAccessor{
+		config:            config,
+		appTokenSource:    appTokenSource,
+		grpcClientFactory: grpcClientFactory,
+	}, nil
+}
+
+// AddSingletonIAppSomeServiceClientAccessor ...
+func AddSingletonIAppSomeServiceClientAccessor(
+	cb fluffy_dozm_di.ContainerBuilder,
+	config *AppSomeServiceClientAccessorConfig,
+) {
+	fluffy_dozm_di.AddInstance[*AppSomeServiceClientAccessorConfig](cb, config)
+	fluffy_dozm_di.AddSingleton[IAppSomeServiceClientAccessor](cb, stemAppSomeServiceClientAccessor.Ctor)
+}
+
+func (s *AppSomeServiceClientAccessor) GetClient() (SomeServiceClient, error) {
+	doGetClient := func() SomeServiceClient {
+		s.rwLock.RLock()
+		defer s.rwLock.RUnlock()
+		if s.client != nil {
+			return s.client
+		}
+		return nil
+	}
+
+	client := doGetClient()
+	if client != nil {
+		return client, nil
+	}
+
+	tokenSource, err := s.appTokenSource.GetTokenSource()
+	if err != nil {
+		return nil, err
+	}
+	//--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+	s.rwLock.Lock()
+	defer s.rwLock.Unlock()
+	//--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+
+	// Re-check after acquiring write lock (double-checked locking)
+	if s.client != nil {
+		return s.client, nil
+	}
+
+	grpcClient, err := s.grpcClientFactory.NewGrpcClient(
+		grpcclient.WithTarget(s.config.Url),
+		grpcclient.WithTokenSource(tokenSource),
+		grpcclient.WithInsecure(true), // TODO: remove this in production
+	)
+	if err != nil {
+		return nil, err
+	}
+	s.client = NewSomeServiceClient(grpcClient.GetConnection())
+	return s.client, nil
+}
 
 // IFluffyCoreSomeServiceServer defines the grpc server
 type IFluffyCoreSomeServiceServer interface {
@@ -52,6 +140,90 @@ func (s *SomeServiceFluffyCoreServer) SayHello(ctx context.Context, request *Hel
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IFluffyCoreSomeServiceServer](requestContainer)
 	return downstreamService.SayHello(ctx, request)
+}
+
+// IAppSomeService2ClientAccessor defines the grpc client
+type IAppSomeService2ClientAccessor interface {
+	GetClient() (SomeService2Client, error)
+}
+
+// AppSomeService2ClientAccessorConfig defines the grpc client struct
+type AppSomeService2ClientAccessorConfig struct {
+	Url string
+}
+
+// AppSomeService2ClientAccessor defines the grpc client struct
+type AppSomeService2ClientAccessor struct {
+	rwLock            sync.RWMutex
+	config            *AppSomeService2ClientAccessorConfig
+	appTokenSource    tokensource.IAppTokenSource
+	grpcClientFactory GRPCClientFactory.IGRPCClientFactory
+	client            SomeService2Client
+}
+
+var stemAppSomeService2ClientAccessor = (*AppSomeService2ClientAccessor)(nil)
+var _ IAppSomeService2ClientAccessor = stemAppSomeService2ClientAccessor
+
+func (s *AppSomeService2ClientAccessor) Ctor(
+	config *AppSomeService2ClientAccessorConfig,
+	appTokenSource tokensource.IAppTokenSource,
+	grpcClientFactory GRPCClientFactory.IGRPCClientFactory,
+) (IAppSomeService2ClientAccessor, error) {
+	return &AppSomeService2ClientAccessor{
+		config:            config,
+		appTokenSource:    appTokenSource,
+		grpcClientFactory: grpcClientFactory,
+	}, nil
+}
+
+// AddSingletonIAppSomeService2ClientAccessor ...
+func AddSingletonIAppSomeService2ClientAccessor(
+	cb fluffy_dozm_di.ContainerBuilder,
+	config *AppSomeService2ClientAccessorConfig,
+) {
+	fluffy_dozm_di.AddInstance[*AppSomeService2ClientAccessorConfig](cb, config)
+	fluffy_dozm_di.AddSingleton[IAppSomeService2ClientAccessor](cb, stemAppSomeService2ClientAccessor.Ctor)
+}
+
+func (s *AppSomeService2ClientAccessor) GetClient() (SomeService2Client, error) {
+	doGetClient := func() SomeService2Client {
+		s.rwLock.RLock()
+		defer s.rwLock.RUnlock()
+		if s.client != nil {
+			return s.client
+		}
+		return nil
+	}
+
+	client := doGetClient()
+	if client != nil {
+		return client, nil
+	}
+
+	tokenSource, err := s.appTokenSource.GetTokenSource()
+	if err != nil {
+		return nil, err
+	}
+	//--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+	s.rwLock.Lock()
+	defer s.rwLock.Unlock()
+	//--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+
+	// Re-check after acquiring write lock (double-checked locking)
+	if s.client != nil {
+		return s.client, nil
+	}
+
+	grpcClient, err := s.grpcClientFactory.NewGrpcClient(
+		grpcclient.WithTarget(s.config.Url),
+		grpcclient.WithTokenSource(tokenSource),
+		grpcclient.WithInsecure(true), // TODO: remove this in production
+	)
+	if err != nil {
+		return nil, err
+	}
+	s.client = NewSomeService2Client(grpcClient.GetConnection())
+	return s.client, nil
 }
 
 // IFluffyCoreSomeService2Server defines the grpc server

@@ -6,6 +6,7 @@ import (
 	internal_shared "github.com/fluffy-bunny/fluffycore/cmd/cli/internal/shared"
 	fluffycore_contracts_tokensource "github.com/fluffy-bunny/fluffycore/contracts/tokensource"
 	proto_helloworld "github.com/fluffy-bunny/fluffycore/proto/helloworld"
+	proto_hellowworld_models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	cobra "github.com/spf13/cobra"
 )
 
@@ -47,7 +48,7 @@ func Init(parentCmd *cobra.Command) {
 				return err
 			}
 			helloReply, err := appGreeterClient.SayHello(ctx,
-				&proto_helloworld.HelloRequest{
+				&proto_hellowworld_models.HelloRequest{
 					Name: "FluffyCore",
 				})
 			if err != nil {

@@ -22,6 +22,7 @@ package helloworld
 
 import (
 	context "context"
+	models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -45,11 +46,11 @@ const (
 // fluffycore:nats:namespace:roger
 type GreeterClient interface {
 	// Sends a greeting
-	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error)
+	SayHello(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply, error)
 	// Sends a greeting
-	SayHelloAuth(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error)
+	SayHelloAuth(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply, error)
 	// SayHelloDownstream is called from SayHello to demonstrate grpc opentelemetry tracing
-	SayHelloDownstream(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error)
+	SayHelloDownstream(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply, error)
 }
 
 type greeterClient struct {
@@ -60,9 +61,9 @@ func NewGreeterClient(cc grpc.ClientConnInterface) GreeterClient {
 	return &greeterClient{cc}
 }
 
-func (c *greeterClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
+func (c *greeterClient) SayHello(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(HelloReply)
+	out := new(models.HelloReply)
 	err := c.cc.Invoke(ctx, Greeter_SayHello_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -70,9 +71,9 @@ func (c *greeterClient) SayHello(ctx context.Context, in *HelloRequest, opts ...
 	return out, nil
 }
 
-func (c *greeterClient) SayHelloAuth(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
+func (c *greeterClient) SayHelloAuth(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(HelloReply)
+	out := new(models.HelloReply)
 	err := c.cc.Invoke(ctx, Greeter_SayHelloAuth_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -80,9 +81,9 @@ func (c *greeterClient) SayHelloAuth(ctx context.Context, in *HelloRequest, opts
 	return out, nil
 }
 
-func (c *greeterClient) SayHelloDownstream(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
+func (c *greeterClient) SayHelloDownstream(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(HelloReply)
+	out := new(models.HelloReply)
 	err := c.cc.Invoke(ctx, Greeter_SayHelloDownstream_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -97,11 +98,11 @@ func (c *greeterClient) SayHelloDownstream(ctx context.Context, in *HelloRequest
 // fluffycore:nats:namespace:roger
 type GreeterServer interface {
 	// Sends a greeting
-	SayHello(context.Context, *HelloRequest) (*HelloReply, error)
+	SayHello(context.Context, *models.HelloRequest) (*models.HelloReply, error)
 	// Sends a greeting
-	SayHelloAuth(context.Context, *HelloRequest) (*HelloReply, error)
+	SayHelloAuth(context.Context, *models.HelloRequest) (*models.HelloReply, error)
 	// SayHelloDownstream is called from SayHello to demonstrate grpc opentelemetry tracing
-	SayHelloDownstream(context.Context, *HelloRequest) (*HelloReply, error)
+	SayHelloDownstream(context.Context, *models.HelloRequest) (*models.HelloReply, error)
 	mustEmbedUnimplementedGreeterServer()
 }
 
@@ -112,13 +113,13 @@ type GreeterServer interface {
 // pointer dereference when methods are called.
 type UnimplementedGreeterServer struct{}
 
-func (UnimplementedGreeterServer) SayHello(context.Context, *HelloRequest) (*HelloReply, error) {
+func (UnimplementedGreeterServer) SayHello(context.Context, *models.HelloRequest) (*models.HelloReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method SayHello not implemented")
 }
-func (UnimplementedGreeterServer) SayHelloAuth(context.Context, *HelloRequest) (*HelloReply, error) {
+func (UnimplementedGreeterServer) SayHelloAuth(context.Context, *models.HelloRequest) (*models.HelloReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method SayHelloAuth not implemented")
 }
-func (UnimplementedGreeterServer) SayHelloDownstream(context.Context, *HelloRequest) (*HelloReply, error) {
+func (UnimplementedGreeterServer) SayHelloDownstream(context.Context, *models.HelloRequest) (*models.HelloReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method SayHelloDownstream not implemented")
 }
 func (UnimplementedGreeterServer) mustEmbedUnimplementedGreeterServer() {}
@@ -143,7 +144,7 @@ func RegisterGreeterServer(s grpc.ServiceRegistrar, srv GreeterServer) {
 }
 
 func _Greeter_SayHello_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HelloRequest)
+	in := new(models.HelloRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -155,13 +156,13 @@ func _Greeter_SayHello_Handler(srv interface{}, ctx context.Context, dec func(in
 		FullMethod: Greeter_SayHello_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GreeterServer).SayHello(ctx, req.(*HelloRequest))
+		return srv.(GreeterServer).SayHello(ctx, req.(*models.HelloRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Greeter_SayHelloAuth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HelloRequest)
+	in := new(models.HelloRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -173,13 +174,13 @@ func _Greeter_SayHelloAuth_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: Greeter_SayHelloAuth_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GreeterServer).SayHelloAuth(ctx, req.(*HelloRequest))
+		return srv.(GreeterServer).SayHelloAuth(ctx, req.(*models.HelloRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Greeter_SayHelloDownstream_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HelloRequest)
+	in := new(models.HelloRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -191,7 +192,7 @@ func _Greeter_SayHelloDownstream_Handler(srv interface{}, ctx context.Context, d
 		FullMethod: Greeter_SayHelloDownstream_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GreeterServer).SayHelloDownstream(ctx, req.(*HelloRequest))
+		return srv.(GreeterServer).SayHelloDownstream(ctx, req.(*models.HelloRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -233,7 +234,7 @@ const (
 // fluffycore:nats:namespace:roger
 type Greeter2Client interface {
 	// Sends a greeting
-	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply2, error)
+	SayHello(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply2, error)
 	// RequestPoints
 	// Request: Unary
 	// Response: Streaming
@@ -251,9 +252,9 @@ func NewGreeter2Client(cc grpc.ClientConnInterface) Greeter2Client {
 	return &greeter2Client{cc}
 }
 
-func (c *greeter2Client) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply2, error) {
+func (c *greeter2Client) SayHello(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply2, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(HelloReply2)
+	out := new(models.HelloReply2)
 	err := c.cc.Invoke(ctx, Greeter2_SayHello_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -300,7 +301,7 @@ type Greeter2_StreamPointsClient = grpc.ClientStreamingClient[Point, RouteSummar
 // fluffycore:nats:namespace:roger
 type Greeter2Server interface {
 	// Sends a greeting
-	SayHello(context.Context, *HelloRequest) (*HelloReply2, error)
+	SayHello(context.Context, *models.HelloRequest) (*models.HelloReply2, error)
 	// RequestPoints
 	// Request: Unary
 	// Response: Streaming
@@ -318,7 +319,7 @@ type Greeter2Server interface {
 // pointer dereference when methods are called.
 type UnimplementedGreeter2Server struct{}
 
-func (UnimplementedGreeter2Server) SayHello(context.Context, *HelloRequest) (*HelloReply2, error) {
+func (UnimplementedGreeter2Server) SayHello(context.Context, *models.HelloRequest) (*models.HelloReply2, error) {
 	return nil, status.Error(codes.Unimplemented, "method SayHello not implemented")
 }
 func (UnimplementedGreeter2Server) RequestPoints(*PointsRequest, grpc.ServerStreamingServer[Point]) error {
@@ -349,7 +350,7 @@ func RegisterGreeter2Server(s grpc.ServiceRegistrar, srv Greeter2Server) {
 }
 
 func _Greeter2_SayHello_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HelloRequest)
+	in := new(models.HelloRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -361,7 +362,7 @@ func _Greeter2_SayHello_Handler(srv interface{}, ctx context.Context, dec func(i
 		FullMethod: Greeter2_SayHello_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(Greeter2Server).SayHello(ctx, req.(*HelloRequest))
+		return srv.(Greeter2Server).SayHello(ctx, req.(*models.HelloRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

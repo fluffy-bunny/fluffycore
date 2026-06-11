@@ -11,6 +11,7 @@ import (
 	tokensource "github.com/fluffy-bunny/fluffycore/contracts/tokensource"
 	grpcclient "github.com/fluffy-bunny/fluffycore/grpcclient"
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
+	models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	grpc "google.golang.org/grpc"
 	sync "sync"
@@ -136,21 +137,21 @@ func AddGreeterServer(cb fluffy_dozm_di.ContainerBuilder, ctor any) {
 }
 
 // SayHello...
-func (s *GreeterFluffyCoreServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+func (s *GreeterFluffyCoreServer) SayHello(ctx context.Context, request *models.HelloRequest) (*models.HelloReply, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](requestContainer)
 	return downstreamService.SayHello(ctx, request)
 }
 
 // SayHelloAuth...
-func (s *GreeterFluffyCoreServer) SayHelloAuth(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+func (s *GreeterFluffyCoreServer) SayHelloAuth(ctx context.Context, request *models.HelloRequest) (*models.HelloReply, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](requestContainer)
 	return downstreamService.SayHelloAuth(ctx, request)
 }
 
 // SayHelloDownstream...
-func (s *GreeterFluffyCoreServer) SayHelloDownstream(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+func (s *GreeterFluffyCoreServer) SayHelloDownstream(ctx context.Context, request *models.HelloRequest) (*models.HelloReply, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](requestContainer)
 	return downstreamService.SayHelloDownstream(ctx, request)
@@ -276,7 +277,7 @@ func AddGreeter2Server(cb fluffy_dozm_di.ContainerBuilder, ctor any) {
 }
 
 // SayHello...
-func (s *Greeter2FluffyCoreServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply2, error) {
+func (s *Greeter2FluffyCoreServer) SayHello(ctx context.Context, request *models.HelloRequest) (*models.HelloReply2, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeter2Server](requestContainer)
 	return downstreamService.SayHello(ctx, request)

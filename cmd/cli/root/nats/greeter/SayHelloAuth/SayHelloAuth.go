@@ -7,7 +7,7 @@ import (
 	cobra_utils "github.com/fluffy-bunny/fluffycore/cmd/cli/internal/cobra_utils"
 	contract_greeter "github.com/fluffy-bunny/fluffycore/cmd/cli/internal/contracts/Greeter"
 	internal_shared "github.com/fluffy-bunny/fluffycore/cmd/cli/internal/shared"
-	proto_helloworld "github.com/fluffy-bunny/fluffycore/proto/helloworld"
+	proto_hellowworld_models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	cobra "github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
@@ -51,7 +51,7 @@ func Init(parentCmd *cobra.Command) {
 
 			greeterClient := serviceNATSMicroClientAccessor.GetGreeterNATSMicroClient()
 			helloReply, err := greeterClient.SayHelloAuth(ctx,
-				&proto_helloworld.HelloRequest{
+				&proto_hellowworld_models.HelloRequest{
 					Name: "Toyota",
 				})
 

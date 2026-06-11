@@ -12,6 +12,7 @@ import (
 	fluffycore_contracts_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/contracts/somedisposable"
 	fluffycore_grpcclient "github.com/fluffy-bunny/fluffycore/grpcclient"
 	proto_helloworld "github.com/fluffy-bunny/fluffycore/proto/helloworld"
+	proto_hellowworld_models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	nats "github.com/nats-io/nats.go"
@@ -74,19 +75,19 @@ func AddGreeterService(builder di.ContainerBuilder) {
 	}
 
 }
-func (s *service) SayHelloAuth(ctx context.Context, request *proto_helloworld.HelloRequest) (*proto_helloworld.HelloReply, error) {
+func (s *service) SayHelloAuth(ctx context.Context, request *proto_hellowworld_models.HelloRequest) (*proto_hellowworld_models.HelloReply, error) {
 	return s.SayHello(ctx, request)
 }
 
-func (s *service) SayHelloDownstream(ctx context.Context, request *proto_helloworld.HelloRequest) (*proto_helloworld.HelloReply, error) {
+func (s *service) SayHelloDownstream(ctx context.Context, request *proto_hellowworld_models.HelloRequest) (*proto_hellowworld_models.HelloReply, error) {
 	log := zerolog.Ctx(ctx)
 	log.Info().Msg("SayHelloDownstream")
 
-	return &proto_helloworld.HelloReply{
+	return &proto_hellowworld_models.HelloReply{
 		Message: "Hello " + request.Name,
 	}, nil
 }
-func (s *service) SayHello(ctx context.Context, request *proto_helloworld.HelloRequest) (*proto_helloworld.HelloReply, error) {
+func (s *service) SayHello(ctx context.Context, request *proto_hellowworld_models.HelloRequest) (*proto_hellowworld_models.HelloReply, error) {
 	log := zerolog.Ctx(ctx)
 	log.Info().Msg("SayHello")
 	s.workHard(ctx)

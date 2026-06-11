@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
 	"google.golang.org/grpc"
@@ -37,7 +38,7 @@ var (
 
 func request_Greeter_SayHello_0(ctx context.Context, marshaler runtime.Marshaler, client GreeterClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq HelloRequest
+		protoReq models.HelloRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -52,7 +53,7 @@ func request_Greeter_SayHello_0(ctx context.Context, marshaler runtime.Marshaler
 
 func local_request_Greeter_SayHello_0(ctx context.Context, marshaler runtime.Marshaler, server GreeterServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq HelloRequest
+		protoReq models.HelloRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -64,7 +65,7 @@ func local_request_Greeter_SayHello_0(ctx context.Context, marshaler runtime.Mar
 
 func request_Greeter_SayHelloAuth_0(ctx context.Context, marshaler runtime.Marshaler, client GreeterClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq HelloRequest
+		protoReq models.HelloRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -79,7 +80,7 @@ func request_Greeter_SayHelloAuth_0(ctx context.Context, marshaler runtime.Marsh
 
 func local_request_Greeter_SayHelloAuth_0(ctx context.Context, marshaler runtime.Marshaler, server GreeterServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq HelloRequest
+		protoReq models.HelloRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -91,7 +92,7 @@ func local_request_Greeter_SayHelloAuth_0(ctx context.Context, marshaler runtime
 
 func request_Greeter_SayHelloDownstream_0(ctx context.Context, marshaler runtime.Marshaler, client GreeterClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq HelloRequest
+		protoReq models.HelloRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -106,7 +107,7 @@ func request_Greeter_SayHelloDownstream_0(ctx context.Context, marshaler runtime
 
 func local_request_Greeter_SayHelloDownstream_0(ctx context.Context, marshaler runtime.Marshaler, server GreeterServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq HelloRequest
+		protoReq models.HelloRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -118,7 +119,7 @@ func local_request_Greeter_SayHelloDownstream_0(ctx context.Context, marshaler r
 
 func request_Greeter2_SayHello_0(ctx context.Context, marshaler runtime.Marshaler, client Greeter2Client, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq HelloRequest
+		protoReq models.HelloRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -133,7 +134,7 @@ func request_Greeter2_SayHello_0(ctx context.Context, marshaler runtime.Marshale
 
 func local_request_Greeter2_SayHello_0(ctx context.Context, marshaler runtime.Marshaler, server Greeter2Server, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq HelloRequest
+		protoReq models.HelloRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {

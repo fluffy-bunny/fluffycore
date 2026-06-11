@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+
+option go_package = "github.com/fluffy-bunny/fluffycore/proto/helloworld/models";
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.helloworld.models";
+option java_outer_classname = "HelloWorldProto";
+
+package models;
+
+ 
+
+
+// The request message containing the user's name.
+message HelloRequest {
+  string org_id = 1;
+  string name = 2;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+}
+
+message HelloReply2 {
+  string message = 1;
+  
+}
