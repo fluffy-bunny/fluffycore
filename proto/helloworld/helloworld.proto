@@ -15,7 +15,7 @@
 syntax = "proto3";
 
 
-option go_package = "google.golang.org/grpc/examples/helloworld/helloworld";
+option go_package = "github.com/fluffy-bunny/fluffycore/proto/helloworld/helloworld";
 option java_multiple_files = true;
 option java_package = "io.grpc.examples.helloworld";
 option java_outer_classname = "HelloWorldProto";
@@ -24,12 +24,13 @@ package helloworld;
 
 import "google/api/annotations.proto";
 import "nats/api/annotations.proto";
+import "models/models.proto";
 
 // fluffycore:nats:namespace:roger
 service Greeter {
   
   // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {
+  rpc SayHello (models.HelloRequest) returns (models.HelloReply) {
     option (google.api.http) = {
       post: "/v1/greeter/sayhello"
       body: "*"
@@ -40,7 +41,7 @@ service Greeter {
     };
   }
     // Sends a greeting
-    rpc SayHelloAuth (HelloRequest) returns (HelloReply) {
+    rpc SayHelloAuth (models.HelloRequest) returns (models.HelloReply) {
       option (google.api.http) = {
         post: "/v1/greeter/sayhello-auth"
         body: "*"
@@ -48,7 +49,7 @@ service Greeter {
      
     }
   // SayHelloDownstream is called from SayHello to demonstrate grpc opentelemetry tracing
-  rpc SayHelloDownstream (HelloRequest) returns (HelloReply) {
+  rpc SayHelloDownstream (models.HelloRequest) returns (models.HelloReply) {
     option (google.api.http) = {
       post: "/v1/greeter/sayhellodownstream"
       body: "*"
@@ -63,7 +64,7 @@ service Greeter {
 // fluffycore:nats:namespace:roger
 service Greeter2 {
   // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply2) {
+  rpc SayHello (models.HelloRequest) returns (models.HelloReply2) {
     option (google.api.http) = {
       post: "/v2/example/echo"
       body: "*"
@@ -104,19 +105,11 @@ message ParentMessage {
   int32 age = 3;
 }
 // The request message containing the user's name.
-message HelloRequest {
-  string org_id = 1;
-  string name = 2;
-}
+ 
 
 // The response message containing the greetings
-message HelloReply {
-  string message = 1;
-}
-message HelloReply2 {
-  string message = 1;
-  
-}
+ 
+
 
 // fluffycore:nats:dddd
 service MyStreamService {

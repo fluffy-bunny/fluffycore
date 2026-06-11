@@ -9,6 +9,7 @@ import (
 	"time"
 
 	proto_helloworld "github.com/fluffy-bunny/fluffycore/proto/helloworld"
+	proto_hellowworld_models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -60,7 +61,7 @@ func printPoints(client proto_helloworld.MyStreamServiceClient, request *proto_h
 func callUnarySayHello(client proto_helloworld.GreeterClient, message string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	resp, err := client.SayHello(ctx, &proto_helloworld.HelloRequest{Name: message})
+	resp, err := client.SayHello(ctx, &proto_hellowworld_models.HelloRequest{Name: message})
 	if err != nil {
 		log.Error().Msgf("client.UnaryEcho(_) = _, %v: ", err)
 	} else {
