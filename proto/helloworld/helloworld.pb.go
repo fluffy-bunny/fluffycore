@@ -22,6 +22,7 @@ package helloworld
 
 import (
 	_ "github.com/fluffy-bunny/fluffycore/nats/api/annotations"
+	models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -450,7 +451,7 @@ var File_proto_helloworld_helloworld_proto protoreflect.FileDescriptor
 const file_proto_helloworld_helloworld_proto_rawDesc = "" +
 	"\n" +
 	"!proto/helloworld/helloworld.proto\x12\n" +
-	"helloworld\x1a\x1cgoogle/api/annotations.proto\x1a\x1anats/api/annotations.proto\"8\n" +
+	"helloworld\x1a\x1cgoogle/api/annotations.proto\x1a\x1anats/api/annotations.proto\x1a\x13models/models.proto\"8\n" +
 	"\rNestedMessage\x12\x15\n" +
 	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x10\n" +
 	"\x03age\x18\x02 \x01(\x05R\x03age\"z\n" +
@@ -474,9 +475,9 @@ const file_proto_helloworld_helloworld_proto_rawDesc = "" +
 	"\fRouteSummary\x12\x1f\n" +
 	"\vpoint_count\x18\x01 \x01(\x05R\n" +
 	"pointCount\x12!\n" +
-	"\felapsed_time\x18\x02 \x01(\x05R\velapsedTime2\xe4\x02\n" +
-	"\aGreeter\x12x\n" +
-	"\bSayHello\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\":\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/v1/greeter/sayhello\x82\xe1\xfd\x97\x02\x15\n" +
+	"\felapsed_time\x18\x02 \x01(\x05R\velapsedTime2\xdc\x02\n" +
+	"\aGreeter\x12p\n" +
+	"\bSayHello\x12\x14.models.HelloRequest\x1a\x12.models.HelloReply\":\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/v1/greeter/sayhello\x82\xe1\xfd\x97\x02\x15\n" +
 	"\forg.${orgId}\x12\x05org.*\x12f\n" +
 	"\fSayHelloAuth\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/greeter/sayhello-auth\x12w\n" +
 	"\x12SayHelloDownstream\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"/\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/greeter/sayhellodownstream\x82\xe1\xfd\x97\x02\x002\xc3\x02\n" +
@@ -486,8 +487,8 @@ const file_proto_helloworld_helloworld_proto_rawDesc = "" +
 	"\fStreamPoints\x12\x11.helloworld.Point\x1a\x18.helloworld.RouteSummary\",\x82\xd3\xe4\x93\x02&:\x01*\"!/v1/mystreamservice/upload-points(\x012\xee\x01\n" +
 	"\x0fMyStreamService\x12n\n" +
 	"\rRequestPoints\x12\x19.helloworld.PointsRequest\x1a\x11.helloworld.Point\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/mystreamservice/request-points0\x01\x12k\n" +
-	"\fStreamPoints\x12\x11.helloworld.Point\x1a\x18.helloworld.RouteSummary\",\x82\xd3\xe4\x93\x02&:\x01*\"!/v1/mystreamservice/upload-points(\x01Bg\n" +
-	"\x1bio.grpc.examples.helloworldB\x0fHelloWorldProtoP\x01Z5google.golang.org/grpc/examples/helloworld/helloworldb\x06proto3"
+	"\fStreamPoints\x12\x11.helloworld.Point\x1a\x18.helloworld.RouteSummary\",\x82\xd3\xe4\x93\x02&:\x01*\"!/v1/mystreamservice/upload-points(\x01Bp\n" +
+	"\x1bio.grpc.examples.helloworldB\x0fHelloWorldProtoP\x01Z>github.com/fluffy-bunny/fluffycore/proto/helloworld/helloworldb\x06proto3"
 
 var (
 	file_proto_helloworld_helloworld_proto_rawDescOnce sync.Once
@@ -503,18 +504,20 @@ func file_proto_helloworld_helloworld_proto_rawDescGZIP() []byte {
 
 var file_proto_helloworld_helloworld_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_proto_helloworld_helloworld_proto_goTypes = []any{
-	(*NestedMessage)(nil), // 0: helloworld.NestedMessage
-	(*ParentMessage)(nil), // 1: helloworld.ParentMessage
-	(*HelloRequest)(nil),  // 2: helloworld.HelloRequest
-	(*HelloReply)(nil),    // 3: helloworld.HelloReply
-	(*HelloReply2)(nil),   // 4: helloworld.HelloReply2
-	(*PointsRequest)(nil), // 5: helloworld.PointsRequest
-	(*Point)(nil),         // 6: helloworld.Point
-	(*RouteSummary)(nil),  // 7: helloworld.RouteSummary
+	(*NestedMessage)(nil),       // 0: helloworld.NestedMessage
+	(*ParentMessage)(nil),       // 1: helloworld.ParentMessage
+	(*HelloRequest)(nil),        // 2: helloworld.HelloRequest
+	(*HelloReply)(nil),          // 3: helloworld.HelloReply
+	(*HelloReply2)(nil),         // 4: helloworld.HelloReply2
+	(*PointsRequest)(nil),       // 5: helloworld.PointsRequest
+	(*Point)(nil),               // 6: helloworld.Point
+	(*RouteSummary)(nil),        // 7: helloworld.RouteSummary
+	(*models.HelloRequest)(nil), // 8: models.HelloRequest
+	(*models.HelloReply)(nil),   // 9: models.HelloReply
 }
 var file_proto_helloworld_helloworld_proto_depIdxs = []int32{
 	0, // 0: helloworld.ParentMessage.nested_message:type_name -> helloworld.NestedMessage
-	2, // 1: helloworld.Greeter.SayHello:input_type -> helloworld.HelloRequest
+	8, // 1: helloworld.Greeter.SayHello:input_type -> models.HelloRequest
 	2, // 2: helloworld.Greeter.SayHelloAuth:input_type -> helloworld.HelloRequest
 	2, // 3: helloworld.Greeter.SayHelloDownstream:input_type -> helloworld.HelloRequest
 	2, // 4: helloworld.Greeter2.SayHello:input_type -> helloworld.HelloRequest
@@ -522,7 +525,7 @@ var file_proto_helloworld_helloworld_proto_depIdxs = []int32{
 	6, // 6: helloworld.Greeter2.StreamPoints:input_type -> helloworld.Point
 	5, // 7: helloworld.MyStreamService.RequestPoints:input_type -> helloworld.PointsRequest
 	6, // 8: helloworld.MyStreamService.StreamPoints:input_type -> helloworld.Point
-	3, // 9: helloworld.Greeter.SayHello:output_type -> helloworld.HelloReply
+	9, // 9: helloworld.Greeter.SayHello:output_type -> models.HelloReply
 	3, // 10: helloworld.Greeter.SayHelloAuth:output_type -> helloworld.HelloReply
 	3, // 11: helloworld.Greeter.SayHelloDownstream:output_type -> helloworld.HelloReply
 	4, // 12: helloworld.Greeter2.SayHello:output_type -> helloworld.HelloReply2

@@ -11,6 +11,7 @@ import (
 	tokensource "github.com/fluffy-bunny/fluffycore/contracts/tokensource"
 	grpcclient "github.com/fluffy-bunny/fluffycore/grpcclient"
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
+	models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	grpc "google.golang.org/grpc"
 	sync "sync"
@@ -136,7 +137,7 @@ func AddGreeterServer(cb fluffy_dozm_di.ContainerBuilder, ctor any) {
 }
 
 // SayHello...
-func (s *GreeterFluffyCoreServer) SayHello(ctx context.Context, request *HelloRequest) (*HelloReply, error) {
+func (s *GreeterFluffyCoreServer) SayHello(ctx context.Context, request *models.HelloRequest) (*models.HelloReply, error) {
 	requestContainer := dicontext.GetRequestContainer(ctx)
 	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](requestContainer)
 	return downstreamService.SayHello(ctx, request)
