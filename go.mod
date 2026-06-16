@@ -30,7 +30,7 @@ require (
 	github.com/jellydator/ttlcache/v2 v2.11.1
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
-	github.com/labstack/echo/v5 v5.1.1
+	github.com/labstack/echo/v5 v5.2.1
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/madflojo/tasks v1.3.0
 	github.com/maxence-charriere/go-app/v10 v10.1.11
@@ -41,7 +41,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
 	github.com/quasoft/memstore v0.0.0-20191010062613-2bce066d2b0b
-	github.com/redis/go-redis/v9 v9.20.0
+	github.com/redis/go-redis/v9 v9.20.1
 	github.com/reugn/async v0.10.0
 	github.com/rs/xid v1.6.0
 	github.com/rs/zerolog v1.35.1
