@@ -57,7 +57,7 @@ jobs:
           echo new_tag: ${{needs.pre_flight.outputs.new_tag}} 
           echo changelog: ${{needs.pre_flight.outputs.changelog}}
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -81,7 +81,7 @@ jobs:
           echo new_tag: ${{needs.pre_flight.outputs.new_tag}} 
           echo changelog: ${{needs.pre_flight.outputs.changelog}}
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
@@ -167,7 +167,7 @@ jobs:
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ steps.tag.outputs.tag }}
 
@@ -199,7 +199,7 @@ jobs:
           ls -lh dist
 
       - name: Upload binaries to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           files: dist/*
