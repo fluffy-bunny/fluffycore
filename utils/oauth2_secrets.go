@@ -31,12 +31,17 @@ const (
 	PrefixArgon2id = "$argon2id$"
 )
 
-// ClientSecret holds a generated plaintext secret and its algorithm-tagged hash.
+// ClientSecret holds a generated plaintext secret and its algorithm-tagged hashes.
 type ClientSecret struct {
 	// Secret is the base64url-encoded plaintext. Distribute this to the client once.
 	Secret string `json:"secret"`
-	// Hash is the algorithm-tagged digest (e.g. "$sha256$<hex>"). Store this server-side.
-	Hash string `json:"hash"`
+	// HashSHA256 is the "$sha256$<hex>" tagged digest. Always populated.
+	HashSHA256 string `json:"hash_sha256"`
+	// HashHMAC is the "$hmac-sha256$<hex>" tagged digest. Empty when no HMACKey is configured.
+	HashHMAC string `json:"hash_hmac,omitempty"`
+	// HashArgon2id is the "$argon2id$..." PHC string. Empty when Argon2idParams is nil and
+	// Argon2idParams has not been set (i.e. the caller opted out of argon2id).
+	HashArgon2id string `json:"hash_argon2id,omitempty"`
 }
 
 // HashAlgorithm identifies which hashing algorithm produced a stored hash so
@@ -120,20 +125,59 @@ func NewOAuth2Secrets(opts ...OAuth2SecretsOption) *OAuth2Secrets {
 	return o
 }
 
-// Generate creates a cryptographically random OAuth2 client secret from 32
-// random bytes, returning both the base64url-encoded plaintext and its
-// "$sha256$<hex>" tagged hash.
-func (s *OAuth2Secrets) Generate() (*ClientSecret, error) {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return nil, err
+// Generate computes every configured hash for an OAuth2 client secret.
+//   - If plaintext is nil or points to an empty string, a cryptographically
+//     random 32-byte secret is generated and written back through the pointer.
+//   - If plaintext points to a non-empty string it is validated (length ≥ 32,
+//     Shannon entropy ≥ 3.5 bits/char) and used as-is.
+//
+// Populated fields in the returned ClientSecret:
+//   - HashSHA256   — always set.
+//   - HashHMAC     — set when HMACKey is configured.
+//   - HashArgon2id — set when Argon2idParams is configured.
+func (s *OAuth2Secrets) Generate(plaintext *string) (*ClientSecret, error) {
+	var secret string
+	if plaintext != nil && *plaintext != "" {
+		// Caller supplied a secret — validate it before accepting.
+		if err := validateSecretEntropy(*plaintext); err != nil {
+			return nil, err
+		}
+		secret = *plaintext
+	} else {
+		// Generate a cryptographically random secret.
+		raw := make([]byte, 32)
+		if _, err := rand.Read(raw); err != nil {
+			return nil, err
+		}
+		secret = base64.RawURLEncoding.EncodeToString(raw)
+		if plaintext != nil {
+			*plaintext = secret
+		}
 	}
-	secret := base64.RawURLEncoding.EncodeToString(raw)
-	hash, err := s.HashSHA256(secret)
+
+	sha256Hash, err := s.HashSHA256(secret)
 	if err != nil {
 		return nil, err
 	}
-	return &ClientSecret{Secret: secret, Hash: hash}, nil
+	cs := &ClientSecret{Secret: secret, HashSHA256: sha256Hash}
+
+	if len(s.HMACKey) > 0 {
+		hmacHash, err := s.HashHMAC(secret)
+		if err != nil {
+			return nil, err
+		}
+		cs.HashHMAC = hmacHash
+	}
+
+	if s.Argon2idParams != nil {
+		argonHash, err := s.HashArgon2id(secret)
+		if err != nil {
+			return nil, err
+		}
+		cs.HashArgon2id = argonHash
+	}
+
+	return cs, nil
 }
 
 // HashSHA256 returns a "$sha256$<hex>" tagged digest of secret.
