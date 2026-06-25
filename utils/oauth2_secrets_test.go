@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	argon2id "github.com/alexedwards/argon2id"
 	"github.com/stretchr/testify/require"
 )
 
@@ -131,7 +132,7 @@ func TestOAuth2Secrets_VerifySHA256_LowEntropy(t *testing.T) {
 // --- HMAC-SHA-256 ---
 
 func TestOAuth2Secrets_HashHMAC_RoundTrip(t *testing.T) {
-	s := NewOAuth2SecretsWithHMACKey([]byte("super-secret-hmac-key-for-testing"))
+	s := NewOAuth2Secrets(WithHMACKey([]byte("super-secret-hmac-key-for-testing")))
 	cs, err := s.Generate()
 	require.NoError(t, err)
 
@@ -144,7 +145,7 @@ func TestOAuth2Secrets_HashHMAC_RoundTrip(t *testing.T) {
 }
 
 func TestOAuth2Secrets_VerifyHMAC_WrongAlgorithmPrefix(t *testing.T) {
-	s := NewOAuth2SecretsWithHMACKey([]byte("my-key"))
+	s := NewOAuth2Secrets(WithHMACKey([]byte("my-key")))
 	cs, err := s.Generate()
 	require.NoError(t, err)
 
@@ -171,16 +172,16 @@ func TestOAuth2Secrets_HashHMAC_DifferentKeys_DifferentHash(t *testing.T) {
 	cs, err := NewOAuth2Secrets().Generate()
 	require.NoError(t, err)
 
-	h1, err := NewOAuth2SecretsWithHMACKey([]byte("key-one")).HashHMAC(cs.Secret)
+	h1, err := NewOAuth2Secrets(WithHMACKey([]byte("key-one"))).HashHMAC(cs.Secret)
 	require.NoError(t, err)
-	h2, err := NewOAuth2SecretsWithHMACKey([]byte("key-two")).HashHMAC(cs.Secret)
+	h2, err := NewOAuth2Secrets(WithHMACKey([]byte("key-two"))).HashHMAC(cs.Secret)
 	require.NoError(t, err)
 
 	require.NotEqual(t, h1, h2)
 }
 
 func TestOAuth2Secrets_HashHMAC_DifferentFromSHA256(t *testing.T) {
-	s := NewOAuth2SecretsWithHMACKey([]byte("some-key"))
+	s := NewOAuth2Secrets(WithHMACKey([]byte("some-key")))
 	cs, err := s.Generate()
 	require.NoError(t, err)
 
@@ -191,7 +192,7 @@ func TestOAuth2Secrets_HashHMAC_DifferentFromSHA256(t *testing.T) {
 }
 
 func TestOAuth2Secrets_VerifyHMAC_Valid(t *testing.T) {
-	s := NewOAuth2SecretsWithHMACKey([]byte("my-hmac-key"))
+	s := NewOAuth2Secrets(WithHMACKey([]byte("my-hmac-key")))
 	cs, err := s.Generate()
 	require.NoError(t, err)
 
@@ -202,8 +203,8 @@ func TestOAuth2Secrets_VerifyHMAC_Valid(t *testing.T) {
 }
 
 func TestOAuth2Secrets_VerifyHMAC_WrongKey(t *testing.T) {
-	signer := NewOAuth2SecretsWithHMACKey([]byte("correct-key"))
-	verifier := NewOAuth2SecretsWithHMACKey([]byte("wrong-key"))
+	signer := NewOAuth2Secrets(WithHMACKey([]byte("correct-key")))
+	verifier := NewOAuth2Secrets(WithHMACKey([]byte("wrong-key")))
 	cs, err := signer.Generate()
 	require.NoError(t, err)
 
@@ -214,7 +215,7 @@ func TestOAuth2Secrets_VerifyHMAC_WrongKey(t *testing.T) {
 }
 
 func TestOAuth2Secrets_VerifyHMAC_WrongSecret(t *testing.T) {
-	s := NewOAuth2SecretsWithHMACKey([]byte("my-key"))
+	s := NewOAuth2Secrets(WithHMACKey([]byte("my-key")))
 	cs, err := s.Generate()
 	require.NoError(t, err)
 	cs2, err := s.Generate()
@@ -227,36 +228,116 @@ func TestOAuth2Secrets_VerifyHMAC_WrongSecret(t *testing.T) {
 }
 
 func TestOAuth2Secrets_Verify_AutoDispatch(t *testing.T) {
-	s := NewOAuth2SecretsWithHMACKey([]byte("k"))
+	s := NewOAuth2Secrets(WithHMACKey([]byte("k")))
 	cs, err := s.Generate()
 	require.NoError(t, err)
 	hmacHash, err := s.HashHMAC(cs.Secret)
+	require.NoError(t, err)
+	argonHash, err := NewOAuth2Secrets(WithArgon2idParams(fastArgon2idParams())).HashArgon2id(cs.Secret)
 	require.NoError(t, err)
 
 	require.True(t, s.Verify(cs.Secret, cs.Hash), "auto-dispatch must validate $sha256$ hash")
 	require.True(t, s.Verify(cs.Secret, hmacHash), "auto-dispatch must validate $hmac-sha256$ hash")
+	require.True(t, s.Verify(cs.Secret, argonHash), "auto-dispatch must validate $argon2id$ hash")
 	require.False(t, s.Verify(cs.Secret, "plain-untagged"), "unknown prefix must fail")
 }
 
 func TestDetectHashAlgorithm(t *testing.T) {
-	s := NewOAuth2SecretsWithHMACKey([]byte("k"))
+	s := NewOAuth2Secrets(WithHMACKey([]byte("k")))
 	cs, err := s.Generate()
 	require.NoError(t, err)
 	hmacHash, err := s.HashHMAC(cs.Secret)
 	require.NoError(t, err)
+	argonHash, err := NewOAuth2Secrets(WithArgon2idParams(fastArgon2idParams())).HashArgon2id(cs.Secret)
+	require.NoError(t, err)
 
 	require.Equal(t, HashAlgorithmSHA256, DetectHashAlgorithm(cs.Hash))
 	require.Equal(t, HashAlgorithmHMACSHA256, DetectHashAlgorithm(hmacHash))
+	require.Equal(t, HashAlgorithmArgon2id, DetectHashAlgorithm(argonHash))
 	require.Equal(t, HashAlgorithmUnknown, DetectHashAlgorithm("plain-untagged-hash"))
 	require.Equal(t, HashAlgorithmUnknown, DetectHashAlgorithm(""))
-	require.Equal(t, HashAlgorithmUnknown, DetectHashAlgorithm("$argon2id$v=19$..."))
 
 	// Method form delegates to the package-level helper.
 	require.Equal(t, HashAlgorithmSHA256, s.DetectAlgorithm(cs.Hash))
 
 	require.Equal(t, "sha256", HashAlgorithmSHA256.String())
 	require.Equal(t, "hmac-sha256", HashAlgorithmHMACSHA256.String())
+	require.Equal(t, "argon2id", HashAlgorithmArgon2id.String())
 	require.Equal(t, "unknown", HashAlgorithmUnknown.String())
+}
+
+// --- Argon2id ---
+
+// fastArgon2idParams returns minimal cost params suitable for unit tests.
+func fastArgon2idParams() *argon2id.Params {
+	return &argon2id.Params{
+		Memory:      8 * 1024,
+		Iterations:  1,
+		Parallelism: 1,
+		SaltLength:  16,
+		KeyLength:   32,
+	}
+}
+
+func TestOAuth2Secrets_HashArgon2id_RoundTrip(t *testing.T) {
+	s := NewOAuth2Secrets(WithArgon2idParams(fastArgon2idParams()))
+	cs, err := s.Generate()
+	require.NoError(t, err)
+
+	hash, err := s.HashArgon2id(cs.Secret)
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(hash, PrefixArgon2id), "hash must carry $argon2id$ prefix")
+	require.True(t, s.VerifyArgon2id(cs.Secret, hash))
+}
+
+func TestOAuth2Secrets_HashArgon2id_NonDeterministic(t *testing.T) {
+	// argon2id salts every call — two hashes of the same secret must differ.
+	s := NewOAuth2Secrets(WithArgon2idParams(fastArgon2idParams()))
+	cs, err := s.Generate()
+	require.NoError(t, err)
+
+	h1, err := s.HashArgon2id(cs.Secret)
+	require.NoError(t, err)
+	h2, err := s.HashArgon2id(cs.Secret)
+	require.NoError(t, err)
+	require.NotEqual(t, h1, h2, "two argon2id hashes of the same secret must differ (different salts)")
+	// But both must still verify against the original secret.
+	require.True(t, s.VerifyArgon2id(cs.Secret, h1))
+	require.True(t, s.VerifyArgon2id(cs.Secret, h2))
+}
+
+func TestOAuth2Secrets_HashArgon2id_DefaultParams(t *testing.T) {
+	// nil params → argon2id.DefaultParams; must still produce a valid hash.
+	s := NewOAuth2Secrets(WithArgon2idParams(nil))
+	cs, err := s.Generate()
+	require.NoError(t, err)
+
+	hash, err := s.HashArgon2id(cs.Secret)
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(hash, PrefixArgon2id))
+	require.True(t, s.VerifyArgon2id(cs.Secret, hash))
+}
+
+func TestOAuth2Secrets_VerifyArgon2id_WrongSecret(t *testing.T) {
+	s := NewOAuth2Secrets(WithArgon2idParams(fastArgon2idParams()))
+	cs, err := s.Generate()
+	require.NoError(t, err)
+	cs2, err := s.Generate()
+	require.NoError(t, err)
+
+	hash, err := s.HashArgon2id(cs.Secret)
+	require.NoError(t, err)
+
+	require.False(t, s.VerifyArgon2id(cs2.Secret, hash))
+}
+
+func TestOAuth2Secrets_VerifyArgon2id_WrongPrefix(t *testing.T) {
+	s := NewOAuth2Secrets(WithArgon2idParams(fastArgon2idParams()))
+	cs, err := s.Generate()
+	require.NoError(t, err)
+
+	// A SHA-256 hash must not validate against the argon2id verifier.
+	require.False(t, s.VerifyArgon2id(cs.Secret, cs.Hash))
 }
 
 // isHex returns true if s contains only valid lowercase hex characters.

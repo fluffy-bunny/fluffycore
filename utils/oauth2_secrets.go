@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	argon2id "github.com/alexedwards/argon2id"
 )
 
 const (
@@ -25,6 +27,8 @@ const (
 	// "$argon2id$..." format).
 	PrefixSHA256     = "$sha256$"
 	PrefixHMACSHA256 = "$hmac-sha256$"
+	// PrefixArgon2id is the PHC prefix emitted by the argon2id library itself.
+	PrefixArgon2id = "$argon2id$"
 )
 
 // ClientSecret holds a generated plaintext secret and its algorithm-tagged hash.
@@ -46,6 +50,8 @@ const (
 	HashAlgorithmSHA256
 	// HashAlgorithmHMACSHA256 — verify with OAuth2Secrets.VerifyHMAC.
 	HashAlgorithmHMACSHA256
+	// HashAlgorithmArgon2id — verify with OAuth2Secrets.VerifyArgon2id.
+	HashAlgorithmArgon2id
 )
 
 // String returns the human-readable algorithm name.
@@ -55,6 +61,8 @@ func (a HashAlgorithm) String() string {
 		return "sha256"
 	case HashAlgorithmHMACSHA256:
 		return "hmac-sha256"
+	case HashAlgorithmArgon2id:
+		return "argon2id"
 	default:
 		return "unknown"
 	}
@@ -69,6 +77,8 @@ func DetectHashAlgorithm(hash string) HashAlgorithm {
 		return HashAlgorithmSHA256
 	case strings.HasPrefix(hash, PrefixHMACSHA256):
 		return HashAlgorithmHMACSHA256
+	case strings.HasPrefix(hash, PrefixArgon2id):
+		return HashAlgorithmArgon2id
 	default:
 		return HashAlgorithmUnknown
 	}
@@ -76,22 +86,38 @@ func DetectHashAlgorithm(hash string) HashAlgorithm {
 
 // OAuth2Secrets generates and validates OAuth2 client secrets.
 // The zero value is usable for SHA-256 operations; populate HMACKey to enable
-// the HMAC-SHA-256 variant.
+// the HMAC-SHA-256 variant, or Argon2idParams to enable the argon2id variant.
 type OAuth2Secrets struct {
 	// HMACKey is required by HashHMAC / VerifyHMAC. May be nil for SHA-256-only use.
 	HMACKey []byte
+	// Argon2idParams controls argon2id cost. nil uses argon2id.DefaultParams.
+	Argon2idParams *argon2id.Params
+}
+
+type OAuth2SecretsOption func(*OAuth2Secrets)
+
+// WithHMACKey configures the HMAC key for HashHMAC / VerifyHMAC.
+func WithHMACKey(key []byte) OAuth2SecretsOption {
+	return func(o *OAuth2Secrets) {
+		o.HMACKey = key
+	}
+}
+
+// WithArgon2idParams configures the argon2id cost parameters. Pass nil to use argon2id.DefaultParams.
+func WithArgon2idParams(params *argon2id.Params) OAuth2SecretsOption {
+	return func(o *OAuth2Secrets) {
+		o.Argon2idParams = params
+	}
 }
 
 // NewOAuth2Secrets returns an OAuth2Secrets with no HMAC key configured
 // (SHA-256 operations only).
-func NewOAuth2Secrets() *OAuth2Secrets {
-	return &OAuth2Secrets{}
-}
-
-// NewOAuth2SecretsWithHMACKey returns an OAuth2Secrets bound to the given
-// HMAC key.
-func NewOAuth2SecretsWithHMACKey(key []byte) *OAuth2Secrets {
-	return &OAuth2Secrets{HMACKey: key}
+func NewOAuth2Secrets(opts ...OAuth2SecretsOption) *OAuth2Secrets {
+	o := &OAuth2Secrets{}
+	for _, opt := range opts {
+		opt(o)
+	}
+	return o
 }
 
 // Generate creates a cryptographically random OAuth2 client secret from 32
@@ -163,6 +189,34 @@ func (s *OAuth2Secrets) VerifyHMAC(secret, hash string) bool {
 	return subtle.ConstantTimeCompare([]byte(computed), []byte(hash)) == 1
 }
 
+// HashArgon2id returns an argon2id PHC string (e.g. "$argon2id$v=19$...") for
+// secret using the receiver's Argon2idParams (nil → argon2id.DefaultParams).
+// Because argon2id salts each hash randomly the output is non-deterministic;
+// use VerifyArgon2id to validate against a stored hash.
+func (s *OAuth2Secrets) HashArgon2id(secret string) (string, error) {
+	if err := validateSecretEntropy(secret); err != nil {
+		return "", err
+	}
+	params := s.Argon2idParams
+	if params == nil {
+		params = argon2id.DefaultParams
+	}
+	return argon2id.CreateHash(secret, params)
+}
+
+// VerifyArgon2id compares a plaintext secret against a stored argon2id PHC
+// hash. Returns false on prefix mismatch or any internal error.
+func (s *OAuth2Secrets) VerifyArgon2id(secret, hash string) bool {
+	if !strings.HasPrefix(hash, PrefixArgon2id) {
+		return false
+	}
+	match, err := argon2id.ComparePasswordAndHash(secret, hash)
+	if err != nil {
+		return false
+	}
+	return match
+}
+
 // Verify auto-dispatches on the hash's algorithm prefix. Returns false for an
 // unknown prefix or when the required key material (e.g. HMACKey) is absent.
 func (s *OAuth2Secrets) Verify(secret, hash string) bool {
@@ -171,6 +225,8 @@ func (s *OAuth2Secrets) Verify(secret, hash string) bool {
 		return s.VerifySHA256(secret, hash)
 	case HashAlgorithmHMACSHA256:
 		return s.VerifyHMAC(secret, hash)
+	case HashAlgorithmArgon2id:
+		return s.VerifyArgon2id(secret, hash)
 	default:
 		return false
 	}
