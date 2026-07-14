@@ -111,6 +111,52 @@ func TestOAuth2Secrets_Generate_ProvidedSecretTooShort(t *testing.T) {
 	require.Contains(t, err.Error(), "at least 32 characters")
 }
 
+func TestOAuth2Secrets_HashSHA256_EmptySecret(t *testing.T) {
+	s := NewOAuth2Secrets()
+	_, err := s.HashSHA256("")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "must not be empty")
+}
+
+func TestOAuth2Secrets_HashSHA256_EmptySecret_SkipEntropyCheck(t *testing.T) {
+	// Even with entropy checking disabled, an empty secret must still be rejected.
+	s := NewOAuth2Secrets(WithSkipEntropyCheck(true))
+	_, err := s.HashSHA256("")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "must not be empty")
+}
+
+func TestOAuth2Secrets_HashSHA256_SkipEntropyCheck_AllowsLowEntropy(t *testing.T) {
+	s := NewOAuth2Secrets(WithSkipEntropyCheck(true))
+	_, err := s.HashSHA256(strings.Repeat("a", 32))
+	require.NoError(t, err)
+}
+
+func TestOAuth2Secrets_HashSHA256_SkipEntropyCheck_StillEnforcesMinLen(t *testing.T) {
+	s := NewOAuth2Secrets(WithSkipEntropyCheck(true))
+	_, err := s.HashSHA256("tooshort")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "at least 32 characters")
+}
+
+func TestOAuth2Secrets_HashSHA256_WithMinSecretLen(t *testing.T) {
+	s := NewOAuth2Secrets(WithMinSecretLen(8), WithSkipEntropyCheck(true))
+	_, err := s.HashSHA256("shortish")
+	require.NoError(t, err)
+
+	_, err = s.HashSHA256("short")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "at least 8 characters")
+}
+
+func TestOAuth2Secrets_HashSHA256_WithMinEntropyBitsPerChar(t *testing.T) {
+	// Raise the floor so high above what a random 32-char secret can reach that it must fail.
+	s := NewOAuth2Secrets(WithMinEntropyBitsPerChar(100))
+	_, err := s.HashSHA256(strings.Repeat("abcdefgh", 4))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "entropy")
+}
+
 func TestOAuth2Secrets_HashSHA256_RoundTrip(t *testing.T) {
 	s := NewOAuth2Secrets()
 	cs, err := s.Generate(nil)

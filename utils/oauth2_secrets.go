@@ -97,6 +97,16 @@ type OAuth2Secrets struct {
 	HMACKey []byte
 	// Argon2idParams controls argon2id cost. nil uses argon2id.DefaultParams.
 	Argon2idParams *argon2id.Params
+	// SkipEntropyCheck disables the Shannon entropy floor. The minimum length
+	// check (and the non-empty check) still apply regardless of this setting.
+	SkipEntropyCheck bool
+	// MinSecretLen overrides the minimum character length for a client secret.
+	// Zero or negative uses the package default (minSecretLen).
+	MinSecretLen int
+	// MinEntropyBitsPerChar overrides the Shannon entropy floor (bits/char).
+	// Zero or negative uses the package default (minEntropyBitsPerChar).
+	// Ignored when SkipEntropyCheck is true.
+	MinEntropyBitsPerChar float64
 }
 
 type OAuth2SecretsOption func(*OAuth2Secrets)
@@ -112,6 +122,31 @@ func WithHMACKey(key []byte) OAuth2SecretsOption {
 func WithArgon2idParams(params *argon2id.Params) OAuth2SecretsOption {
 	return func(o *OAuth2Secrets) {
 		o.Argon2idParams = params
+	}
+}
+
+// WithSkipEntropyCheck disables the Shannon entropy floor on client secrets.
+// The secret must still be non-empty and satisfy the minimum length check.
+func WithSkipEntropyCheck(skip bool) OAuth2SecretsOption {
+	return func(o *OAuth2Secrets) {
+		o.SkipEntropyCheck = skip
+	}
+}
+
+// WithMinSecretLen overrides the minimum character length required of a
+// client secret. Pass <= 0 to fall back to the package default.
+func WithMinSecretLen(n int) OAuth2SecretsOption {
+	return func(o *OAuth2Secrets) {
+		o.MinSecretLen = n
+	}
+}
+
+// WithMinEntropyBitsPerChar overrides the Shannon entropy floor (bits/char)
+// required of a client secret. Pass <= 0 to fall back to the package
+// default. Has no effect when SkipEntropyCheck is true.
+func WithMinEntropyBitsPerChar(bits float64) OAuth2SecretsOption {
+	return func(o *OAuth2Secrets) {
+		o.MinEntropyBitsPerChar = bits
 	}
 }
 
@@ -139,7 +174,7 @@ func (s *OAuth2Secrets) Generate(plaintext *string) (*ClientSecret, error) {
 	var secret string
 	if plaintext != nil && *plaintext != "" {
 		// Caller supplied a secret — validate it before accepting.
-		if err := validateSecretEntropy(*plaintext); err != nil {
+		if err := s.validateSecretEntropy(*plaintext); err != nil {
 			return nil, err
 		}
 		secret = *plaintext
@@ -185,7 +220,7 @@ func (s *OAuth2Secrets) Generate(plaintext *string) (*ClientSecret, error) {
 //   - at least 32 characters
 //   - Shannon entropy ≥ 3.5 bits/char (rejects repeated or predictable patterns)
 func (s *OAuth2Secrets) HashSHA256(secret string) (string, error) {
-	if err := validateSecretEntropy(secret); err != nil {
+	if err := s.validateSecretEntropy(secret); err != nil {
 		return "", err
 	}
 	sum := sha256.Sum256([]byte(secret))
@@ -212,7 +247,7 @@ func (s *OAuth2Secrets) HashHMAC(secret string) (string, error) {
 	if len(s.HMACKey) == 0 {
 		return "", errors.New("HMAC key must not be empty")
 	}
-	if err := validateSecretEntropy(secret); err != nil {
+	if err := s.validateSecretEntropy(secret); err != nil {
 		return "", err
 	}
 	mac := hmac.New(sha256.New, s.HMACKey)
@@ -238,7 +273,7 @@ func (s *OAuth2Secrets) VerifyHMAC(secret, hash string) bool {
 // Because argon2id salts each hash randomly the output is non-deterministic;
 // use VerifyArgon2id to validate against a stored hash.
 func (s *OAuth2Secrets) HashArgon2id(secret string) (string, error) {
-	if err := validateSecretEntropy(secret); err != nil {
+	if err := s.validateSecretEntropy(secret); err != nil {
 		return "", err
 	}
 	params := s.Argon2idParams
@@ -283,13 +318,32 @@ func (s *OAuth2Secrets) DetectAlgorithm(hash string) HashAlgorithm {
 	return DetectHashAlgorithm(hash)
 }
 
-// validateSecretEntropy enforces minimum length and Shannon entropy on secret.
-func validateSecretEntropy(secret string) error {
-	if len(secret) < minSecretLen {
-		return fmt.Errorf("client secret must be at least %d characters, got %d", minSecretLen, len(secret))
+// validateSecretEntropy enforces that secret is non-empty and meets the
+// configured minimum length. Unless SkipEntropyCheck is set, it also
+// enforces the configured Shannon entropy floor.
+func (s *OAuth2Secrets) validateSecretEntropy(secret string) error {
+	if secret == "" {
+		return errors.New("client secret must not be empty")
 	}
-	if e := shannonEntropy(secret); e < minEntropyBitsPerChar {
-		return fmt.Errorf("client secret entropy %.2f bits/char is below the required %.2f bits/char", e, minEntropyBitsPerChar)
+
+	minLen := minSecretLen
+	if s.MinSecretLen > 0 {
+		minLen = s.MinSecretLen
+	}
+	if len(secret) < minLen {
+		return fmt.Errorf("client secret must be at least %d characters, got %d", minLen, len(secret))
+	}
+
+	if s.SkipEntropyCheck {
+		return nil
+	}
+
+	minEntropy := minEntropyBitsPerChar
+	if s.MinEntropyBitsPerChar > 0 {
+		minEntropy = s.MinEntropyBitsPerChar
+	}
+	if e := shannonEntropy(secret); e < minEntropy {
+		return fmt.Errorf("client secret entropy %.2f bits/char is below the required %.2f bits/char", e, minEntropy)
 	}
 	return nil
 }
