@@ -15,7 +15,7 @@ require (
 	github.com/eko/gocache/store/go_cache/v4 v4.2.5
 	github.com/eko/gocache/store/redis/v4 v4.2.6
 	github.com/fatih/structs v1.1.0
-	github.com/fluffy-bunny/fluffy-dozm-di v0.0.9
+	github.com/fluffy-bunny/fluffy-dozm-di v0.0.10
 	github.com/fluffy-bunny/viperEx v0.0.38
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gogo/status v1.1.1
@@ -73,7 +73,7 @@ require (
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/text v0.40.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa
-	google.golang.org/grpc v1.82.0
+	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/DataDog/dd-trace-go.v1 v1.74.8
 )
@@ -105,7 +105,6 @@ require (
 	github.com/DataDog/gostackparse v0.7.0 // indirect
 	github.com/DataDog/sketches-go v1.4.8 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
-	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -184,7 +183,6 @@ require (
 	github.com/sv-tools/openapi v0.4.0 // indirect
 	github.com/swaggo/files/v2 v2.0.2 // indirect
 	github.com/swaggo/swag/v2 v2.0.0-rc5 // indirect
-	github.com/theckman/httpforwarded v0.4.0 // indirect
 	github.com/tinylib/msgp v1.6.3 // indirect
 	github.com/tklauser/go-sysconf v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.12.0 // indirect
