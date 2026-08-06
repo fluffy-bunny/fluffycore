@@ -19,6 +19,157 @@ skip it and keep using `middleware/auth/jwt` on its own.
 - The opaque token is stripped from (or replaced in) request metadata before the
   request proceeds, so no other middleware or handler ever observes it.
 
+## Types at a glance
+
+```mermaid
+classDiagram
+    direction LR
+
+    class IResolver {
+        <<interface>>
+        +Resolve(ctx, rawToken) handled, resolved, err
+    }
+
+    class ResolvedKind {
+        <<enumeration>>
+        ResolvedKindUnhandled
+        ResolvedKindJWT
+        ResolvedKindClaimsPrincipal
+    }
+
+    class Resolved {
+        +Kind ResolvedKind
+        +RawJWT string
+        +Claims claimsMap
+        +TTL time.Duration
+    }
+
+    class Config {
+        +Cache ISingletonMemoryCache
+        +DefaultTTL time.Duration
+        +CacheKeyPrefix string
+        +KnownPrefixes stringSlice
+    }
+
+    class Option {
+        <<func of Config>>
+    }
+
+    class engine {
+        -config Config
+        -resolvers resolverSlice
+        +resolve(ctx) resolveOutcome
+        -resolveViaResolvers(ctx, rawToken)
+        -cacheResolvedClaims(ctx, cacheKey, ttl)
+        -isReferenceToken(rawToken) bool
+        -cacheKey(rawToken) string
+    }
+
+    class UnaryServerInterceptor {
+        <<constructor func>>
+        rootContainer
+        next
+        opts
+    }
+
+    class StreamServerInterceptor {
+        <<constructor func>>
+        rootContainer
+        next
+        opts
+    }
+
+    class IClaimsPrincipal {
+        <<interface, contracts/common>>
+    }
+
+    class ISingletonMemoryCache {
+        <<interface, contracts/common>>
+    }
+
+    IResolver ..> Resolved : returns
+    Resolved --> ResolvedKind : Kind
+    Option ..> Config : configures
+    engine o-- Config
+    engine o-- IResolver : tried in order
+    engine ..> ISingletonMemoryCache : reads or writes claims
+    engine ..> IClaimsPrincipal : AddClaim / GetClaims
+    UnaryServerInterceptor ..> engine : builds and drives
+    StreamServerInterceptor ..> engine : builds and drives
+    UnaryServerInterceptor ..> IResolver : next is the JWT interceptor for ResolvedKindJWT
+```
+
+`engine` is the transport-agnostic core (unexported) -- it decides pass-through
+vs. delegate-to-JWT vs. direct-from-cache/claims and does the actual cache
+reads/writes. `UnaryServerInterceptor`/`StreamServerInterceptor` are the thin,
+transport-specific wrappers that build one `engine` per call and translate its
+decision into gRPC's `handler`/`next` calling convention (see the sequence
+diagram below for that decision in motion).
+
+## Two calls, same PAT: the cache in action
+
+Call 1 resolves the PAT, lets the JWT pipeline populate the claims principal,
+and snapshots the result into the cache. Call 2, moments later, presents the
+same PAT and is recognized from the cache -- the resolver and the JWT
+interceptor are both skipped entirely.
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant RefTokenMW as ReferenceTokenMiddleware
+    participant Cache
+    participant Resolver
+    participant JWT as JWTInterceptor (next)
+    participant Principal as ClaimsPrincipal
+    participant Handler
+
+    rect rgb(235, 245, 255)
+    Note over Caller,Handler: Call 1 -- Authorization: Bearer pat_abc123 (cache miss)
+    Caller->>RefTokenMW: Bearer pat_abc123
+    RefTokenMW->>Cache: Get(hash(pat_abc123))
+    Cache-->>RefTokenMW: miss
+    RefTokenMW->>Resolver: Resolve(pat_abc123)
+    Resolver-->>RefTokenMW: ResolvedKindJWT{RawJWT: eyJ...}
+    RefTokenMW->>RefTokenMW: rewrite header to Authorization: Bearer eyJ...
+    RefTokenMW->>JWT: next(ctx, req)
+    JWT->>Principal: AddClaim(sub, aud, ...)
+    JWT->>Handler: handler(ctx, req)
+    Handler-->>JWT: response
+    JWT-->>RefTokenMW: response
+    RefTokenMW->>Principal: GetClaims()
+    RefTokenMW->>Cache: SetWithTTL(hash(pat_abc123), claims, ttl)
+    RefTokenMW-->>Caller: response
+    end
+
+    rect rgb(235, 255, 240)
+    Note over Caller,Handler: Call 2 -- same Authorization: Bearer pat_abc123 (cache hit)
+    Caller->>RefTokenMW: Bearer pat_abc123
+    RefTokenMW->>Cache: Get(hash(pat_abc123))
+    Cache-->>RefTokenMW: hit -- cached claims
+    RefTokenMW->>Principal: AddClaim(cached claims)
+    RefTokenMW->>RefTokenMW: strip Authorization header
+    Note over Resolver,JWT: skipped entirely -- no resolve, no JWT validation
+    RefTokenMW->>Handler: handler(ctx, req)
+    Handler-->>RefTokenMW: response
+    RefTokenMW-->>Caller: response
+    end
+```
+
+What changes between the two calls:
+
+| Step | Call 1 (miss) | Call 2 (hit) |
+| --- | --- | --- |
+| Cache lookup | miss | hit |
+| Resolver invoked? | yes | **no** |
+| JWT interceptor (`next`) invoked? | yes -- validates the resolved JWT | **no** |
+| Claims principal populated from | `next`'s claims, snapshotted after | the cached snapshot directly |
+| Authorization header seen downstream | the resolved JWT (never the raw PAT) | none -- stripped entirely |
+
+Everything after `RefTokenMW` in the pipeline (the claims-principal
+authorization gate, your handler) behaves identically either way -- it only
+ever sees a populated `IClaimsPrincipal`, never the raw PAT and never a
+resolve-vs-cache distinction to worry about.
+
 ## Steps to opt in
 
 ### 1. Implement an `IResolver`
