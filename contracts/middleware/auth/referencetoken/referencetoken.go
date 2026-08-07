@@ -44,6 +44,26 @@ type Resolved struct {
 	TTL time.Duration
 }
 
+// ICache is the reference-token middleware's cache contract: look up a previously-resolved
+// token by key, and store a fresh resolution with a TTL. It is intentionally the minimal
+// subset of fluffycore_contracts_common.ISingletonMemoryCache the middleware actually calls
+// (see referencetoken.go's resolve/cacheResolvedClaims) -- any ISingletonMemoryCache already
+// satisfies it, so existing in-process callers (referencetoken.WithCache(memoryCache)) keep
+// working unchanged, but implementations are no longer required to be in-process or
+// singleton-scoped. A shared, durable backing store (Mongo, Redis, a KV store, ...) satisfies
+// this just as well, and is what you want once resolution should be cached once cluster-wide
+// rather than once per replica.
+type ICache interface {
+	// Get returns the cached value for key, or a non-nil error if there is no (unexpired)
+	// entry. The returned value must be a []fluffycore_contracts_common.Claim -- that is the
+	// only type the middleware ever stores.
+	Get(key string) (interface{}, error)
+	// SetWithTTL stores data under key for ttl. Implementations that cannot honor ttl
+	// precisely (e.g. a store with only coarse-grained expiry) should round up, never down --
+	// serving a resolution slightly past its TTL is far cheaper than re-resolving a valid one.
+	SetWithTTL(key string, data interface{}, ttl time.Duration) error
+}
+
 // IResolver resolves an opaque external reference token -- e.g. a Personal Access
 // Token (PAT) -- into either a JWT for the normal JWT validation pipeline to
 // validate, or a fully-formed set of claims to trust as-is.

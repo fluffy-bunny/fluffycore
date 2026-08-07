@@ -80,8 +80,12 @@ type (
 		// Cache stores resolved claims keyed by a hash of the reference token, so a
 		// resolver -- and, for ResolvedKindJWT, the downstream JWT validator -- only
 		// runs once per token per TTL window. If nil, resolution is never cached: every
-		// request bearing a reference token re-resolves it.
-		Cache fluffycore_contracts_common.ISingletonMemoryCache
+		// request bearing a reference token re-resolves it. Any
+		// fluffycore_contracts_common.ISingletonMemoryCache satisfies
+		// fluffycore_contracts_middleware_auth_referencetoken.ICache already, but a
+		// shared, durable backing store (Mongo, Redis, a KV store, ...) works equally
+		// well -- see that interface's doc comment.
+		Cache fluffycore_contracts_middleware_auth_referencetoken.ICache
 		// DefaultTTL is used when a resolver's Resolved.TTL is <= 0.
 		DefaultTTL time.Duration
 		// CacheKeyPrefix namespaces this middleware's cache keys, useful when Cache is
@@ -103,7 +107,7 @@ type (
 )
 
 // WithCache sets the TTL cache used to remember resolved claims between requests.
-func WithCache(cache fluffycore_contracts_common.ISingletonMemoryCache) Option {
+func WithCache(cache fluffycore_contracts_middleware_auth_referencetoken.ICache) Option {
 	return func(c *Config) {
 		c.Cache = cache
 	}
