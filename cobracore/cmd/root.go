@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 
+	gencert "github.com/fluffy-bunny/fluffycore/cobracore/cmd/gencert"
 	migrate "github.com/fluffy-bunny/fluffycore/cobracore/cmd/migrate"
 	serve "github.com/fluffy-bunny/fluffycore/cobracore/cmd/serve"
 	version "github.com/fluffy-bunny/fluffycore/cobracore/cmd/version"
@@ -71,6 +72,7 @@ func init() {
 	version.Init(rootCmd)
 	serve.Init(rootCmd)
 	migrate.Init(rootCmd)
+	gencert.Init(rootCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.

@@ -24,5 +24,26 @@ message HelloReply {
 
 message HelloReply2 {
   string message = 1;
-  
+
+}
+
+// SetSecret stores value under (org_id, key). Callable via a normal JWT
+// bearer token or via mutual TLS -- see helloworld.proto's Greeter.SetSecret
+// and example/internal/auth's entrypoint config for the OR-based requirement.
+message SetSecretRequest {
+  string org_id = 1;
+  string key = 2;
+  string value = 3;
+}
+message SetSecretResponse {
+  bool success = 1;
+}
+
+// GetSecret retrieves a previously-set value for (org_id, key).
+message GetSecretRequest {
+  string org_id = 1;
+  string key = 2;
+}
+message GetSecretResponse {
+  string value = 1;
 }

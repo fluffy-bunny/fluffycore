@@ -15,9 +15,9 @@ import (
 	securecookie "github.com/gorilla/securecookie"
 	sessions "github.com/gorilla/sessions"
 	xid "github.com/rs/xid"
-	bson "go.mongodb.org/mongo-driver/bson"
-	mongo_driver "go.mongodb.org/mongo-driver/mongo"
-	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
+	bson "go.mongodb.org/mongo-driver/v2/bson"
+	mongo_driver "go.mongodb.org/mongo-driver/v2/mongo"
+	mongo_options "go.mongodb.org/mongo-driver/v2/mongo/options"
 	codes "google.golang.org/grpc/codes"
 )
 
@@ -158,8 +158,7 @@ func (m *MongoStore) load(session *sessions.Session) error {
 	result := m.coll.FindOne(ctxTimeout, bson.M{"_id": session.ID})
 	err := result.Err()
 	if err != nil {
-		// look for "mongo: no documents in result"
-		if err.Error() == "mongo: no documents in result" {
+		if errors.Is(err, mongo_driver.ErrNoDocuments) {
 			return status.Error(codes.NotFound, "not found")
 		}
 		return err

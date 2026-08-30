@@ -21,6 +21,7 @@ import (
 	services_greeter "github.com/fluffy-bunny/fluffycore/example/internal/services/greeter"
 	services_health "github.com/fluffy-bunny/fluffycore/example/internal/services/health"
 	services_mystream "github.com/fluffy-bunny/fluffycore/example/internal/services/mystream"
+	services_secretstore "github.com/fluffy-bunny/fluffycore/example/internal/services/secretstore"
 	services_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/services/somedisposable"
 	internal_version "github.com/fluffy-bunny/fluffycore/example/internal/version"
 	fluffycore_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/middleware/auth/jwt"
@@ -98,6 +99,7 @@ func (s *startup) ConfigureServices(ctx context.Context, builder di.ContainerBui
 
 	fluffycore_services_ddprofiler.AddSingletonIProfiler(builder, config.DDConfig)
 	services_health.AddHealthService(builder)
+	services_secretstore.AddSingletonSecretStore(builder)
 	services_greeter.AddGreeterService(builder)
 	services_somedisposable.AddScopedSomeDisposable(builder)
 	services_mystream.AddMyStreamService(builder)

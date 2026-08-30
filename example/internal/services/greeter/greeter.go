@@ -9,11 +9,13 @@ import (
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
+	fluffycore_contracts_secretstore "github.com/fluffy-bunny/fluffycore/example/internal/contracts/secretstore"
 	fluffycore_contracts_somedisposable "github.com/fluffy-bunny/fluffycore/example/internal/contracts/somedisposable"
 	fluffycore_grpcclient "github.com/fluffy-bunny/fluffycore/grpcclient"
 	proto_helloworld "github.com/fluffy-bunny/fluffycore/proto/helloworld"
 	proto_hellowworld_models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
+	status "github.com/gogo/status"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	nats "github.com/nats-io/nats.go"
 	micro "github.com/nats-io/nats.go/micro"
@@ -22,6 +24,7 @@ import (
 	attribute "go.opentelemetry.io/otel/attribute"
 	trace "go.opentelemetry.io/otel/trace"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
 )
 
 type (
@@ -31,6 +34,7 @@ type (
 		config               *contracts_config.Config
 		scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable
 		grpcClientFactory    fluffycore_contracts_GRPCClientFactory.IGRPCClientFactory
+		secretStore          fluffycore_contracts_secretstore.ISecretStore
 	}
 	registrationServer struct {
 		proto_helloworld.GreeterFluffyCoreServer
@@ -54,12 +58,14 @@ func (s *registrationServer) RegisterFluffyCoreNATSHandler(ctx context.Context, 
 func (s *service) Ctor(
 	config *contracts_config.Config,
 	grpcClientFactory fluffycore_contracts_GRPCClientFactory.IGRPCClientFactory,
-	scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable) (proto_helloworld.IFluffyCoreGreeterServer, error) {
+	scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable,
+	secretStore fluffycore_contracts_secretstore.ISecretStore) (proto_helloworld.IFluffyCoreGreeterServer, error) {
 
 	return &service{
 		config:               config,
 		scopedSomeDisposable: scopedSomeDisposable,
 		grpcClientFactory:    grpcClientFactory,
+		secretStore:          secretStore,
 	}, nil
 }
 func AddGreeterService(builder di.ContainerBuilder) {
@@ -109,6 +115,24 @@ func (s *service) SayHello(ctx context.Context, request *proto_hellowworld_model
 	cli := proto_helloworld.NewGreeterClient(grpcClient.GetConnection())
 	reply, err := cli.SayHelloDownstream(ctx, request)
 	return reply, err
+}
+
+// SetSecret stores a secret value. Callable with either a normal JWT bearer
+// token or mutual TLS -- see example/internal/auth.BuildGrpcEntrypointPermissionsClaimsMap,
+// which requires (authenticated via JWT) OR (mtls_verified) for this method.
+func (s *service) SetSecret(ctx context.Context, request *proto_hellowworld_models.SetSecretRequest) (*proto_hellowworld_models.SetSecretResponse, error) {
+	s.secretStore.Set(request.OrgId, request.Key, request.Value)
+	return &proto_hellowworld_models.SetSecretResponse{Success: true}, nil
+}
+
+// GetSecret retrieves a previously-set secret value. Same auth requirement as
+// SetSecret: JWT or mTLS.
+func (s *service) GetSecret(ctx context.Context, request *proto_hellowworld_models.GetSecretRequest) (*proto_hellowworld_models.GetSecretResponse, error) {
+	value, ok := s.secretStore.Get(request.OrgId, request.Key)
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no secret found for org_id=%q key=%q", request.OrgId, request.Key)
+	}
+	return &proto_hellowworld_models.GetSecretResponse{Value: value}, nil
 }
 
 func (s *service) workHard(ctx context.Context) {

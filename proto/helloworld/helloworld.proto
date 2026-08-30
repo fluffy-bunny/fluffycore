@@ -55,9 +55,29 @@ service Greeter {
       body: "*"
     };
     option (nats.api.handler) = {
- 
+
     };
-    
+
+  }
+
+  // SetSecret stores a secret value. Callable with either a normal JWT bearer
+  // token or mutual TLS (a verified client certificate) -- see
+  // example/internal/auth.BuildGrpcEntrypointPermissionsClaimsMap for the
+  // OR-based requirement enforced on this method.
+  rpc SetSecret (models.SetSecretRequest) returns (models.SetSecretResponse) {
+    option (google.api.http) = {
+      post: "/v1/greeter/set-secret"
+      body: "*"
+    };
+  }
+
+  // GetSecret retrieves a previously-set secret value. Same auth requirement
+  // as SetSecret: JWT or mTLS.
+  rpc GetSecret (models.GetSecretRequest) returns (models.GetSecretResponse) {
+    option (google.api.http) = {
+      post: "/v1/greeter/get-secret"
+      body: "*"
+    };
   }
 }
 
