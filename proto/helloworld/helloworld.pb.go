@@ -325,12 +325,14 @@ const file_proto_helloworld_helloworld_proto_rawDesc = "" +
 	"\fRouteSummary\x12\x1f\n" +
 	"\vpoint_count\x18\x01 \x01(\x05R\n" +
 	"pointCount\x12!\n" +
-	"\felapsed_time\x18\x02 \x01(\x05R\velapsedTime2\xcc\x02\n" +
+	"\felapsed_time\x18\x02 \x01(\x05R\velapsedTime2\x96\x04\n" +
 	"\aGreeter\x12p\n" +
 	"\bSayHello\x12\x14.models.HelloRequest\x1a\x12.models.HelloReply\":\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/v1/greeter/sayhello\x82\xe1\xfd\x97\x02\x15\n" +
 	"\forg.${orgId}\x12\x05org.*\x12^\n" +
 	"\fSayHelloAuth\x12\x14.models.HelloRequest\x1a\x12.models.HelloReply\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/greeter/sayhello-auth\x12o\n" +
-	"\x12SayHelloDownstream\x12\x14.models.HelloRequest\x1a\x12.models.HelloReply\"/\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/greeter/sayhellodownstream\x82\xe1\xfd\x97\x02\x002\xbb\x02\n" +
+	"\x12SayHelloDownstream\x12\x14.models.HelloRequest\x1a\x12.models.HelloReply\"/\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/greeter/sayhellodownstream\x82\xe1\xfd\x97\x02\x00\x12c\n" +
+	"\tSetSecret\x12\x18.models.SetSecretRequest\x1a\x19.models.SetSecretResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/v1/greeter/set-secret\x12c\n" +
+	"\tGetSecret\x12\x18.models.GetSecretRequest\x1a\x19.models.GetSecretResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/v1/greeter/get-secret2\xbb\x02\n" +
 	"\bGreeter2\x12R\n" +
 	"\bSayHello\x12\x14.models.HelloRequest\x1a\x13.models.HelloReply2\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/v2/example/echo\x12n\n" +
 	"\rRequestPoints\x12\x19.helloworld.PointsRequest\x1a\x11.helloworld.Point\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/mystreamservice/request-points0\x01\x12k\n" +
@@ -354,38 +356,46 @@ func file_proto_helloworld_helloworld_proto_rawDescGZIP() []byte {
 
 var file_proto_helloworld_helloworld_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_proto_helloworld_helloworld_proto_goTypes = []any{
-	(*NestedMessage)(nil),       // 0: helloworld.NestedMessage
-	(*ParentMessage)(nil),       // 1: helloworld.ParentMessage
-	(*PointsRequest)(nil),       // 2: helloworld.PointsRequest
-	(*Point)(nil),               // 3: helloworld.Point
-	(*RouteSummary)(nil),        // 4: helloworld.RouteSummary
-	(*models.HelloRequest)(nil), // 5: models.HelloRequest
-	(*models.HelloReply)(nil),   // 6: models.HelloReply
-	(*models.HelloReply2)(nil),  // 7: models.HelloReply2
+	(*NestedMessage)(nil),            // 0: helloworld.NestedMessage
+	(*ParentMessage)(nil),            // 1: helloworld.ParentMessage
+	(*PointsRequest)(nil),            // 2: helloworld.PointsRequest
+	(*Point)(nil),                    // 3: helloworld.Point
+	(*RouteSummary)(nil),             // 4: helloworld.RouteSummary
+	(*models.HelloRequest)(nil),      // 5: models.HelloRequest
+	(*models.SetSecretRequest)(nil),  // 6: models.SetSecretRequest
+	(*models.GetSecretRequest)(nil),  // 7: models.GetSecretRequest
+	(*models.HelloReply)(nil),        // 8: models.HelloReply
+	(*models.SetSecretResponse)(nil), // 9: models.SetSecretResponse
+	(*models.GetSecretResponse)(nil), // 10: models.GetSecretResponse
+	(*models.HelloReply2)(nil),       // 11: models.HelloReply2
 }
 var file_proto_helloworld_helloworld_proto_depIdxs = []int32{
-	0, // 0: helloworld.ParentMessage.nested_message:type_name -> helloworld.NestedMessage
-	5, // 1: helloworld.Greeter.SayHello:input_type -> models.HelloRequest
-	5, // 2: helloworld.Greeter.SayHelloAuth:input_type -> models.HelloRequest
-	5, // 3: helloworld.Greeter.SayHelloDownstream:input_type -> models.HelloRequest
-	5, // 4: helloworld.Greeter2.SayHello:input_type -> models.HelloRequest
-	2, // 5: helloworld.Greeter2.RequestPoints:input_type -> helloworld.PointsRequest
-	3, // 6: helloworld.Greeter2.StreamPoints:input_type -> helloworld.Point
-	2, // 7: helloworld.MyStreamService.RequestPoints:input_type -> helloworld.PointsRequest
-	3, // 8: helloworld.MyStreamService.StreamPoints:input_type -> helloworld.Point
-	6, // 9: helloworld.Greeter.SayHello:output_type -> models.HelloReply
-	6, // 10: helloworld.Greeter.SayHelloAuth:output_type -> models.HelloReply
-	6, // 11: helloworld.Greeter.SayHelloDownstream:output_type -> models.HelloReply
-	7, // 12: helloworld.Greeter2.SayHello:output_type -> models.HelloReply2
-	3, // 13: helloworld.Greeter2.RequestPoints:output_type -> helloworld.Point
-	4, // 14: helloworld.Greeter2.StreamPoints:output_type -> helloworld.RouteSummary
-	3, // 15: helloworld.MyStreamService.RequestPoints:output_type -> helloworld.Point
-	4, // 16: helloworld.MyStreamService.StreamPoints:output_type -> helloworld.RouteSummary
-	9, // [9:17] is the sub-list for method output_type
-	1, // [1:9] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0,  // 0: helloworld.ParentMessage.nested_message:type_name -> helloworld.NestedMessage
+	5,  // 1: helloworld.Greeter.SayHello:input_type -> models.HelloRequest
+	5,  // 2: helloworld.Greeter.SayHelloAuth:input_type -> models.HelloRequest
+	5,  // 3: helloworld.Greeter.SayHelloDownstream:input_type -> models.HelloRequest
+	6,  // 4: helloworld.Greeter.SetSecret:input_type -> models.SetSecretRequest
+	7,  // 5: helloworld.Greeter.GetSecret:input_type -> models.GetSecretRequest
+	5,  // 6: helloworld.Greeter2.SayHello:input_type -> models.HelloRequest
+	2,  // 7: helloworld.Greeter2.RequestPoints:input_type -> helloworld.PointsRequest
+	3,  // 8: helloworld.Greeter2.StreamPoints:input_type -> helloworld.Point
+	2,  // 9: helloworld.MyStreamService.RequestPoints:input_type -> helloworld.PointsRequest
+	3,  // 10: helloworld.MyStreamService.StreamPoints:input_type -> helloworld.Point
+	8,  // 11: helloworld.Greeter.SayHello:output_type -> models.HelloReply
+	8,  // 12: helloworld.Greeter.SayHelloAuth:output_type -> models.HelloReply
+	8,  // 13: helloworld.Greeter.SayHelloDownstream:output_type -> models.HelloReply
+	9,  // 14: helloworld.Greeter.SetSecret:output_type -> models.SetSecretResponse
+	10, // 15: helloworld.Greeter.GetSecret:output_type -> models.GetSecretResponse
+	11, // 16: helloworld.Greeter2.SayHello:output_type -> models.HelloReply2
+	3,  // 17: helloworld.Greeter2.RequestPoints:output_type -> helloworld.Point
+	4,  // 18: helloworld.Greeter2.StreamPoints:output_type -> helloworld.RouteSummary
+	3,  // 19: helloworld.MyStreamService.RequestPoints:output_type -> helloworld.Point
+	4,  // 20: helloworld.MyStreamService.StreamPoints:output_type -> helloworld.RouteSummary
+	11, // [11:21] is the sub-list for method output_type
+	1,  // [1:11] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_proto_helloworld_helloworld_proto_init() }

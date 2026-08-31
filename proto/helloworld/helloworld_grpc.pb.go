@@ -37,6 +37,8 @@ const (
 	Greeter_SayHello_FullMethodName           = "/helloworld.Greeter/SayHello"
 	Greeter_SayHelloAuth_FullMethodName       = "/helloworld.Greeter/SayHelloAuth"
 	Greeter_SayHelloDownstream_FullMethodName = "/helloworld.Greeter/SayHelloDownstream"
+	Greeter_SetSecret_FullMethodName          = "/helloworld.Greeter/SetSecret"
+	Greeter_GetSecret_FullMethodName          = "/helloworld.Greeter/GetSecret"
 )
 
 // GreeterClient is the client API for Greeter service.
@@ -51,6 +53,14 @@ type GreeterClient interface {
 	SayHelloAuth(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply, error)
 	// SayHelloDownstream is called from SayHello to demonstrate grpc opentelemetry tracing
 	SayHelloDownstream(ctx context.Context, in *models.HelloRequest, opts ...grpc.CallOption) (*models.HelloReply, error)
+	// SetSecret stores a secret value. Callable with either a normal JWT bearer
+	// token or mutual TLS (a verified client certificate) -- see
+	// example/internal/auth.BuildGrpcEntrypointPermissionsClaimsMap for the
+	// OR-based requirement enforced on this method.
+	SetSecret(ctx context.Context, in *models.SetSecretRequest, opts ...grpc.CallOption) (*models.SetSecretResponse, error)
+	// GetSecret retrieves a previously-set secret value. Same auth requirement
+	// as SetSecret: JWT or mTLS.
+	GetSecret(ctx context.Context, in *models.GetSecretRequest, opts ...grpc.CallOption) (*models.GetSecretResponse, error)
 }
 
 type greeterClient struct {
@@ -91,6 +101,26 @@ func (c *greeterClient) SayHelloDownstream(ctx context.Context, in *models.Hello
 	return out, nil
 }
 
+func (c *greeterClient) SetSecret(ctx context.Context, in *models.SetSecretRequest, opts ...grpc.CallOption) (*models.SetSecretResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(models.SetSecretResponse)
+	err := c.cc.Invoke(ctx, Greeter_SetSecret_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *greeterClient) GetSecret(ctx context.Context, in *models.GetSecretRequest, opts ...grpc.CallOption) (*models.GetSecretResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(models.GetSecretResponse)
+	err := c.cc.Invoke(ctx, Greeter_GetSecret_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GreeterServer is the server API for Greeter service.
 // All implementations must embed UnimplementedGreeterServer
 // for forward compatibility.
@@ -103,6 +133,14 @@ type GreeterServer interface {
 	SayHelloAuth(context.Context, *models.HelloRequest) (*models.HelloReply, error)
 	// SayHelloDownstream is called from SayHello to demonstrate grpc opentelemetry tracing
 	SayHelloDownstream(context.Context, *models.HelloRequest) (*models.HelloReply, error)
+	// SetSecret stores a secret value. Callable with either a normal JWT bearer
+	// token or mutual TLS (a verified client certificate) -- see
+	// example/internal/auth.BuildGrpcEntrypointPermissionsClaimsMap for the
+	// OR-based requirement enforced on this method.
+	SetSecret(context.Context, *models.SetSecretRequest) (*models.SetSecretResponse, error)
+	// GetSecret retrieves a previously-set secret value. Same auth requirement
+	// as SetSecret: JWT or mTLS.
+	GetSecret(context.Context, *models.GetSecretRequest) (*models.GetSecretResponse, error)
 	mustEmbedUnimplementedGreeterServer()
 }
 
@@ -121,6 +159,12 @@ func (UnimplementedGreeterServer) SayHelloAuth(context.Context, *models.HelloReq
 }
 func (UnimplementedGreeterServer) SayHelloDownstream(context.Context, *models.HelloRequest) (*models.HelloReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method SayHelloDownstream not implemented")
+}
+func (UnimplementedGreeterServer) SetSecret(context.Context, *models.SetSecretRequest) (*models.SetSecretResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetSecret not implemented")
+}
+func (UnimplementedGreeterServer) GetSecret(context.Context, *models.GetSecretRequest) (*models.GetSecretResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSecret not implemented")
 }
 func (UnimplementedGreeterServer) mustEmbedUnimplementedGreeterServer() {}
 func (UnimplementedGreeterServer) testEmbeddedByValue()                 {}
@@ -197,6 +241,42 @@ func _Greeter_SayHelloDownstream_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Greeter_SetSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(models.SetSecretRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GreeterServer).SetSecret(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Greeter_SetSecret_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GreeterServer).SetSecret(ctx, req.(*models.SetSecretRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Greeter_GetSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(models.GetSecretRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GreeterServer).GetSecret(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Greeter_GetSecret_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GreeterServer).GetSecret(ctx, req.(*models.GetSecretRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Greeter_ServiceDesc is the grpc.ServiceDesc for Greeter service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -215,6 +295,14 @@ var Greeter_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SayHelloDownstream",
 			Handler:    _Greeter_SayHelloDownstream_Handler,
+		},
+		{
+			MethodName: "SetSecret",
+			Handler:    _Greeter_SetSecret_Handler,
+		},
+		{
+			MethodName: "GetSecret",
+			Handler:    _Greeter_GetSecret_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

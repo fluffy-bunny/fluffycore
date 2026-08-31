@@ -9,6 +9,7 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	shared "github.com/fluffy-bunny/fluffycore/cmd/cli/internal/shared"
 	"github.com/fluffy-bunny/fluffycore/cmd/cli/root/app_client"
+	"github.com/fluffy-bunny/fluffycore/cmd/cli/root/gencert"
 	"github.com/fluffy-bunny/fluffycore/cmd/cli/root/nats"
 	"github.com/fluffy-bunny/fluffycore/cmd/cli/root/version"
 	fluffycore_contracts_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory"
@@ -135,5 +136,6 @@ func InitRootCmd() *cobra.Command {
 	version.Init(command)
 	nats.Init(command)
 	app_client.Init(command)
+	gencert.Init(command)
 	return command
 }

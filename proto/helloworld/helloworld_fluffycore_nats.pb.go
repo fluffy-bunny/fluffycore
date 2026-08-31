@@ -23,6 +23,8 @@ var methodGreeterHandlerRuleMap = map[string]*nats_micro_service.NATSMicroHandle
 	"/helloworld.Greeter/SayHello":           {WildcardToken: "SayHello.org.*", ParameterizedToken: "SayHello.org.${orgId}"},
 	"/helloworld.Greeter/SayHelloAuth":       {WildcardToken: "SayHelloAuth", ParameterizedToken: "SayHelloAuth"},
 	"/helloworld.Greeter/SayHelloDownstream": {WildcardToken: "SayHelloDownstream", ParameterizedToken: "SayHelloDownstream"},
+	"/helloworld.Greeter/SetSecret":          {WildcardToken: "SetSecret", ParameterizedToken: "SetSecret"},
+	"/helloworld.Greeter/GetSecret":          {WildcardToken: "GetSecret", ParameterizedToken: "GetSecret"},
 }
 
 func MethodToSubject_Greeter(method string) (string, bool) {
@@ -222,6 +224,96 @@ func RegisterGreeterNATSHandlerClient(ctx context.Context, nc *nats_go.Conn, cli
 		return nil, err
 	}
 
+	err = m.AddEndpoint("SetSecret",
+		micro.HandlerFunc(func(req micro.Request) {
+			nats_micro_service.HandleRequest(
+				req,
+				serviceOpions.GroupName,
+				&nats_micro_service.NATSMicroHandlerInfo{
+					WildcardToken:      "SetSecret",
+					ParameterizedToken: "SetSecret",
+				},
+				func(r *models.SetSecretRequest) error {
+					return proto.Unmarshal(req.Data(), r)
+				},
+				func() (protoreflect.ProtoMessage, error) {
+					request := &models.SetSecretRequest{}
+					err := proto.Unmarshal(req.Data(), request)
+					if err != nil {
+						return nil, err
+					}
+					return request, nil
+				},
+				func(pm protoreflect.ProtoMessage, req *models.SetSecretRequest) error {
+					pj, err := proto.Marshal(pm)
+					if err != nil {
+						return err
+					}
+					return proto.Unmarshal(pj, req)
+				},
+				func(ctx context.Context, request *models.SetSecretRequest) (*models.SetSecretResponse, error) {
+					return client.SetSecret(ctx, request)
+				},
+			)
+		}),
+		micro.WithEndpointMetadata(map[string]string{
+			"description":     "SetSecret",
+			"format":          "application/json",
+			"request_schema":  utils.SchemaFor(&models.SetSecretRequest{}),
+			"response_schema": utils.SchemaFor(&models.SetSecretResponse{}),
+		}),
+		micro.WithEndpointSubject("SetSecret"),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = m.AddEndpoint("GetSecret",
+		micro.HandlerFunc(func(req micro.Request) {
+			nats_micro_service.HandleRequest(
+				req,
+				serviceOpions.GroupName,
+				&nats_micro_service.NATSMicroHandlerInfo{
+					WildcardToken:      "GetSecret",
+					ParameterizedToken: "GetSecret",
+				},
+				func(r *models.GetSecretRequest) error {
+					return proto.Unmarshal(req.Data(), r)
+				},
+				func() (protoreflect.ProtoMessage, error) {
+					request := &models.GetSecretRequest{}
+					err := proto.Unmarshal(req.Data(), request)
+					if err != nil {
+						return nil, err
+					}
+					return request, nil
+				},
+				func(pm protoreflect.ProtoMessage, req *models.GetSecretRequest) error {
+					pj, err := proto.Marshal(pm)
+					if err != nil {
+						return err
+					}
+					return proto.Unmarshal(pj, req)
+				},
+				func(ctx context.Context, request *models.GetSecretRequest) (*models.GetSecretResponse, error) {
+					return client.GetSecret(ctx, request)
+				},
+			)
+		}),
+		micro.WithEndpointMetadata(map[string]string{
+			"description":     "GetSecret",
+			"format":          "application/json",
+			"request_schema":  utils.SchemaFor(&models.GetSecretRequest{}),
+			"response_schema": utils.SchemaFor(&models.GetSecretResponse{}),
+		}),
+		micro.WithEndpointSubject("GetSecret"),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return svc, err
 }
 
@@ -275,6 +367,32 @@ func (s *GreeterNATSMicroClient) SayHelloDownstream(ctx context.Context, in *mod
 		ctx,
 		s.client,
 		"roger.helloworld.Greeter.SayHelloDownstream",
+		in,
+		response,
+	)
+	return result, err
+}
+
+// SetSecret...
+func (s *GreeterNATSMicroClient) SetSecret(ctx context.Context, in *models.SetSecretRequest, opts ...grpc.CallOption) (*models.SetSecretResponse, error) {
+	response := &models.SetSecretResponse{}
+	result, err := nats_micro_service.HandleNATSClientRequest(
+		ctx,
+		s.client,
+		"roger.helloworld.Greeter.SetSecret",
+		in,
+		response,
+	)
+	return result, err
+}
+
+// GetSecret...
+func (s *GreeterNATSMicroClient) GetSecret(ctx context.Context, in *models.GetSecretRequest, opts ...grpc.CallOption) (*models.GetSecretResponse, error) {
+	response := &models.GetSecretResponse{}
+	result, err := nats_micro_service.HandleNATSClientRequest(
+		ctx,
+		s.client,
+		"roger.helloworld.Greeter.GetSecret",
 		in,
 		response,
 	)

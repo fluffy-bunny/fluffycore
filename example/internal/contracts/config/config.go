@@ -47,6 +47,7 @@ var ConfigDefaultJSON = []byte(`
     "customString": "some default value",
     "someSecret": "password",
     "GRPC_GATEWAY_ENABLED": true,
+    "tlsCertsDir": "./certs",
     "jwtValidators": {},
     "configFiles": {
         "clientPath": "./config/clients.json"
