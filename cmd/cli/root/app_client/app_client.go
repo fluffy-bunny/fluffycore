@@ -3,6 +3,7 @@ package app_client
 import (
 	cobra_utils "github.com/fluffy-bunny/fluffycore/cmd/cli/internal/cobra_utils"
 	"github.com/fluffy-bunny/fluffycore/cmd/cli/root/app_client/helloworld"
+	"github.com/fluffy-bunny/fluffycore/cmd/cli/root/app_client/secret"
 	cobra "github.com/spf13/cobra"
 )
 
@@ -23,6 +24,7 @@ func Init(parentCmd *cobra.Command) {
 		},
 	}
 	helloworld.Init(command)
+	secret.Init(command)
 
 	parentCmd.AddCommand(command)
 }

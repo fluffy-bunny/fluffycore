@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // FilterStore performs CRUD operations on the cefilters MongoDB collection.
@@ -47,7 +47,7 @@ func (s *FilterStore) Upsert(ctx context.Context, doc FilterDocument) error {
 			},
 			"$setOnInsert": bson.M{"createdAt": now},
 		},
-		options.Update().SetUpsert(true),
+		options.UpdateOne().SetUpsert(true),
 	)
 	return err
 }

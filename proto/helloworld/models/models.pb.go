@@ -163,6 +163,210 @@ func (x *HelloReply2) GetMessage() string {
 	return ""
 }
 
+// SetSecret stores value under (org_id, key). Callable via a normal JWT
+// bearer token or via mutual TLS -- see helloworld.proto's Greeter.SetSecret
+// and example/internal/auth's entrypoint config for the OR-based requirement.
+type SetSecretRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	Key           string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetSecretRequest) Reset() {
+	*x = SetSecretRequest{}
+	mi := &file_proto_helloworld_models_models_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetSecretRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetSecretRequest) ProtoMessage() {}
+
+func (x *SetSecretRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_helloworld_models_models_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetSecretRequest.ProtoReflect.Descriptor instead.
+func (*SetSecretRequest) Descriptor() ([]byte, []int) {
+	return file_proto_helloworld_models_models_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SetSecretRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *SetSecretRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *SetSecretRequest) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type SetSecretResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetSecretResponse) Reset() {
+	*x = SetSecretResponse{}
+	mi := &file_proto_helloworld_models_models_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetSecretResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetSecretResponse) ProtoMessage() {}
+
+func (x *SetSecretResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_helloworld_models_models_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetSecretResponse.ProtoReflect.Descriptor instead.
+func (*SetSecretResponse) Descriptor() ([]byte, []int) {
+	return file_proto_helloworld_models_models_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SetSecretResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+// GetSecret retrieves a previously-set value for (org_id, key).
+type GetSecretRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	Key           string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSecretRequest) Reset() {
+	*x = GetSecretRequest{}
+	mi := &file_proto_helloworld_models_models_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSecretRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSecretRequest) ProtoMessage() {}
+
+func (x *GetSecretRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_helloworld_models_models_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSecretRequest.ProtoReflect.Descriptor instead.
+func (*GetSecretRequest) Descriptor() ([]byte, []int) {
+	return file_proto_helloworld_models_models_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetSecretRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *GetSecretRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+type GetSecretResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSecretResponse) Reset() {
+	*x = GetSecretResponse{}
+	mi := &file_proto_helloworld_models_models_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSecretResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSecretResponse) ProtoMessage() {}
+
+func (x *GetSecretResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_helloworld_models_models_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSecretResponse.ProtoReflect.Descriptor instead.
+func (*GetSecretResponse) Descriptor() ([]byte, []int) {
+	return file_proto_helloworld_models_models_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetSecretResponse) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
 var File_proto_helloworld_models_models_proto protoreflect.FileDescriptor
 
 const file_proto_helloworld_models_models_proto_rawDesc = "" +
@@ -175,7 +379,18 @@ const file_proto_helloworld_models_models_proto_rawDesc = "" +
 	"HelloReply\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\"'\n" +
 	"\vHelloReply2\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessageBs\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"Q\n" +
+	"\x10SetSecretRequest\x12\x15\n" +
+	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\"-\n" +
+	"\x11SetSecretResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\";\n" +
+	"\x10GetSecretRequest\x12\x15\n" +
+	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\")\n" +
+	"\x11GetSecretResponse\x12\x14\n" +
+	"\x05value\x18\x01 \x01(\tR\x05valueBs\n" +
 	"\"io.grpc.examples.helloworld.modelsB\x0fHelloWorldProtoP\x01Z:github.com/fluffy-bunny/fluffycore/proto/helloworld/modelsb\x06proto3"
 
 var (
@@ -190,11 +405,15 @@ func file_proto_helloworld_models_models_proto_rawDescGZIP() []byte {
 	return file_proto_helloworld_models_models_proto_rawDescData
 }
 
-var file_proto_helloworld_models_models_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_proto_helloworld_models_models_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_proto_helloworld_models_models_proto_goTypes = []any{
-	(*HelloRequest)(nil), // 0: models.HelloRequest
-	(*HelloReply)(nil),   // 1: models.HelloReply
-	(*HelloReply2)(nil),  // 2: models.HelloReply2
+	(*HelloRequest)(nil),      // 0: models.HelloRequest
+	(*HelloReply)(nil),        // 1: models.HelloReply
+	(*HelloReply2)(nil),       // 2: models.HelloReply2
+	(*SetSecretRequest)(nil),  // 3: models.SetSecretRequest
+	(*SetSecretResponse)(nil), // 4: models.SetSecretResponse
+	(*GetSecretRequest)(nil),  // 5: models.GetSecretRequest
+	(*GetSecretResponse)(nil), // 6: models.GetSecretResponse
 }
 var file_proto_helloworld_models_models_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -215,7 +434,7 @@ func file_proto_helloworld_models_models_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_helloworld_models_models_proto_rawDesc), len(file_proto_helloworld_models_models_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

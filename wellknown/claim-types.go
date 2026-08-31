@@ -33,4 +33,26 @@ const (
 
 	// AnonymousSubject is the subject value used for unauthenticated requests.
 	AnonymousSubject = "anonymous"
+
+	// mTLS claim types -- populated by middleware/auth/mtls from the gRPC
+	// connection's verified client certificate (see that package's doc comment).
+
+	// ClaimTypeMTLSVerified is set to "true" when the request arrived over a
+	// connection where the client presented an X.509 certificate that the TLS
+	// stack cryptographically verified against the server's configured client
+	// CA bundle. Gate a method on mutual TLS by requiring this claim.
+	ClaimTypeMTLSVerified = "mtls_verified"
+	// ClaimTypeMTLSCommonName is the verified client certificate's subject
+	// CommonName.
+	ClaimTypeMTLSCommonName = "mtls_cn"
+	// ClaimTypeMTLSFingerprint is the SHA-256 fingerprint (hex) of the verified
+	// client certificate's raw DER bytes -- useful for pinning to one specific
+	// certificate rather than trusting CommonName alone.
+	ClaimTypeMTLSFingerprint = "mtls_fingerprint"
+	// ClaimTypeMTLSSANURI is a URI SAN from the verified client certificate,
+	// e.g. a SPIFFE ID such as "spiffe://cluster.local/ns/foo/sa/bar" -- the
+	// identity form HashiCorp Vault's PKI secrets engine commonly issues. A
+	// certificate may carry more than one; each is added as a separate claim
+	// value under this same type.
+	ClaimTypeMTLSSANURI = "mtls_san_uri"
 )

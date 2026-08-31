@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // FilterCDC watches the cefilters collection for changes and emits FilterChange
@@ -174,12 +173,12 @@ func decodeEvent(raw bson.Raw) (*FilterChange, error) {
 // currentOpTime returns the current MongoDB cluster operation time by running
 // the hello command. Requires a replica set or sharded cluster; returns an
 // error on standalone instances (which also don't support change streams).
-func (c *FilterCDC) currentOpTime(ctx context.Context) (*primitive.Timestamp, error) {
+func (c *FilterCDC) currentOpTime(ctx context.Context) (*bson.Timestamp, error) {
 	var result bson.M
 	if err := c.Filters.Database().RunCommand(ctx, bson.D{{Key: "hello", Value: 1}}).Decode(&result); err != nil {
 		return nil, err
 	}
-	t, ok := result["operationTime"].(primitive.Timestamp)
+	t, ok := result["operationTime"].(bson.Timestamp)
 	if !ok {
 		return nil, fmt.Errorf(
 			"operationTime absent from hello response — change streams require a replica set or sharded cluster",
@@ -200,7 +199,7 @@ func (c *FilterCDC) saveToken(ctx context.Context, token bson.Raw) {
 	_, _ = c.Tokens.UpdateOne(ctx,
 		bson.M{"_id": c.tokenID()},
 		bson.M{"$set": tokenDoc{ID: c.tokenID(), ResumeToken: token}},
-		options.Update().SetUpsert(true),
+		options.UpdateOne().SetUpsert(true),
 	)
 }
 

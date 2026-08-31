@@ -157,6 +157,20 @@ func (s *GreeterFluffyCoreServer) SayHelloDownstream(ctx context.Context, reques
 	return downstreamService.SayHelloDownstream(ctx, request)
 }
 
+// SetSecret...
+func (s *GreeterFluffyCoreServer) SetSecret(ctx context.Context, request *models.SetSecretRequest) (*models.SetSecretResponse, error) {
+	requestContainer := dicontext.GetRequestContainer(ctx)
+	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](requestContainer)
+	return downstreamService.SetSecret(ctx, request)
+}
+
+// GetSecret...
+func (s *GreeterFluffyCoreServer) GetSecret(ctx context.Context, request *models.GetSecretRequest) (*models.GetSecretResponse, error) {
+	requestContainer := dicontext.GetRequestContainer(ctx)
+	downstreamService := fluffy_dozm_di.Get[IFluffyCoreGreeterServer](requestContainer)
+	return downstreamService.GetSecret(ctx, request)
+}
+
 // IAppGreeter2ClientAccessor defines the grpc client
 type IAppGreeter2ClientAccessor interface {
 	GetClient() (Greeter2Client, error)
