@@ -1,6 +1,6 @@
 module github.com/fluffy-bunny/fluffycore
 
-go 1.26
+go 1.26.0
 
 replace github.com/alexedwards/argon2id => github.com/ghstahl/argon2id v0.0.0-20260623181421-c6025230e214
 
@@ -11,9 +11,9 @@ require (
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/auth0/go-jwt-middleware/v2 v2.3.1
 	github.com/cloudevents/sdk-go/v2 v2.16.2
-	github.com/eko/gocache/lib/v4 v4.2.4
-	github.com/eko/gocache/store/go_cache/v4 v4.2.5
-	github.com/eko/gocache/store/redis/v4 v4.2.6
+	github.com/eko/gocache/lib/v4 v4.4.0
+	github.com/eko/gocache/store/go_cache/v4 v4.2.10
+	github.com/eko/gocache/store/redis/v4 v4.2.12
 	github.com/fatih/structs v1.1.0
 	github.com/fluffy-bunny/fluffy-dozm-di v0.0.10
 	github.com/fluffy-bunny/viperEx v0.0.40
@@ -55,7 +55,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/tkuchiki/parsetime v0.3.0
 	github.com/tufin/asciitree v0.0.0-20210127111056-bf70173ef677
-	go.mongodb.org/mongo-driver/v2 v2.8.2
+	go.mongodb.org/mongo-driver/v2 v2.9.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.71.0
 	go.opentelemetry.io/contrib/instrumentation/host v0.71.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.71.0
@@ -70,7 +70,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.46.0
 	go.opentelemetry.io/otel/sdk/metric v1.46.0
 	go.opentelemetry.io/otel/trace v1.46.0
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/oauth2 v0.37.0
 	golang.org/x/text v0.41.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260819154853-08b0e4226688
 	google.golang.org/grpc v1.83.2
@@ -138,7 +138,7 @@ require (
 	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.6 // indirect
+	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
