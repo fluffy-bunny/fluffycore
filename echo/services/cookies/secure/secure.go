@@ -2,6 +2,7 @@ package secure
 
 import (
 	"net/http"
+	"strings"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_cookies "github.com/fluffy-bunny/fluffycore/echo/contracts/cookies"
@@ -77,13 +78,7 @@ func (s *service) SetCookie(c echo.Context, request *contracts_cookies.SetCookie
 	if err != nil {
 		return nil, err
 	}
-	r := c.Request()
-
-	isTLS := r.TLS != nil
-	if request.Secure != nil {
-		// override
-		isTLS = *request.Secure
-	}
+	isTLS := secureDefault(c.Scheme(), c.Request(), request.Secure)
 
 	encoded, err := s.cookies.Encode(request.Name, request.Value)
 	if err != nil {
@@ -130,9 +125,6 @@ func (s *service) validateDeleteCookieRequest(request *contracts_cookies.DeleteC
 	if fluffycore_utils.IsEmptyOrNil(request.Path) {
 		return status.Error(codes.InvalidArgument, "Path is required")
 	}
-	if fluffycore_utils.IsEmptyOrNil(request.Domain) {
-		return status.Error(codes.InvalidArgument, "Domain is required")
-	}
 	return nil
 }
 
@@ -141,13 +133,30 @@ func (s *service) DeleteCookie(c echo.Context, request *contracts_cookies.Delete
 	if err != nil {
 		return err
 	}
+	// Domain is optional (host-only cookie). Secure/SameSite must match how the cookie was set:
+	// browsers refuse to overwrite a Secure cookie from a non-Secure Set-Cookie, and drop
+	// SameSite=None without Secure -- either way the cookie would silently survive.
 	cookie := &http.Cookie{
-		Name:   request.Name,
-		Value:  "",
-		Path:   request.Path,
-		MaxAge: -1,
-		Domain: request.Domain,
+		Name:     request.Name,
+		Value:    "",
+		Path:     request.Path,
+		MaxAge:   -1,
+		Domain:   request.Domain,
+		Secure:   secureDefault(c.Scheme(), c.Request(), request.Secure),
+		HttpOnly: true,
+		SameSite: request.SameSite,
 	}
 	c.SetCookie(cookie)
 	return nil
+}
+
+// secureDefault is the cookie's Secure flag: override if given, else whether the request
+// arrived over https -- directly, per echo's Context.Scheme (which trusts forwarding headers only
+// from private-network peers), or per X-Forwarded-Proto from any peer: a spoofed header can only
+// make the cookie stricter. Checking only r.TLS left cookies non-Secure behind every proxy.
+func secureDefault(scheme string, r *http.Request, override *bool) bool {
+	if override != nil {
+		return *override
+	}
+	return scheme == "https" || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
 }

@@ -148,11 +148,19 @@ func parseClientAuth(mode, clientCAFile string) (tls.ClientAuthType, error) {
 	case ClientAuthNone:
 		return tls.NoClientCert, nil
 	case ClientAuthRequest:
+		// Requests a cert but never verifies it, so it never yields mTLS claims; no CA needed.
 		return tls.RequestClientCert, nil
-	case ClientAuthVerifyIfGiven:
+	case ClientAuthVerifyIfGiven, ClientAuthRequire:
+		// Verifying without a client CA bundle would make Go fall back to the OS root store:
+		// any client cert issued by a public CA would verify and produce mtls_verified=true
+		// with a CommonName of the caller's choosing.
+		if clientCAFile == "" {
+			return 0, fmt.Errorf("servertls: tlsClientAuth %q requires tlsClientCAFile (or tlsCertsDir); refusing to verify client certs against the OS root store", mode)
+		}
+		if mode == ClientAuthRequire {
+			return tls.RequireAndVerifyClientCert, nil
+		}
 		return tls.VerifyClientCertIfGiven, nil
-	case ClientAuthRequire:
-		return tls.RequireAndVerifyClientCert, nil
 	default:
 		return 0, fmt.Errorf("servertls: unknown tlsClientAuth %q (expected one of: %s, %s, %s, %s)",
 			mode, ClientAuthNone, ClientAuthRequest, ClientAuthVerifyIfGiven, ClientAuthRequire)

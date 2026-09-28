@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	go_runtime "runtime"
@@ -52,28 +51,21 @@ func (s *Control) Start() {
 		if err != nil {
 			zlog.Fatal().Err(err).Msg("Failed to convert Control port to int")
 		}
+		addr, token, err := adminListenConfig(os.Getenv, port)
+		if err != nil {
+			zlog.Error().Err(err).Msg("Not starting Control server")
+			return
+		}
 		// start the control server
-		zlog.Info().Int("port", port).Msg("Starting Control server")
+		zlog.Info().Str("addr", addr).Bool("tokenRequired", token != "").Msg("Starting Control server")
 
-		s.e = echo.New()
+		s.e = s.newEcho(token)
 		e := s.e
-		e.GET("/", func(c *echo.Context) error {
-			return c.String(http.StatusOK, "Hello from Control")
-		})
-		e.GET("/stop", func(c *echo.Context) error {
-			s.runtime.Stop()
-			return c.String(http.StatusOK, "Signalled server to stop")
-		})
-		e.GET("/gc", func(c *echo.Context) error {
-			go_runtime.GC()
-			return c.String(http.StatusOK, "Called GC")
-		})
 		ctx, cancel := context.WithCancel(context.Background())
 		s.cancel = cancel
 		asyncAction := func() async.Future[string] {
 			promise := async.NewPromise[string]()
 			go func() {
-				addr := fmt.Sprintf("%s:%d", getBindAddress(), port)
 				sc := echo.StartConfig{Address: addr}
 				if err := sc.Start(ctx, e); err != nil {
 					zlog.Error().Err(err).Msg("control server error")
@@ -87,4 +79,25 @@ func (s *Control) Start() {
 		}
 		s.future = asyncAction()
 	}
+}
+
+// newEcho builds the control server's routes. Split out of Start so the routing and the
+// token requirement can be tested without binding a port.
+func (s *Control) newEcho(token string) *echo.Echo {
+	e := echo.New()
+	e.Use(adminTokenMiddleware(token))
+	e.GET("/", func(c *echo.Context) error {
+		return c.String(http.StatusOK, "Hello from Control")
+	})
+	// POST, not GET: a state-changing endpoint must not be triggerable by a link,
+	// an <img> tag, or a browser prefetch.
+	e.POST("/stop", func(c *echo.Context) error {
+		s.runtime.Stop()
+		return c.String(http.StatusOK, "Signalled server to stop")
+	})
+	e.GET("/gc", func(c *echo.Context) error {
+		go_runtime.GC()
+		return c.String(http.StatusOK, "Called GC")
+	})
+	return e
 }

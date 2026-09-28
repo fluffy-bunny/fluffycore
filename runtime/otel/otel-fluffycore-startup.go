@@ -2,6 +2,7 @@ package otel
 
 import (
 	"context"
+	"runtime/debug"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
@@ -83,6 +84,19 @@ func (s *FluffyCoreOTELStartup) ConfigureServerOpts(ctx context.Context) []grpc.
 		}
 	}
 
+	// Panic recovery goes FIRST -- the outermost interceptor -- so it covers every
+	// interceptor below it as well as the handler. It used to be registered last, which
+	// only covered the handler: a panic in correlation, dicontext, logging, JWT or the auth
+	// gate (e.g. di.Get on a missing service) went unrecovered and killed the process.
+	recoveryOpts := []grpc_recovery.Option{
+		grpc_recovery.WithRecoveryHandlerContext(func(ctx context.Context, p interface{}) error {
+			zerolog.Ctx(ctx).Error().Interface("panic", p).Bytes("stack", debug.Stack()).Msg("recovered from panic in gRPC call")
+			return status.Errorf(codes.Internal, "internal error")
+		}),
+	}
+	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(grpc_recovery.UnaryServerInterceptor(recoveryOpts...)))
+	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(grpc_recovery.StreamServerInterceptor(recoveryOpts...)))
+
 	// log correlation and spans
 	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_correlation.EnsureOTELCorrelationIDUnaryServerInterceptor()))
 	// FIRST FIRST: ScopedContextxxx must be called first
@@ -109,22 +123,18 @@ func (s *FluffyCoreOTELStartup) ConfigureServerOpts(ctx context.Context) []grpc.
 	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_auth_jwt.UnaryServerInterceptor(s.RootContainer)))
 	log.Info().Msg("adding ChainStreamInterceptor: fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor")
 	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor()))
+	// Streams get the same authentication as unary calls. Without this, every
+	// server/client/bidi-streaming method ran with an empty claims principal and no
+	// permission check at all.
+	log.Info().Msg("adding ChainStreamInterceptor: fluffycore_middleware_auth_jwt.StreamServerInterceptor")
+	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(fluffycore_middleware_auth_jwt.StreamServerInterceptor(s.RootContainer)))
 
-	// Here the gating happens
-	//grpcEntrypointClaimsMap := internal_auth.BuildGrpcEntrypointPermissionsClaimsMap()
+	// Here the gating happens -- for unary AND streaming methods, from the same map.
 	grpcEntrypointClaimsMap := s.FluffyCoreOTELStartupConfig.FuncAuthGetEntryPointConfigs()
-	// claims principal
-	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_claimsprincipal.UnaryServerInterceptor")
+	log.Info().Msg("adding ChainUnaryInterceptor: fluffycore_middleware_claimsprincipal.FinalAuthVerificationMiddlewareUsingClaimsMapWithZeroTrustV2")
 	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_claimsprincipal.FinalAuthVerificationMiddlewareUsingClaimsMapWithZeroTrustV2(grpcEntrypointClaimsMap)))
-
-	// last is the recovery middleware
-	customFunc := func(p interface{}) (err error) {
-		return status.Errorf(codes.Unknown, "panic triggered: %v", p)
-	}
-	opts := []grpc_recovery.Option{
-		grpc_recovery.WithRecoveryHandler(customFunc),
-	}
-	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(grpc_recovery.UnaryServerInterceptor(opts...)))
+	log.Info().Msg("adding ChainStreamInterceptor: fluffycore_middleware_claimsprincipal.FinalAuthVerificationStreamMiddlewareUsingClaimsMapWithZeroTrustV2")
+	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(fluffycore_middleware_claimsprincipal.FinalAuthVerificationStreamMiddlewareUsingClaimsMapWithZeroTrustV2(grpcEntrypointClaimsMap)))
 
 	return serverOpts
 }

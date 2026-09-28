@@ -35,13 +35,15 @@ const (
 	// FilterChange.Doc is nil.
 	ChangeOpDelete ChangeOp = "delete"
 
-	// ChangeOpReady signals that the initial snapshot phase is complete and
+	// ChangeOpReady signals that the snapshot phase is complete and
 	// the CDC is now tailing live changes.
-	// On first run this arrives after all active documents have been emitted as
-	// ChangeOpUpsert events.
-	// On reconnect this arrives immediately — the local state is already current.
+	// After a snapshot (first Run, or a Run whose resume position was lost) this
+	// arrives after every active document has been emitted as ChangeOpUpsert and
+	// every no-longer-active one previously reported has been emitted as ChangeOpDelete.
+	// On reconnect this arrives immediately — the change stream replays the delta.
+	// It can therefore arrive more than once; treat repeats as no-ops.
 	// Callers should not serve traffic against their local IndexedFilterSet until
-	// they receive this event.
+	// they receive the first one.
 	ChangeOpReady ChangeOp = "ready"
 )
 

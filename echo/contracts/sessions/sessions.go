@@ -58,7 +58,11 @@ type (
 		EncryptionKey     string `json:"encryptionKey"`
 		AuthenticationKey string `json:"authenticationKey"`
 		Domain            string `json:"domain"`
-		MaxAge            int    `json:"maxAge"`
-		Insecure          bool   `json:"insecure"`
+		// MaxAge is the cookie's Max-Age in seconds. 0 makes it a browser-session cookie; the
+		// signed value is then still only accepted for storeopts.DefaultSignedValueMaxAgeSeconds.
+		MaxAge   int  `json:"maxAge"`
+		Insecure bool `json:"insecure"`
+		// SameSite for the session cookie; 0 (unset) means http.SameSiteLaxMode.
+		SameSite http.SameSite `json:"sameSite"`
 	}
 )

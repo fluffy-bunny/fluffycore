@@ -13,6 +13,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	pkcs8enc "github.com/fluffy-bunny/fluffycore/utils/pkcs8enc"
 )
 
 // generateKeyFromPassword derives a key from password using OpenSSL's EVP_BytesToKey (MD5-based).
@@ -42,6 +44,10 @@ func isEncryptedPEMBlock(b *pem.Block) bool {
 }
 
 // EncryptPemBlock encrypts a PEM block in-place using AES-256-CBC with OpenSSL-compatible key derivation.
+//
+// Deprecated: the legacy OpenSSL PEM format derives the key with one MD5 pass
+// (EVP_BytesToKey) and is trivially brute-forced. Encode now writes encrypted PKCS#8
+// (utils/pkcs8enc). Kept, with DecryptPemBlock, to read existing keys.
 func EncryptPemBlock(block *pem.Block, password string, alg x509.PEMCipher) error {
 	if len(password) > 0 {
 		// Generate random IV (AES block size = 16 bytes)
@@ -101,6 +107,14 @@ func DecryptPemBlock(block *pem.Block, password string) (err error) {
 		if err != nil {
 			return fmt.Errorf("invalid IV in DEK-Info: %w", err)
 		}
+		// Both used to be unchecked: a short IV panicked on iv[:8], and a wrong-length IV or a
+		// ciphertext that isn't whole AES blocks panicked inside the CBC decrypter.
+		if len(iv) != aes.BlockSize {
+			return fmt.Errorf("invalid IV length: expected %d, got %d", aes.BlockSize, len(iv))
+		}
+		if len(block.Bytes) == 0 || len(block.Bytes)%aes.BlockSize != 0 {
+			return fmt.Errorf("encrypted data length %d is not a multiple of the AES block size", len(block.Bytes))
+		}
 
 		key := generateKeyFromPassword([]byte(password), iv[:8], 32)
 
@@ -134,20 +148,44 @@ func DecryptPemBlock(block *pem.Block, password string) (err error) {
 	return nil
 }
 
+// parsePrivateBlock reads an EC private key from an encrypted PKCS#8 block (what Encode
+// writes now), a legacy OpenSSL-encrypted block, or an unencrypted SEC1 block.
+func parsePrivateBlock(block *pem.Block, password string) (*ecdsa.PrivateKey, error) {
+	if block.Type == pkcs8enc.PEMType {
+		der, err := pkcs8enc.Decrypt(block, password)
+		if err != nil {
+			return nil, fmt.Errorf("ecdsa: %w", err)
+		}
+		key, err := x509.ParsePKCS8PrivateKey(der)
+		if err != nil {
+			return nil, fmt.Errorf("ecdsa: failed to parse PKCS#8 private key: %w", err)
+		}
+		ecKey, ok := key.(*ecdsa.PrivateKey)
+		if !ok {
+			return nil, fmt.Errorf("ecdsa: private key is %T, not ECDSA", key)
+		}
+		return ecKey, nil
+	}
+	if password != "" {
+		if err := DecryptPemBlock(block, password); err != nil {
+			return nil, err
+		}
+	}
+	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("ecdsa: failed to parse EC private key: %w", err)
+	}
+	return privateKey, nil
+}
+
 func DecodePrivatePem(password string, pemEncoded string) (*ecdsa.PrivateKey, *ecdsa.PublicKey, error) {
 	block, _ := pem.Decode([]byte(pemEncoded))
 	if block == nil {
 		return nil, nil, errors.New("ecdsa: failed to decode PEM block")
 	}
-	if password != "" {
-		if err := DecryptPemBlock(block, password); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
+	privateKey, err := parsePrivateBlock(block, password)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ecdsa: failed to parse EC private key: %w", err)
+		return nil, nil, err
 	}
 	publicKey := &privateKey.PublicKey
 
@@ -159,15 +197,9 @@ func decode(password string, pemEncoded string, pemEncodedPub string) (*ecdsa.Pr
 	if block == nil {
 		return nil, nil, errors.New("ecdsa: failed to decode private PEM block")
 	}
-	if password != "" {
-		if err := DecryptPemBlock(block, password); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
+	privateKey, err := parsePrivateBlock(block, password)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ecdsa: failed to parse EC private key: %w", err)
+		return nil, nil, err
 	}
 
 	blockPub, _ := pem.Decode([]byte(pemEncodedPub))
@@ -186,27 +218,25 @@ func decode(password string, pemEncoded string, pemEncodedPub string) (*ecdsa.Pr
 	return privateKey, publicKey, nil
 }
 func Encode(password string, privateKey *ecdsa.PrivateKey, publicKey *ecdsa.PublicKey) (string, string, error) {
-	x509Encoded, err := x509.MarshalECPrivateKey(privateKey)
-	if err != nil {
-		return "", "", err
-	}
-	// Convert it to pem
-	block := &pem.Block{
-		Type:  "EC PRIVATE KEY",
-		Bytes: x509Encoded,
-	}
-	var pemEncoded []byte
-	// Encrypt the pem
+	var block *pem.Block
 	if password != "" {
-		err = EncryptPemBlock(block, password, x509.PEMCipherAES256)
-
+		// Encrypted PKCS#8 (PBES2, PBKDF2-HMAC-SHA256). This used to be the legacy OpenSSL
+		// PEM encryption, whose single-MD5 key derivation is trivially brute-forced.
+		pkcs8DER, err := x509.MarshalPKCS8PrivateKey(privateKey)
 		if err != nil {
 			return "", "", err
 		}
-		//	DecryptedPEMBlock, _ := x509.DecryptPEMBlock(block, []byte(password))
-		//	fmt.Println(string(DecryptedPEMBlock))
+		if block, err = pkcs8enc.Encrypt(pkcs8DER, password); err != nil {
+			return "", "", err
+		}
+	} else {
+		x509Encoded, err := x509.MarshalECPrivateKey(privateKey)
+		if err != nil {
+			return "", "", err
+		}
+		block = &pem.Block{Type: "EC PRIVATE KEY", Bytes: x509Encoded}
 	}
-	pemEncoded = pem.EncodeToMemory(block)
+	pemEncoded := pem.EncodeToMemory(block)
 
 	x509EncodedPub, err := x509.MarshalPKIXPublicKey(publicKey)
 	if err != nil {

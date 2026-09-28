@@ -237,23 +237,23 @@ Expression validation (`cefilter.Parse`) is the caller's responsibility — `Fil
 
 `FilterCDC` implements the standard **snapshot-then-tail** CDC pattern using MongoDB change streams.
 
-**First run (no persisted resume token):**
+**First run** (and any run after the resume position was lost):
 1. Pin the current oplog position (`hello` command) — writes that arrive during the scan won't be missed.
-2. Stream all active documents as `ChangeOpUpsert` events (the snapshot).
-3. Emit `ChangeOpReady` — the caller's `IndexedFilterSet` is fully initialised.
-4. Open a change stream starting at the pinned position and tail indefinitely.
+2. Stream all active documents as `ChangeOpUpsert` events (the snapshot), then a `ChangeOpDelete` for every filter this `FilterCDC` reported earlier that is no longer active.
+3. Open a change stream starting at the pinned position.
+4. Emit `ChangeOpReady` — the caller's `IndexedFilterSet` is exact — and tail indefinitely.
 
-**Reconnect (resume token present):**
-1. Emit `ChangeOpReady` immediately — local state was preserved across the connection drop.
-2. Open a change stream resuming from the saved token and tail live changes.
+**Reconnect** (`Run` called again on the same `FilterCDC` after a transient error):
+1. Resume the change stream from the last position seen (the last token, or the snapshot's pinned time if no token was produced yet) — it replays everything missed, including deletes.
+2. Emit `ChangeOpReady` and tail live changes.
 
-The resume token is persisted to a separate Tokens collection after every delivered event, so a process restart at worst replays one event (callers should make their `Add`/`Remove` idempotent — `IndexedFilterSet` already is).
+If the saved position has fallen off the oplog (`ChangeStreamHistoryLost` etc.), `Run` re-snapshots within the same call. If the stream is invalidated (collection dropped or renamed), `Run` returns an error and the next `Run` re-snapshots.
+
+The resume position is kept **in memory only**. It is meaningful only relative to the in-memory `IndexedFilterSet` built from this `FilterCDC`'s events: a new process starts with an empty set and must snapshot. (It used to be persisted to a Tokens collection; a restarted process then resumed, skipped the snapshot and routed nothing. `Tokens`/`TokenID` are now deprecated and ignored.) Use one `FilterCDC` per `IndexedFilterSet` for the set's lifetime, and reuse it across retries. Events can be replayed, so `Add`/`Remove` must be idempotent — `IndexedFilterSet.Add` replaces an existing filter with the same `Name`.
 
 ```go
 cdc := &mongostore.FilterCDC{
     Filters: db.Collection("cefilters"),
-    Tokens:  db.Collection("cdc_tokens"),
-    TokenID: "my-service-cefilters", // unique per logical CDC process
 }
 
 changes := make(chan mongostore.FilterChange, 64)
@@ -307,11 +307,11 @@ for change := range changes {
 |---|---|---|
 | `ChangeOpUpsert` | Insert, update, replace (and soft-un-delete) | Yes |
 | `ChangeOpDelete` | Soft delete (deletedAt set) or hard delete | No |
-| `ChangeOpReady` | After snapshot phase completes (or immediately on resume) | No |
+| `ChangeOpReady` | Once the stream is open, after a snapshot or on resume. Can repeat; treat repeats as no-ops | No |
 
 ### Design decisions
 
 - **Soft delete vs hard delete.** Soft delete (`DeletedAt` field) gives an audit trail and lets CDC emit a `ChangeOpDelete` via an update event (which carries `fullDocument`). Hard delete also works — the change stream's `documentKey._id` provides the name without a secondary lookup.
 - **`Name` as `_id`.** Avoids a unique index on a separate `name` field and makes hard-delete CDC events self-contained.
-- **Resume token persistence.** Stored in a dedicated Tokens collection (not the filter document itself) so it can survive collection drops/migrations.
+- **Resume position in memory, not persisted.** See above — a persisted token outlives the in-memory state it describes. Deletes missed while the position was lost are reconciled by diffing the snapshot against the names this `FilterCDC` reported live.
 - **`Run` is blocking + restartable.** Callers wrap it in a retry loop with backoff; `FilterCDC` itself has no internal retry to keep the failure handling strategy in the caller's hands.

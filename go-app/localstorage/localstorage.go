@@ -3,9 +3,8 @@ package localstorage
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
-	"strconv"
 
+	"github.com/fluffy-bunny/fluffycore/go-app/internal/valuecodec"
 	app "github.com/maxence-charriere/go-app/v10/pkg/app"
 )
 
@@ -124,139 +123,35 @@ func GetLocalStorageKeys() []string {
 	return keys
 }
 
-// encodeLocalStorageValue encodes a value for storage in localStorage
+// encodeLocalStorageValue encodes a value for storage in localStorage: primitives as text,
+// anything else as JSON. A nil pointer encodes as "".
 func encodeLocalStorageValue[T any](value T) (string, error) {
-	rt := reflect.TypeOf(value)
-
-	// Handle nil pointers
-	if rt != nil && rt.Kind() == reflect.Ptr {
-		rv := reflect.ValueOf(value)
-		if rv.IsNil() {
-			return "", nil
-		}
-		value = rv.Elem().Interface().(T)
-		rt = reflect.TypeOf(value)
+	v, ok := valuecodec.Deref(value)
+	if !ok {
+		return "", nil
 	}
-
-	// Handle primitives
-	switch rt.Kind() {
-	case reflect.String:
-		return reflect.ValueOf(value).String(), nil
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return strconv.FormatInt(reflect.ValueOf(value).Int(), 10), nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return strconv.FormatUint(reflect.ValueOf(value).Uint(), 10), nil
-	case reflect.Float32, reflect.Float64:
-		return strconv.FormatFloat(reflect.ValueOf(value).Float(), 'f', -1, 64), nil
-	case reflect.Bool:
-		return strconv.FormatBool(reflect.ValueOf(value).Bool()), nil
+	if s, handled := valuecodec.EncodePrimitive(v); handled {
+		return s, nil
 	}
-
-	// For structs and other complex types: JSON
-	jsonBytes, err := json.Marshal(value)
+	jsonBytes, err := json.Marshal(v)
 	if err != nil {
 		return "", err
 	}
-
 	return string(jsonBytes), nil
 }
 
 // decodeLocalStorageValue decodes a localStorage value into type T
 func decodeLocalStorageValue[T any](value string) (T, error) {
 	var result T
-
 	if value == "" {
 		return result, fmt.Errorf("value is empty")
 	}
-
-	rt := reflect.TypeOf(result)
-
-	// Handle pointer types
-	isPtr := false
-	if rt != nil && rt.Kind() == reflect.Ptr {
-		isPtr = true
-		rt = rt.Elem()
+	if result, handled, err := valuecodec.DecodePrimitive[T](value); handled {
+		return result, err
 	}
-
-	// Handle primitives
-	switch rt.Kind() {
-	case reflect.String:
-		if isPtr {
-			str := value
-			return reflect.ValueOf(&str).Interface().(T), nil
-		}
-		return reflect.ValueOf(value).Interface().(T), nil
-
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		intVal, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return result, err
-		}
-		if isPtr {
-			v := reflect.New(rt)
-			v.Elem().SetInt(intVal)
-			return v.Interface().(T), nil
-		}
-		v := reflect.New(rt).Elem()
-		v.SetInt(intVal)
-		return v.Interface().(T), nil
-
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		uintVal, err := strconv.ParseUint(value, 10, 64)
-		if err != nil {
-			return result, err
-		}
-		if isPtr {
-			v := reflect.New(rt)
-			v.Elem().SetUint(uintVal)
-			return v.Interface().(T), nil
-		}
-		v := reflect.New(rt).Elem()
-		v.SetUint(uintVal)
-		return v.Interface().(T), nil
-
-	case reflect.Float32, reflect.Float64:
-		floatVal, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return result, err
-		}
-		if isPtr {
-			v := reflect.New(rt)
-			v.Elem().SetFloat(floatVal)
-			return v.Interface().(T), nil
-		}
-		v := reflect.New(rt).Elem()
-		v.SetFloat(floatVal)
-		return v.Interface().(T), nil
-
-	case reflect.Bool:
-		boolVal, err := strconv.ParseBool(value)
-		if err != nil {
-			return result, err
-		}
-		if isPtr {
-			v := reflect.New(rt)
-			v.Elem().SetBool(boolVal)
-			return v.Interface().(T), nil
-		}
-		v := reflect.New(rt).Elem()
-		v.SetBool(boolVal)
-		return v.Interface().(T), nil
+	target, get := valuecodec.NewTarget[T]()
+	if err := json.Unmarshal([]byte(value), target); err != nil {
+		return result, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
-
-	// For structs and other complex types: decode JSON
-	if isPtr {
-		result = reflect.New(rt).Interface().(T)
-		err := json.Unmarshal([]byte(value), result)
-		if err != nil {
-			return result, fmt.Errorf("failed to unmarshal JSON: %w", err)
-		}
-	} else {
-		err := json.Unmarshal([]byte(value), &result)
-		if err != nil {
-			return result, fmt.Errorf("failed to unmarshal JSON: %w", err)
-		}
-	}
-
-	return result, nil
+	return get(), nil
 }

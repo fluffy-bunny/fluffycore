@@ -20,6 +20,10 @@ func IsZero(v reflect.Value) bool {
 		return true
 	}
 
+	if !v.CanInterface() {
+		// Unexported struct field: v.Interface() would panic.
+		return v.IsZero()
+	}
 	it := v.Interface()
 	x, ok := it.(Zeroer)
 	if ok {
@@ -61,9 +65,7 @@ func _isEmptyOrNil(i interface{}) bool {
 
 	switch reflect.TypeOf(i).Kind() {
 	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
-		if reflect.ValueOf(i).IsNil() {
-			return true
-		}
+		// Not nil (checked above); an array is empty when all its elements are zero.
 		return IsZero(reflect.ValueOf(i))
 	case reflect.String:
 		return i == ""
@@ -89,9 +91,9 @@ func _isNil(i interface{}) bool {
 		return true
 	}
 	switch reflect.TypeOf(i).Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
-		return reflect.ValueOf(i).IsNil()
-	case reflect.Func:
+	// Only kinds that can be nil. reflect.Array used to be listed here, and IsNil panics on
+	// arrays -- IsNil([2]int{}) crashed.
+	case reflect.Ptr, reflect.Map, reflect.Chan, reflect.Slice, reflect.Func, reflect.UnsafePointer:
 		return reflect.ValueOf(i).IsNil()
 	}
 	return false //everything else here is a primitive

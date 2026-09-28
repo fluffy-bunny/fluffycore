@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -29,6 +30,8 @@ var (
 	// ErrTooFewWords represents an error thrown if the password will
 	// have fewer than four words and are not considered to be safe
 	ErrTooFewWords = errors.New("must have at least one word.  This is just a phrase generator for anything")
+	// ErrTooManyWords is returned when more words are asked for than the word list holds.
+	ErrTooManyWords = errors.New("more words requested than the word list contains")
 	// DefaultXKCD contains an default instance of the XKCD password
 	// generator
 	DefaultXKCD = NewXKCDGenerator()
@@ -87,19 +90,24 @@ func (x XKCD) GeneratePassword(length int, addDate bool) (string, error) {
 	if addDate {
 		password = time.Now().Format("20060102") + x.Separator
 	}
+	words := titledWords()
+	// Words are never reused, so more than len(words) could never be satisfied: the loop
+	// below used to spin forever.
+	if length > len(words) {
+		return "", ErrTooManyWords
+	}
+	used := make(map[int]struct{}, length)
 	for len(usedWords) < length {
-		widx, err := randIntn(len(xkcdWordList))
+		widx, err := randIntn(len(words))
 		if err != nil {
 			return "", errors.Wrap(err, "generating random number")
 		}
-		caser := cases.Title(language.AmericanEnglish)
-		word := caser.String(xkcdWordList[widx])
-		if StringInSlice(word, usedWords) {
+		if _, dup := used[widx]; dup {
 			// Don't use a word twice
 			continue
 		}
-
-		usedWords = append(usedWords, word)
+		used[widx] = struct{}{}
+		usedWords = append(usedWords, words[widx])
 	}
 
 	return password + strings.Join(usedWords, x.Separator), nil
@@ -3990,4 +3998,27 @@ var xkcdWordList = []string{
 	"zone",
 	"zoologist",
 	"zygote",
+}
+
+var (
+	titledWordsOnce sync.Once
+	titledWordList  []string
+)
+
+// titledWords is xkcdWordList title-cased and de-duplicated, computed once (the caser used
+// to be rebuilt on every loop iteration).
+func titledWords() []string {
+	titledWordsOnce.Do(func() {
+		caser := cases.Title(language.AmericanEnglish)
+		seen := make(map[string]struct{}, len(xkcdWordList))
+		for _, w := range xkcdWordList {
+			t := caser.String(w)
+			if _, dup := seen[t]; dup {
+				continue
+			}
+			seen[t] = struct{}{}
+			titledWordList = append(titledWordList, t)
+		}
+	})
+	return titledWordList
 }

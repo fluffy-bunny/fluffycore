@@ -22,7 +22,7 @@ func TestReplaceMergeMap(t *testing.T) {
 		{
 			src:      `{"b":2}`,
 			dst:      `{"a":1}`,
-			expected: `{"b":2}`,
+			expected: `{"a":1,"b":2}`,
 		},
 		{
 			src:      `{"a":0}`,
@@ -32,7 +32,7 @@ func TestReplaceMergeMap(t *testing.T) {
 		{
 			src:      `{"a":{       "y":2}}`,
 			dst:      `{"a":{"x":1       }}`,
-			expected: `{"a":{       "y":2}}`,
+			expected: `{"a":{"x":1, "y":2}}`,
 		},
 		{
 			src:      `{"a":{"x":2}}`,
@@ -42,12 +42,12 @@ func TestReplaceMergeMap(t *testing.T) {
 		{
 			src:      `{"a":{       "y":7, "z":8}}`,
 			dst:      `{"a":{"x":1, "y":2       }}`,
-			expected: `{"a":{       "y":7, "z":8}}`,
+			expected: `{"a":{"x":1, "y":7, "z":8}}`,
 		},
 		{
 			src:      `{"1": { "b":1, "2": { "3": {         "b":3, "n":[1,2]} }        }}`,
 			dst:      `{"1": {        "2": { "3": {"a":"A",        "n":"xxx"} }, "a":3 }}`,
-			expected: `{"1": { "b":1, "2": { "3": {  		"b":3, "n":[1,2]} } 	   }}`,
+			expected: `{"1": { "b":1, "2": { "3": {"a":"A", "b":3, "n":[1,2]} }, "a":3 }}`,
 		},
 	} {
 		var got map[string]interface{}
@@ -67,7 +67,6 @@ func TestReplaceMergeMap(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		got = make(map[string]interface{})
 
 		err := ReplaceMergeMap(got, src)
 		require.NoError(t, err)

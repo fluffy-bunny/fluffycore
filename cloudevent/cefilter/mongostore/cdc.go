@@ -2,7 +2,9 @@ package mongostore
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -12,89 +14,102 @@ import (
 // FilterCDC watches the cefilters collection for changes and emits FilterChange
 // events on a caller-supplied channel.
 //
-// Lifecycle on first run (no persisted resume token):
-//  1. Pin the current oplog position (hello command) to avoid missing events
-//     that arrive during the full scan.
-//  2. Emit one ChangeOpUpsert per active document (the snapshot).
-//  3. Emit ChangeOpReady — the caller's local state is now fully initialised.
-//  4. Open a change stream starting at the pinned oplog position and tail
-//     live changes indefinitely.
+// Use ONE FilterCDC per local filter set (e.g. one IndexedFilterSet), for that set's
+// whole lifetime, and call Run again on the same FilterCDC after a transient error.
+// A FilterCDC remembers its resume position and which filters it has reported live, so
+// that it can keep the caller's set exact across reconnects.
 //
-// Lifecycle on reconnect (resume token present):
-//  1. Emit ChangeOpReady immediately — local state was preserved across the
-//     connection drop; only the delta needs to be replayed.
-//  2. Open a change stream resuming from the saved token and tail live changes.
+// First Run (and any Run after the resume position was lost):
+//  1. Pin the current oplog position (hello command) so writes that arrive during the
+//     full scan are replayed by the change stream.
+//  2. Emit one ChangeOpUpsert per active document (the snapshot), then one
+//     ChangeOpDelete for every filter reported live earlier that is no longer active
+//     (deleted while the stream could not be followed).
+//  3. Emit ChangeOpReady.
+//  4. Tail the change stream from the pinned position.
 //
-// The resume token is persisted to the Tokens collection after each event so
-// that a process restart never replays more than one event.
+// Later Runs (reconnect after a transient error): emit ChangeOpReady immediately and
+// resume the change stream from the last position seen, which replays every change
+// made in between -- including deletes.
 //
-// Run blocks until ctx is cancelled or a fatal error occurs. Call it in a
-// goroutine and restart it on transient errors (e.g. network blips).
+// If the resume position has fallen off the oplog (or the server rejects it), Run
+// re-snapshots as in the first Run. If the stream is invalidated (collection dropped or
+// renamed), Run returns an error and the next Run re-snapshots.
+//
+// The resume position is deliberately NOT persisted: it only means something relative to
+// the in-memory filter set built from this FilterCDC's events. A new process has an empty
+// set and must snapshot; resuming a previous process's position would leave it empty.
+//
+// Run blocks until ctx is cancelled or an error occurs. Call it in a goroutine and call it
+// again (on the same FilterCDC) after transient errors. Run must not be called
+// concurrently on one FilterCDC.
 type FilterCDC struct {
 	// Filters is the cefilters collection to watch.
 	Filters *mongo.Collection
 
-	// Tokens is the collection used to persist the resume token between
-	// process restarts. A single document per TokenID is maintained here.
+	// Deprecated: ignored. The resume token is kept in memory; see the type doc.
 	Tokens *mongo.Collection
 
-	// TokenID is the _id of the resume token document in the Tokens collection.
-	// Use a unique value per logical CDC process if you run multiple.
-	// Defaults to "cefilters_cdc".
+	// Deprecated: ignored, as Tokens.
 	TokenID string
+
+	running atomic.Bool
+	// Resume position: the last change stream token, or -- before the stream has produced
+	// one -- the operation time the last snapshot was pinned at. Both nil = snapshot.
+	resumeToken bson.Raw
+	resumeTime  *bson.Timestamp
+	live        map[string]struct{} // names reported as ChangeOpUpsert and not since deleted
 }
 
-// tokenDoc is the document stored in the Tokens collection.
-type tokenDoc struct {
-	ID          string   `bson:"_id"`
-	ResumeToken bson.Raw `bson:"resumeToken"`
+// Server error codes meaning the change stream cannot be resumed from the given position.
+var resumeLostCodes = []int{
+	136, // CappedPositionLost (pre-4.4 servers)
+	260, // InvalidResumeToken
+	280, // ChangeStreamFatalError
+	286, // ChangeStreamHistoryLost
 }
 
-func (c *FilterCDC) tokenID() string {
-	if c.TokenID != "" {
-		return c.TokenID
-	}
-	return "cefilters_cdc"
-}
-
-// Run starts the CDC event loop. It blocks until ctx is cancelled.
+// Run starts the CDC event loop. It blocks until ctx is cancelled or an error occurs.
 // The caller must drain the changes channel to prevent blocking.
 func (c *FilterCDC) Run(ctx context.Context, changes chan<- FilterChange) error {
-	token := c.loadToken(ctx)
+	if !c.running.CompareAndSwap(false, true) {
+		return errors.New("cefilter cdc: Run is already running on this FilterCDC")
+	}
+	defer c.running.Store(false)
 
+	err := c.runOnce(ctx, changes)
+	if isResumeLost(err) && ctx.Err() == nil {
+		// Changes since the saved (or pinned) position, including deletes, can no longer be
+		// replayed. Rebuild from a snapshot; it reconciles deletes against what was reported
+		// live. Only once per Run, so a snapshot slower than the oplog window cannot loop.
+		c.forgetPosition()
+		err = c.runOnce(ctx, changes)
+	}
+	return err
+}
+
+func (c *FilterCDC) runOnce(ctx context.Context, changes chan<- FilterChange) error {
 	csOpts := options.ChangeStream().SetFullDocument(options.UpdateLookup)
 
-	if token == nil {
-		// First run: pin the oplog position BEFORE scanning so that any writes
-		// arriving during the scan are replayed by the change stream.
+	switch {
+	case c.resumeToken != nil:
+		csOpts.SetResumeAfter(c.resumeToken)
+	case c.resumeTime != nil:
+		// Snapshot done, but the stream never produced a token (its first batch was not
+		// empty, or it never opened). The snapshot is consistent as of resumeTime.
+		csOpts.SetStartAtOperationTime(c.resumeTime)
+	default:
+		// Pin the oplog position BEFORE scanning so that any writes arriving during the
+		// scan are replayed by the change stream.
 		startTime, err := c.currentOpTime(ctx)
 		if err != nil {
 			return fmt.Errorf("cefilter cdc: get optime: %w", err)
 		}
 		csOpts.SetStartAtOperationTime(startTime)
-
-		store := NewFilterStore(c.Filters)
-		docs, err := store.ListActive(ctx)
-		if err != nil {
-			return fmt.Errorf("cefilter cdc: full sync: %w", err)
+		if err := c.snapshot(ctx, changes); err != nil {
+			return err
 		}
-		for i := range docs {
-			if err := chanSend(ctx, changes, FilterChange{
-				Op:   ChangeOpUpsert,
-				Name: docs[i].Name,
-				Doc:  &docs[i],
-			}); err != nil {
-				return err
-			}
-		}
-	} else {
-		csOpts.SetResumeAfter(token)
-	}
-
-	// ChangeOpReady fires after snapshot (or immediately on resume).
-	// Callers gate their event-routing loop on this signal.
-	if err := chanSend(ctx, changes, FilterChange{Op: ChangeOpReady}); err != nil {
-		return err
+		c.resumeTime = startTime
 	}
 
 	pipeline := mongo.Pipeline{
@@ -109,7 +124,16 @@ func (c *FilterCDC) Run(ctx context.Context, changes chan<- FilterChange) error 
 	if err != nil {
 		return fmt.Errorf("cefilter cdc: watch: %w", err)
 	}
-	defer cs.Close(ctx)
+	defer cs.Close(context.WithoutCancel(ctx))
+	// The initial (post-batch) token lets a reconnect before the first event resume
+	// instead of re-snapshotting.
+	c.rememberPosition(cs)
+
+	// ChangeOpReady fires once the stream is open: after the snapshot, or immediately on
+	// resume. Callers gate their event-routing loop on this signal.
+	if err := chanSend(ctx, changes, FilterChange{Op: ChangeOpReady}); err != nil {
+		return err
+	}
 
 	for cs.Next(ctx) {
 		change, err := decodeEvent(cs.Current)
@@ -117,23 +141,101 @@ func (c *FilterCDC) Run(ctx context.Context, changes chan<- FilterChange) error 
 			// Undecodable event: log in production, then skip.
 			// Replacing this with your structured logger is recommended.
 			_ = fmt.Errorf("cefilter cdc: decode event: %w", err)
-			continue
+		} else if change != nil {
+			if err := chanSend(ctx, changes, *change); err != nil {
+				return err
+			}
+			c.track(*change)
 		}
-		if change == nil {
-			continue // operation type not relevant
-		}
-		if err := chanSend(ctx, changes, *change); err != nil {
-			return err
-		}
-		// Persist the token after every successful delivery so a restart
-		// at worst replays one event (idempotent in the caller).
-		c.saveToken(ctx, cs.ResumeToken())
+		c.rememberPosition(cs)
 	}
 
 	if err := cs.Err(); err != nil {
 		return fmt.Errorf("cefilter cdc: stream: %w", err)
 	}
-	return ctx.Err()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	// The stream ended without an error: it was invalidated (collection dropped or
+	// renamed). It cannot be resumed; the next Run re-snapshots.
+	c.forgetPosition()
+	return errors.New("cefilter cdc: change stream invalidated (collection dropped or renamed)")
+}
+
+// snapshot emits every active filter as ChangeOpUpsert, then ChangeOpDelete for every
+// filter reported live earlier that is no longer active.
+func (c *FilterCDC) snapshot(ctx context.Context, changes chan<- FilterChange) error {
+	docs, err := NewFilterStore(c.Filters).ListActive(ctx)
+	if err != nil {
+		return fmt.Errorf("cefilter cdc: full sync: %w", err)
+	}
+	active := make(map[string]struct{}, len(docs))
+	for i := range docs {
+		active[docs[i].Name] = struct{}{}
+		change := FilterChange{Op: ChangeOpUpsert, Name: docs[i].Name, Doc: &docs[i]}
+		if err := chanSend(ctx, changes, change); err != nil {
+			return err
+		}
+		c.track(change)
+	}
+	for _, name := range staleNames(c.live, active) {
+		change := FilterChange{Op: ChangeOpDelete, Name: name}
+		if err := chanSend(ctx, changes, change); err != nil {
+			return err
+		}
+		c.track(change)
+	}
+	return nil
+}
+
+// staleNames returns the names in live that are not in active.
+func staleNames(live, active map[string]struct{}) []string {
+	var stale []string
+	for name := range live {
+		if _, ok := active[name]; !ok {
+			stale = append(stale, name)
+		}
+	}
+	return stale
+}
+
+// track records what the caller has been told is live.
+func (c *FilterCDC) track(change FilterChange) {
+	switch change.Op {
+	case ChangeOpUpsert:
+		if c.live == nil {
+			c.live = make(map[string]struct{})
+		}
+		c.live[change.Name] = struct{}{}
+	case ChangeOpDelete:
+		delete(c.live, change.Name)
+	}
+}
+
+func (c *FilterCDC) forgetPosition() {
+	c.resumeToken = nil
+	c.resumeTime = nil
+}
+
+func (c *FilterCDC) rememberPosition(cs *mongo.ChangeStream) {
+	if token := cs.ResumeToken(); token != nil {
+		c.resumeToken = token
+	}
+}
+
+// isResumeLost reports whether err means the change stream cannot be resumed from the
+// saved position.
+func isResumeLost(err error) bool {
+	var se mongo.ServerError
+	if !errors.As(err, &se) {
+		return false
+	}
+	for _, code := range resumeLostCodes {
+		if se.HasErrorCode(code) {
+			return true
+		}
+	}
+	return false
 }
 
 // decodeEvent converts a raw change stream document into a FilterChange.
@@ -185,22 +287,6 @@ func (c *FilterCDC) currentOpTime(ctx context.Context) (*bson.Timestamp, error) 
 		)
 	}
 	return &t, nil
-}
-
-func (c *FilterCDC) loadToken(ctx context.Context) bson.Raw {
-	var doc tokenDoc
-	if err := c.Tokens.FindOne(ctx, bson.M{"_id": c.tokenID()}).Decode(&doc); err != nil {
-		return nil
-	}
-	return doc.ResumeToken
-}
-
-func (c *FilterCDC) saveToken(ctx context.Context, token bson.Raw) {
-	_, _ = c.Tokens.UpdateOne(ctx,
-		bson.M{"_id": c.tokenID()},
-		bson.M{"$set": tokenDoc{ID: c.tokenID(), ResumeToken: token}},
-		options.UpdateOne().SetUpsert(true),
-	)
 }
 
 // chanSend writes a change to ch, returning ctx.Err() if the context is cancelled.

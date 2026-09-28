@@ -28,9 +28,13 @@ type (
 		Value map[string]interface{} `json:"value"`
 	}
 	DeleteCookieRequest struct {
-		Name   string `json:"name"`
+		Name string `json:"name"`
+		// Domain is optional; leave empty for a host-only cookie.
 		Domain string `json:"domain"`
 		Path   string `json:"path"`
+		// Secure and SameSite should match how the cookie was set (Secure defaults like SetCookie's).
+		Secure   *bool         `json:"secure"`
+		SameSite http.SameSite `json:"sameSite"`
 	}
 	ICookies interface {
 		SetCookie(c echo.Context, request *SetCookieRequest) (*SetCookieResponse, error)

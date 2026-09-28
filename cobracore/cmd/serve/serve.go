@@ -121,9 +121,11 @@ var command = &cobra.Command{
 var envsets []string
 var envs []*env
 
+// printEnvs lists the -e overrides by name only: -e is how secrets get passed in, and their
+// values used to be printed to stdout (and so into the logs).
 func printEnvs() {
 	for _, env := range envs {
-		fmt.Printf("ENV: %v='%v'\n", env.Name, env.Value)
+		fmt.Printf("ENV: %v=<redacted>\n", env.Name)
 	}
 	/*
 		for _, envSet := range os.Environ() {

@@ -5,6 +5,7 @@ import (
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_sessions "github.com/fluffy-bunny/fluffycore/echo/contracts/sessions"
+	storeopts "github.com/fluffy-bunny/fluffycore/echo/internal/storeopts"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	status "github.com/gogo/status"
 	gorilla_sessions "github.com/gorilla/sessions"
@@ -54,8 +55,7 @@ func (s *service) Ctor(
 		[]byte(config.AuthenticationKey),
 		[]byte(config.EncryptionKey),
 	)
-	store.Options.Domain = config.Domain
-	store.MaxAge(config.MaxAge)
+	storeopts.Apply(store.Options, store.Codecs, config)
 
 	return &service{
 		config:   config,
@@ -89,5 +89,5 @@ func (s *service) Save(r *http.Request, w http.ResponseWriter, gs *gorilla_sessi
 	return s.store.Save(r, w, gs)
 }
 func (s *service) MaxAge(age int) {
-	s.store.MaxAge(age)
+	storeopts.SetMaxAge(s.store.Options, s.store.Codecs, age)
 }

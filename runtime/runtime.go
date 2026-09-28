@@ -82,9 +82,14 @@ func NewRuntime() *Runtime {
 	}
 }
 
-// Stop ...
+// Stop signals the runtime to shut down. It never blocks: a stop that is already pending
+// is enough, so repeated calls (e.g. a second POST /stop on the control server) are no-ops
+// instead of wedging the caller on the 1-slot channel forever.
 func (s *Runtime) Stop() {
-	s.waitChannel <- os.Interrupt
+	select {
+	case s.waitChannel <- os.Interrupt:
+	default:
+	}
 }
 
 // Wait for someone to call stop

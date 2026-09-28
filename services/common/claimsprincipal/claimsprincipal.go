@@ -2,9 +2,11 @@ package claimsprincipal
 
 import (
 	"fmt"
+	"strings"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
+	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 )
 
 type claimsPrincipal struct {
@@ -210,4 +212,35 @@ func ClaimsPrincipalFromClaimsMap(claimsMap map[string]interface{}) fluffycore_c
 		}
 	}
 	return principal
+}
+
+// WithoutReservedMTLSClaims returns claims minus any whose type starts with
+// wellknown.MTLSClaimTypePrefix. Use it on every claim set imported from a token (a JWT's
+// claims, a reference-token resolution): mtls_* claims are reserved for
+// middleware/auth/mtls, which derives them from the connection's verified client
+// certificate. A token must never be able to assert them.
+func WithoutReservedMTLSClaims(claims []fluffycore_contracts_common.Claim) []fluffycore_contracts_common.Claim {
+	out := claims[:0:0]
+	for _, c := range claims {
+		if !strings.HasPrefix(c.Type, fluffycore_wellknown.MTLSClaimTypePrefix) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// ClaimsAddedSince returns the claims in after that are not in before -- i.e. what was added
+// to a claims principal between two GetClaims snapshots.
+func ClaimsAddedSince(before, after []fluffycore_contracts_common.Claim) []fluffycore_contracts_common.Claim {
+	seen := make(map[fluffycore_contracts_common.Claim]struct{}, len(before))
+	for _, c := range before {
+		seen[c] = struct{}{}
+	}
+	var added []fluffycore_contracts_common.Claim
+	for _, c := range after {
+		if _, ok := seen[c]; !ok {
+			added = append(added, c)
+		}
+	}
+	return added
 }

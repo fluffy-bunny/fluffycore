@@ -14,6 +14,10 @@ type (
 	service struct {
 		envMap sync.Map
 		lock   sync.RWMutex
+		// loaded is set once envMap holds the WHOLE environment (guarded by lock).
+		// GetEnvironmentVariable caches single keys too, so a non-empty envMap alone used to
+		// make GetEnvironmentMap return only the keys that had been looked up.
+		loaded bool
 	}
 )
 
@@ -60,6 +64,7 @@ func (s *service) GetEnvironmentMap(ctx context.Context) (map[string]string, err
 			s.envMap.Store(key, value)
 		}
 	}
+	s.loaded = true
 
 	return envMap, nil
 }
@@ -143,6 +148,7 @@ func (s *service) ClearCache(ctx context.Context) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	s.loaded = false
 	// Clear the sync.Map
 	s.envMap.Range(func(key, value interface{}) bool {
 		s.envMap.Delete(key)
@@ -164,22 +170,21 @@ func (s *service) ReloadEnvironmentMap(ctx context.Context) (map[string]string, 
 }
 
 // getMapFromCache returns the cached environment map if available
+// Callers hold s.lock.
 func (s *service) getMapFromCache() map[string]string {
+	if !s.loaded {
+		return nil
+	}
 	envMap := make(map[string]string)
-	hasAny := false
 	s.envMap.Range(func(key, value interface{}) bool {
 		if k, ok := key.(string); ok {
 			if v, ok := value.(string); ok {
 				envMap[k] = v
-				hasAny = true
 			}
 		}
 		return true
 	})
 
-	if !hasAny {
-		return nil
-	}
 	return envMap
 }
 

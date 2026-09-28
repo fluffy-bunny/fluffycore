@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
@@ -33,7 +34,9 @@ type stubResolver struct {
 const (
 	jwtRefPrefix    = "jwt-ref:"
 	claimsRefPrefix = "claims-ref:"
-	errorToken      = "error-token"
+	// mtlsClaimsRefPrefix resolves to claims that (illegitimately) include a reserved mtls_* claim.
+	mtlsClaimsRefPrefix = "mtls-claims-ref:"
+	errorToken          = "error-token"
 )
 
 func (r *stubResolver) Resolve(ctx context.Context, rawToken string) (bool, *fluffycore_contracts_middleware_auth_referencetoken.Resolved, error) {
@@ -51,6 +54,14 @@ func (r *stubResolver) Resolve(ctx context.Context, rawToken string) (bool, *flu
 			Kind: fluffycore_contracts_middleware_auth_referencetoken.ResolvedKindClaimsPrincipal,
 			Claims: map[string]interface{}{
 				"sub": "resolved-user",
+			},
+		}, nil
+	case strings.HasPrefix(rawToken, mtlsClaimsRefPrefix):
+		return true, &fluffycore_contracts_middleware_auth_referencetoken.Resolved{
+			Kind: fluffycore_contracts_middleware_auth_referencetoken.ResolvedKindClaimsPrincipal,
+			Claims: map[string]interface{}{
+				"sub":           "resolved-user",
+				"mtls_verified": "true",
 			},
 		}, nil
 	default:
@@ -306,6 +317,39 @@ func TestUnary_WithKnownPrefixes_MatchingTokenIsResolvedEvenIfJWTShaped(t *testi
 	md, ok := metadata.FromIncomingContext(next.lastCtx)
 	require.True(t, ok)
 	require.Equal(t, "Bearer a.b.c", md.Get("authorization")[0], "the prefix match must route to the resolver even though the token happens to look JWT-shaped")
+}
+
+// A reference token in constant use must still be re-resolved once its cached resolution's
+// TTL passes -- that's what lets a revoked PAT stop working. With the default memory cache's
+// old sliding expiry, every cache hit pushed the expiry out and the resolver never ran again.
+func TestUnary_CachedResolutionExpiresEvenWhileInUse(t *testing.T) {
+	cache := servicescache.NewMemoryCache()
+	t.Cleanup(func() { _ = cache.Close() })
+	const ttl = 150 * time.Millisecond
+	interceptor := UnaryServerInterceptor(testRootContainer, (&recordingNext{}).interceptor(),
+		WithCache(cache), WithDefaultTTL(ttl))
+	call := func() {
+		t.Helper()
+		ctx := newTestContext(t, "Bearer "+claimsRefPrefix+"in-constant-use")
+		_, err := interceptor(ctx, "req", &grpc.UnaryServerInfo{}, (&recordingHandler{}).handler())
+		require.NoError(t, err)
+	}
+
+	before := atomic.LoadInt32(&theStubResolver.calls)
+	call()
+	require.EqualValues(t, before+1, atomic.LoadInt32(&theStubResolver.calls), "first call resolves")
+
+	// Hit the cache continuously for longer than the TTL.
+	start := time.Now()
+	for time.Since(start) < 3*ttl {
+		call()
+		time.Sleep(25 * time.Millisecond)
+	}
+	resolutions := atomic.LoadInt32(&theStubResolver.calls) - before
+	require.GreaterOrEqual(t, resolutions, int32(2),
+		"the resolver must run again after the TTL even though the token was used throughout")
+	require.LessOrEqual(t, resolutions, int32(4),
+		"but only about once per TTL window, not on every request")
 }
 
 func TestLooksLikeJWT(t *testing.T) {

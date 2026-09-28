@@ -6,11 +6,13 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 	ttlcache "github.com/jellydator/ttlcache/v2"
+	singleflight "golang.org/x/sync/singleflight"
 )
 
 type (
 	service struct {
 		ttlCache ttlcache.SimpleCache
+		inflight singleflight.Group
 	}
 )
 
@@ -21,9 +23,16 @@ func AddMemoryCache(b di.ContainerBuilder) {
 	})
 }
 
+// NewMemoryCache returns an in-memory cache whose TTLs are ABSOLUTE: an entry set with a
+// ttl expires ttl after it was set, however often it is read. ttlcache's default is to
+// slide the expiry forward on every hit, which silently turned any regularly-read entry
+// into one that never expires -- e.g. a reference token's resolved claims stayed cached
+// (and a revoked token kept authenticating) as long as it was used once per TTL window.
 func NewMemoryCache() *service {
+	c := ttlcache.NewCache()
+	c.SkipTTLExtensionOnHit(true)
 	s := &service{
-		ttlCache: ttlcache.NewCache(),
+		ttlCache: c,
 	}
 	s.SetTTL(fluffycore_contracts_common.Forever)
 	return s
@@ -62,14 +71,30 @@ func (s *service) Purge() error {
 }
 
 func (s *service) GetOrInsert(k string, adder func() (interface{}, time.Duration, error)) interface{} {
-	result, err := s.Get(k)
-	if err != nil || result == nil {
+	result, _ := s.GetOrInsertE(k, adder)
+	return result
+}
+
+// GetOrInsertE returns the adder's error instead of swallowing it, and runs the adder once
+// for concurrent misses on the same key (it used to run once per caller -- a thundering herd
+// on whatever the adder calls when a hot key expires).
+func (s *service) GetOrInsertE(k string, adder func() (interface{}, time.Duration, error)) (interface{}, error) {
+	if result, err := s.Get(k); err == nil && result != nil {
+		return result, nil
+	}
+	result, err, _ := s.inflight.Do(k, func() (interface{}, error) {
+		// Another caller may have filled k while we waited to get in.
+		if result, err := s.Get(k); err == nil && result != nil {
+			return result, nil
+		}
 		obj, ttl, err := adder()
 		if err != nil {
-			return nil
+			return nil, err
 		}
-		s.SetWithTTL(k, obj, ttl)
-		result = obj
-	}
-	return result
+		if err := s.SetWithTTL(k, obj, ttl); err != nil {
+			return nil, err
+		}
+		return obj, nil
+	})
+	return result, err
 }

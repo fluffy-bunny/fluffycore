@@ -1,6 +1,7 @@
 package servertls
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"os"
 	"path/filepath"
@@ -139,23 +140,43 @@ func TestParseClientAuth(t *testing.T) {
 	cases := []struct {
 		mode         string
 		clientCAFile string
+		want         tls.ClientAuthType
 		wantErr      bool
 	}{
-		{"", "", false},
-		{"", "ca.pem", false},
-		{ClientAuthNone, "", false},
-		{ClientAuthRequest, "", false},
-		{ClientAuthVerifyIfGiven, "", false},
-		{ClientAuthRequire, "", false},
-		{"bogus", "", true},
+		{"", "", tls.NoClientCert, false},
+		{"", "ca.pem", tls.VerifyClientCertIfGiven, false},
+		{ClientAuthNone, "", tls.NoClientCert, false},
+		{ClientAuthRequest, "", tls.RequestClientCert, false},
+		{ClientAuthVerifyIfGiven, "ca.pem", tls.VerifyClientCertIfGiven, false},
+		{ClientAuthRequire, "ca.pem", tls.RequireAndVerifyClientCert, false},
+		// Verifying with no client CA would fall back to the OS root store, trusting any
+		// public-CA-issued client cert. These used to be accepted.
+		{ClientAuthVerifyIfGiven, "", 0, true},
+		{ClientAuthRequire, "", 0, true},
+		{"bogus", "", 0, true},
 	}
 	for _, tc := range cases {
-		_, err := parseClientAuth(tc.mode, tc.clientCAFile)
+		got, err := parseClientAuth(tc.mode, tc.clientCAFile)
 		if tc.wantErr {
 			require.Error(t, err, tc.mode)
-		} else {
-			require.NoError(t, err, tc.mode)
+			continue
 		}
+		require.NoError(t, err, tc.mode)
+		require.Equal(t, tc.want, got, tc.mode)
+	}
+}
+
+func TestBuildServerTLSConfig_RequireClientAuthWithoutCA_Errors(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile, _, _ := genServerCertFiles(t, dir)
+	for _, mode := range []string{ClientAuthVerifyIfGiven, ClientAuthRequire} {
+		_, err := BuildServerTLSConfig(&fluffycore_contracts_config.CoreConfig{
+			TLSEnabled:    true,
+			TLSCertFile:   certFile,
+			TLSKeyFile:    keyFile,
+			TLSClientAuth: mode,
+		})
+		require.Error(t, err, mode)
 	}
 }
 

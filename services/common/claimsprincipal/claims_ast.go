@@ -13,9 +13,14 @@ const (
 )
 
 // ClaimsAST is a light-weight AST that allows for logical collections of claims to
-// be defined and tested by go grpc based services. Grouping is implicit in the tree's structure
-// such that the root arrays form grouped AND operations, and branches are processed by
-// their placement in the parent. For example:
+// be defined and tested by go grpc based services. Grouping is implicit in the tree's structure.
+// Each node combines its own entries -- its ClaimFacts and every element of its And, Or and
+// Not slices -- with the operator it is evaluated under (the root is evaluated as AND). The
+// slice an element sits in only decides how that element evaluates its own children: an
+// element of Or is an OR group, of And an AND group, and of Not the negation of a group
+// under the parent's operator. Two elements side by side in the same Or slice are
+// therefore combined by the PARENT's operator (AND at the root), not OR'd with each other;
+// to OR alternatives together, put them inside a single Or element. For example:
 // ```
 //
 //	ClaimsAST{
@@ -41,7 +46,7 @@ const (
 // ```
 //
 // Is the equivalent to:
-// if A && B && ((C || D) || (E || F || (G && H))) && !(I || J)
+// if A && B && (C || D) && (E || F || (G && H)) && !(I || J)
 type ClaimsAST struct {
 	ClaimFacts []fluffycore_contracts_common.IClaimFact `json:"claim_facts"`
 

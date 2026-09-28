@@ -6,6 +6,7 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_contextaccessor "github.com/fluffy-bunny/fluffycore/echo/contracts/contextaccessor"
 	contracts_sessions "github.com/fluffy-bunny/fluffycore/echo/contracts/sessions"
+	sessionutil "github.com/fluffy-bunny/fluffycore/echo/internal/sessionutil"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	status "github.com/gogo/status"
 	gorilla_sessions "github.com/gorilla/sessions"
@@ -71,7 +72,12 @@ func (s *service) Initialize(request *contracts_sessions.InitializeRequest) erro
 	r := s.contextAccessor.GetContext().Request()
 	s.session, err = s.sessionStore.Get(r, s.Name)
 	if err != nil {
-		return err
+		if s.session == nil || !sessionutil.IsUnreadableCookie(err) {
+			return err
+		}
+		// Stale or tampered cookie: carry on with the fresh session the store returned;
+		// the next Save replaces the cookie.
+		zerolog.Ctx(r.Context()).Warn().Err(err).Str("session", s.Name).Msg("discarding unreadable session cookie")
 	}
 	return nil
 }

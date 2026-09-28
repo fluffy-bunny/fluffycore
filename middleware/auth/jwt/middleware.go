@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
@@ -38,7 +39,70 @@ var _cache *jwxk.Cache
 var _issuerConfigs map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig
 var _validatorsOnce sync.Once
 
+// DefaultMinJWKSRefreshInterval is the default minimum time between forced JWKS refreshes
+// for any one JWKS URL. See SetMinJWKSRefreshInterval.
+const DefaultMinJWKSRefreshInterval = 30 * time.Second
+
+var _minJWKSRefreshInterval atomic.Int64
+
+// _jwksRefreshGates holds a *jwksRefreshGate per JWKS URL.
+var _jwksRefreshGates sync.Map
+
+type jwksRefreshGate struct {
+	mu   sync.Mutex
+	last time.Time
+}
+
+// SetMinJWKSRefreshInterval sets the minimum time between forced JWKS refreshes per JWKS
+// URL. A token whose kid isn't in the cached key set triggers a refresh (to pick up a key
+// rollover), but at most once per interval: otherwise any caller who knows the public
+// issuer URL could send unsigned tokens with random kids and turn every request into an
+// outbound fetch to the IdP, before any signature is checked. d <= 0 restores the default.
+func SetMinJWKSRefreshInterval(d time.Duration) {
+	if d <= 0 {
+		d = DefaultMinJWKSRefreshInterval
+	}
+	_minJWKSRefreshInterval.Store(int64(d))
+}
+
+// keySetForKid returns a key set containing kid, refreshing the JWKS URL if needed but no
+// more than once per min interval. ok is false when kid is still unknown.
+func keySetForKid(ctx context.Context, jwksURL, kid string) (set jwxk.Set, ok bool, err error) {
+	set, err = _cache.Get(ctx, jwksURL)
+	if err != nil {
+		return nil, false, err
+	}
+	if _, found := set.LookupKeyID(kid); found {
+		return set, true, nil
+	}
+
+	v, _ := _jwksRefreshGates.LoadOrStore(jwksURL, &jwksRefreshGate{})
+	gate := v.(*jwksRefreshGate)
+	gate.mu.Lock()
+	defer gate.mu.Unlock()
+
+	// Another caller may have refreshed while we waited for the gate.
+	if set, err = _cache.Get(ctx, jwksURL); err == nil {
+		if _, found := set.LookupKeyID(kid); found {
+			return set, true, nil
+		}
+	}
+	if !gate.last.IsZero() && time.Since(gate.last) < time.Duration(_minJWKSRefreshInterval.Load()) {
+		// Refreshed recently and the kid still isn't there: don't fetch again.
+		return set, false, nil
+	}
+	// Record the attempt before fetching, so a failing IdP isn't hammered either.
+	gate.last = time.Now()
+	set, err = _cache.Refresh(ctx, jwksURL)
+	if err != nil {
+		return nil, false, err
+	}
+	_, found := set.LookupKeyID(kid)
+	return set, found, nil
+}
+
 func init() {
+	SetMinJWKSRefreshInterval(DefaultMinJWKSRefreshInterval)
 	var _ fluffycore_contracts_middleware_auth_jwt.IValidator = &service{}
 	_cache = jwxk.NewCache(context.Background())
 	_issuerConfigs = make(map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig)
@@ -89,21 +153,14 @@ func (s *service) ValidateAccessToken(ctx context.Context, rawToken *fluffycore_
 	}
 	// check if the issuer is in the list of issuers
 	issuerConfig := _issuerConfigs[issuer]
-	set, err := _cache.Get(ctx, issuerConfig.OAuth2Config.JWKSUrl)
+	// An unknown kid may be a key rollover, so the key set is refreshed -- but at most once
+	// per SetMinJWKSRefreshInterval per JWKS URL (see keySetForKid).
+	set, ok, err := keySetForKid(ctx, issuerConfig.OAuth2Config.JWKSUrl, kid)
 	if err != nil {
-		return true, status.Errorf(codes.Unauthenticated, "cache.Get error: %v", err)
+		return true, status.Errorf(codes.Unauthenticated, "jwks fetch error: %v", err)
 	}
-	_, ok := set.LookupKeyID(kid)
 	if !ok {
-		// try to refresh the cache, maybe a rollover
-		set, err = _cache.Refresh(ctx, issuerConfig.OAuth2Config.JWKSUrl)
-		if err != nil {
-			return true, status.Errorf(codes.Unauthenticated, "cache.Refresh error: %v", err)
-		}
-		_, ok = set.LookupKeyID(kid)
-		if !ok {
-			return true, status.Errorf(codes.Unauthenticated, "no keys found")
-		}
+		return true, status.Errorf(codes.Unauthenticated, "no keys found")
 	}
 	parseOptions := []jwxt.ParseOption{
 		jwxt.WithKeySet(set),
@@ -283,7 +340,8 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 		jwtToken := newJWTToken(rt.Token, rt.AccessToken)
 		claimsPrincipalScratch := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(jwtToken.GetClaims())
 		// transfer the claims over to the scoped IClaimsPrincipal
-		claimsPrincipal.AddClaim(claimsPrincipalScratch.GetClaims()...)
+		// mtls_* claims are reserved for the mtls interceptor; a token must not assert them.
+		claimsPrincipal.AddClaim(fluffycore_services_common_claimsprincipal.WithoutReservedMTLSClaims(claimsPrincipalScratch.GetClaims())...)
 		if !fluffycore_utils.IsEmptyOrNil(jwtToken.GetID()) {
 			claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
 				Type:  fluffycore_wellknown.ClaimTypeSub,
@@ -312,20 +370,40 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 
 // StreamServerInterceptor returns a gRPC stream server interceptor that validates JWTs
 // and populates the scoped IClaimsPrincipal with token claims.
-func StreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterceptor {
+//
+// It follows the same rules as UnaryServerInterceptor: a request with no Authorization
+// header at all proceeds as anonymous (sub=anonymous) so the claims-principal gate --
+// not this interceptor -- decides whether the method allows that; an invalid token is
+// rejected unless WithAnonymousOnFailure is set.
+func StreamServerInterceptor(rootContainer di.Container, opts ...ValidationOption) grpc.StreamServerInterceptor {
 	_loadValidators(rootContainer)
+	validation := &Validation{}
+	for _, opt := range opts {
+		opt(validation)
+	}
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		ctx := ss.Context()
+		scopedContainer := dicontext.GetRequestContainer(ctx)
+		if scopedContainer == nil {
+			return status.Error(codes.Internal, "authentication unavailable")
+		}
+		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
 		rt, err := _validate(ctx)
 		if err != nil {
+			if e, ok := status.FromError(err); validation.AnonymousOnFailure || (ok && e.Code() == codes.NotFound) {
+				claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
+					Type:  fluffycore_wellknown.ClaimTypeSub,
+					Value: fluffycore_wellknown.AnonymousSubject,
+				})
+				return handler(srv, ss)
+			}
 			return err
 		}
-		scopedContainer := dicontext.GetRequestContainer(ctx)
-		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
 		jwtToken := newJWTToken(rt.Token, rt.AccessToken)
 		claimsPrincipalScratch := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(jwtToken.GetClaims())
 		// transfer the claims over to the scoped IClaimsPrincipal
-		claimsPrincipal.AddClaim(claimsPrincipalScratch.GetClaims()...)
+		// mtls_* claims are reserved for the mtls interceptor; a token must not assert them.
+		claimsPrincipal.AddClaim(fluffycore_services_common_claimsprincipal.WithoutReservedMTLSClaims(claimsPrincipalScratch.GetClaims())...)
 
 		if !fluffycore_utils.IsEmptyOrNil(jwtToken.GetID()) {
 			claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
