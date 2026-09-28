@@ -88,6 +88,24 @@ func IsMutualTLSEnabled(cfg *fluffycore_contracts_config.CoreConfig) bool {
 	return resolveConfig(cfg).clientCAFile != ""
 }
 
+// LoopbackTrustFile returns the PEM file an in-process client should trust when dialing
+// this server over loopback, and false when TLS is off (dial plaintext). It is the server's
+// own certificate file: a certificate in the trust pool is a valid anchor on its own, so
+// this works whatever CA signed it -- which TLSClientCAFile (the CA *client* certificates
+// are checked against) does not guarantee. The certificate must cover the dialed host name
+// (e.g. "localhost"). Under tlsClientAuth=require a loopback client also needs a client
+// certificate; this only covers server verification.
+func LoopbackTrustFile(cfg *fluffycore_contracts_config.CoreConfig) (string, bool) {
+	if cfg == nil {
+		return "", false
+	}
+	resolved := resolveConfig(cfg)
+	if !resolved.enabled || resolved.certFile == "" {
+		return "", false
+	}
+	return resolved.certFile, true
+}
+
 // BuildServerTLSConfig builds a *tls.Config for the gRPC server from cfg, or
 // returns (nil, nil) if TLS isn't enabled -- callers should skip
 // grpc.Creds(...) entirely in that case and run the plaintext server exactly

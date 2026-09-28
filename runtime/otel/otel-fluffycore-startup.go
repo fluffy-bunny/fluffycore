@@ -150,10 +150,18 @@ func (s *FluffyCoreOTELStartup) OnPreServerStartup(ctx context.Context) error {
 	}
 	return nil
 }
-func (s *FluffyCoreOTELStartup) OnPreServerShutdown(ctx context.Context) {
-	log := zerolog.Ctx(ctx).With().Str("method", "OnPreServerShutdown").Logger()
 
+// OnPreServerShutdown is a no-op; OTEL is stopped in OnPostServerShutdown. It used to stop
+// here -- before the gRPC server drained -- so spans and metrics from in-flight requests
+// were dropped. Kept so startups that chain to it keep compiling.
+func (s *FluffyCoreOTELStartup) OnPreServerShutdown(ctx context.Context) {}
+
+// OnPostServerShutdown flushes and stops OTEL once the server has drained in-flight requests.
+// A startup that overrides OnPostServerShutdown must call this.
+func (s *FluffyCoreOTELStartup) OnPostServerShutdown(ctx context.Context) {
+	log := zerolog.Ctx(ctx).With().Str("method", "OnPostServerShutdown").Logger()
 	log.Info().Msg("OTELContainer stopping")
-	s.OTELContainer.Stop(ctx)
-
+	if err := s.OTELContainer.Stop(ctx); err != nil {
+		log.Error().Err(err).Msg("OTELContainer stop")
+	}
 }

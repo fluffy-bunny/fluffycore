@@ -51,9 +51,19 @@ func getIncomingOriginContextJson(ctx context.Context) (map[string]interface{}, 
 	return generic, nil
 }
 
+// baseLogger is the logger already on ctx (e.g. carrying the correlation interceptor's
+// correlation_id / trace_id), or the global logger when there is none. These interceptors
+// used to always start from the global logger, dropping those fields.
+func baseLogger(ctx context.Context) zerolog.Logger {
+	if l := zerolog.Ctx(ctx); l.GetLevel() != zerolog.Disabled {
+		return *l
+	}
+	return log.Logger
+}
+
 func EnsureContextLoggingUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		logger := log.With().Caller().Logger()
+		logger := baseLogger(ctx).With().Caller().Logger()
 
 		scopedContainer := middleware_dicontext.GetRequestContainer(ctx)
 		propertyBag := di.Get[fluffycore_contracts_propertybag.IRequestContextLoggingPropertyBag](scopedContainer)
@@ -88,8 +98,8 @@ func EnsureContextLoggingUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 }
 func EnsureContextLoggingStreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		logger := log.With().Caller().Logger()
 		ctx := ss.Context()
+		logger := baseLogger(ctx).With().Caller().Logger()
 		newCtx := logger.WithContext(ctx)
 		sw := fluffycore_middleware.NewStreamContextWrapper(ss)
 		sw.SetContext(newCtx)

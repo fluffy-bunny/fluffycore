@@ -207,10 +207,11 @@ func (s *startup) OnPreServerShutdown(ctx context.Context) {
 	s.mockOAuth2Server.Shutdown(ctx)
 	s.mockOAuth2ServerFuture.Join()
 	log.Info().Msg("mockOAuth2Server shutdown complete")
-	log.Info().Msg("Stopping Datadog Tracer and Profiler")
-	s.ddProfiler.Stop(ctx)
-
-	log.Info().Msg("FluffyCoreOTELStartup stopped")
-	s.FluffyCoreOTELStartup.OnPreServerShutdown(ctx)
+	if s.ddProfiler != nil { // nil when no profiler is registered
+		log.Info().Msg("Stopping Datadog Tracer and Profiler")
+		s.ddProfiler.Stop(ctx)
+	}
+	// OTEL is flushed and stopped in FluffyCoreOTELStartup.OnPostServerShutdown, after the
+	// server has drained -- not here.
 
 }

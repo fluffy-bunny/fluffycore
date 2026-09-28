@@ -314,6 +314,16 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 	healthServer := di.Get[fluffycore_contracts_health.IHealthServer](si.RootContainer)
 	grpc_health.RegisterHealthServer(grpcServer, healthServer)
+	// A status-tracking health server (services/health) answers Check for named services
+	// only once they have a status: mark every registered service SERVING, as the old
+	// always-SERVING health service effectively did.
+	if statusSetter, ok := healthServer.(interface {
+		SetServingStatus(string, grpc_health.HealthCheckResponse_ServingStatus)
+	}); ok {
+		for name := range grpcServer.GetServiceInfo() {
+			statusSetter.SetServingStatus(name, grpc_health.HealthCheckResponse_SERVING)
+		}
+	}
 
 	log.Info().Msg("Checking for DataDog Profiler")
 	si.DataDogProfiler, err = di.TryGet[fluffycore_contracts_ddprofiler.IDataDogProfiler](si.RootContainer)
@@ -407,6 +417,11 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 	s.Wait()
 	log.Info().Msg("Interrupt triggered")
+	// Report NOT_SERVING before draining so load balancers stop sending new traffic; the
+	// health service used to say SERVING right up to the end.
+	if shutdowner, ok := healthServer.(interface{ Shutdown() }); ok {
+		shutdowner.Shutdown()
+	}
 	if coreConfig.NATSEnabled {
 		if si.NATSMicroServicesContainer != nil {
 			err = si.NATSMicroServicesContainer.Shutdown(ctx)
