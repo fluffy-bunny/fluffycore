@@ -31,6 +31,7 @@ import (
 	services_health "github.com/fluffy-bunny/fluffycore/internal/services/health"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	fluffycore_nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
+	fluffycore_servertls "github.com/fluffy-bunny/fluffycore/runtime/servertls"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	fluffycore_services_common_AppContext "github.com/fluffy-bunny/fluffycore/services/common/AppContext"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
@@ -43,7 +44,6 @@ import (
 	pkgerrors "github.com/rs/zerolog/pkgerrors"
 	viper "github.com/spf13/viper"
 	grpc "google.golang.org/grpc"
-	insecure "google.golang.org/grpc/credentials/insecure"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
 	keepalive "google.golang.org/grpc/keepalive"
 	grpc_reflection "google.golang.org/grpc/reflection"
@@ -356,15 +356,25 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 	// Create a client connection to the gRPC server we just started
 	// This is where the gRPC-Gateway proxies the requests
+	//
+	// It used to always dial plaintext to bindAddr:PORT: that broke the gateway, healthz and
+	// the NATS bridge whenever the server ran TLS, ignored a listener passed in (e.g. on a
+	// different or ephemeral port), and dialed 0.0.0.0, which isn't connectable everywhere.
+	serverTLS := false
+	if reporter, ok := startup.(interface{ ServerTLSEnabled() bool }); ok {
+		serverTLS = reporter.ServerTLSEnabled()
+	}
+	loopbackCreds, err := fluffycore_servertls.LoopbackClientCredentials(coreConfig, serverTLS)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to build loopback client credentials")
+	}
+	if serverTLS && fluffycore_servertls.RequiresClientCert(coreConfig) {
+		log.Warn().Msg("tlsClientAuth=require: the in-process grpc-gateway, healthz and NATS bridge cannot present a client certificate and will fail to connect")
+	}
 	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(loopbackCreds),
 	}
-
-	bindAddr := getBindAddress()
-	if bindAddr == "" {
-		bindAddr = "0.0.0.0"
-	}
-	endpoint := fmt.Sprintf("%s:%d", bindAddr, coreConfig.PORT)
+	endpoint := fluffycore_servertls.LoopbackTarget(lis.Addr(), coreConfig.PORT)
 	// Create a client connection to the gRPC server we just started
 	// This is where the gRPC-Gateway proxies the requests
 	conn, err := grpc.NewClient(endpoint, opts...)

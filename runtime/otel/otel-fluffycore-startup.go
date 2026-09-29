@@ -31,6 +31,8 @@ type (
 		*OTELContainer // embedded  OTEL
 		fluffycore_contracts_runtime.UnimplementedStartup
 		FluffyCoreOTELStartupConfig *FluffyCoreOTELStartupConfig
+		// serverTLS records whether ConfigureServerOpts enabled TLS; see ServerTLSEnabled.
+		serverTLS bool
 	}
 	FuncAuthGetEntryPointConfigs func() map[string]contracts_common.IEntryPointConfig
 
@@ -47,6 +49,13 @@ func NewFluffyCoreOTELStartup(fluffyCoreOTELStartupConfig *FluffyCoreOTELStartup
 
 	return obj
 }
+
+// ServerTLSEnabled reports whether ConfigureServerOpts put the gRPC server on TLS. The runtime
+// uses it to dial its own server correctly for the grpc-gateway, healthz and the NATS bridge.
+func (s *FluffyCoreOTELStartup) ServerTLSEnabled() bool {
+	return s.serverTLS
+}
+
 func (s *FluffyCoreOTELStartup) SetConfig(config *fluffycore_contracts_otel.OTELConfig) {
 	s.OTELContainer.Config = config
 }
@@ -81,6 +90,7 @@ func (s *FluffyCoreOTELStartup) ConfigureServerOpts(ctx context.Context) []grpc.
 				Bool("mutualTLS", fluffycore_servertls.IsMutualTLSEnabled(coreConfig)).
 				Msg("enabling gRPC server TLS")
 			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
+			s.serverTLS = true
 		}
 	}
 

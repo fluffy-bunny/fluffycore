@@ -3,6 +3,7 @@ package jwtminter
 import (
 	"context"
 	"strings"
+	"sync"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_claims "github.com/fluffy-bunny/fluffycore/contracts/claims"
@@ -15,8 +16,31 @@ import (
 type (
 	service struct {
 		keyMaterial fluffycore_contracts_jwtminter.IKeyMaterial
+
+		// The parsed signing key, reused while the signing key is unchanged. Every mint used
+		// to re-decode the PEM (and, for RSA, re-validate the key).
+		keyMu     sync.Mutex
+		keyAlg    string
+		keyPEM    string
+		keyParsed interface{}
 	}
 )
+
+// parsedKey returns the parsed private key for (alg, pem), parsing only when they changed
+// (i.e. after key rotation).
+func (s *service) parsedKey(alg, pem string, parse func() (interface{}, error)) (interface{}, error) {
+	s.keyMu.Lock()
+	defer s.keyMu.Unlock()
+	if s.keyParsed != nil && s.keyAlg == alg && s.keyPEM == pem {
+		return s.keyParsed, nil
+	}
+	key, err := parse()
+	if err != nil {
+		return nil, err
+	}
+	s.keyAlg, s.keyPEM, s.keyParsed = alg, pem, key
+	return key, nil
+}
 
 var stemService = (*service)(nil)
 
@@ -93,7 +117,7 @@ func (s *service) MintToken(ctx context.Context, claims fluffycore_contracts_cla
 
 	token := jwt.NewWithClaims(method, claims.JwtClaims())
 	token.Header["kid"] = kid
-	key, err := getKey()
+	key, err := s.parsedKey(signingKey.PrivateJwk.Alg, signingKey.DecryptedPrivateKey, getKey)
 	if err != nil {
 		return "", err
 	}

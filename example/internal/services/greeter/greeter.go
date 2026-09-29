@@ -154,9 +154,7 @@ func (s *service) downstreamClientOptions() []fluffycore_grpcclient.GrpcClientOp
 		fluffycore_grpcclient.WithPort(s.config.PORT),
 	}
 	if trustFile, ok := fluffycore_servertls.LoopbackTrustFile(&s.config.CoreConfig); ok {
-		// WithInsecure(false) is required: grpcclient defaults to insecure and would otherwise
-		// ignore the cert bundle and dial plaintext.
-		return append(opts, fluffycore_grpcclient.WithInsecure(false), fluffycore_grpcclient.WithCertBundle(trustFile))
+		return append(opts, fluffycore_grpcclient.WithCertBundle(trustFile)) // a cert bundle implies TLS
 	}
 	return append(opts, fluffycore_grpcclient.WithInsecure(true))
 }

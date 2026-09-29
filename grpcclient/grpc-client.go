@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -67,6 +68,7 @@ type GRPCClient struct {
 	host                 string
 	port                 int
 	insecure             bool
+	insecureSet          bool // WithInsecure or WithSidecarSecured was given explicitly
 	sidecarSecured       bool
 	certBundleFile       string
 	clientCerts          []tls.Certificate
@@ -111,24 +113,16 @@ func NewGRPCClient(opts ...GRPCClientOption) (*GRPCClient, error) {
 	if !fluffycore_utils.IsEmptyOrNil(c.authority) {
 		dialOpts = append(dialOpts, grpc.WithAuthority(c.authority))
 	}
-	tracingOpsFuncs := map[bool]func(){
-		c.enableOTELTracing: func() {
-			dialOpts = append(dialOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
-		},
-		c.enableDataDogTracing: func() {
-			streamTraceInterceptor := datadog_grpctrace.StreamClientInterceptor()
-			unaryTraceInterceptor := datadog_grpctrace.UnaryClientInterceptor()
+	dialOpts = append(dialOpts, c.tracingDialOptions()...)
 
-			dialOpts = append(dialOpts,
-				grpc.WithStreamInterceptor(streamTraceInterceptor),
-				grpc.WithUnaryInterceptor(unaryTraceInterceptor))
-		},
-	}
-	for k, v := range tracingOpsFuncs {
-		if k {
-			v()
-			break
+	// Asking for a CA bundle or a client certificate means TLS. They used to be silently
+	// ignored unless WithInsecure(false) was also passed (insecure is the default), so the
+	// connection went out in plaintext.
+	if len(c.certBundleFile) > 0 || len(c.clientCerts) > 0 {
+		if c.insecureSet && c.insecure {
+			return nil, fmt.Errorf("grpcclient: WithInsecure(true) conflicts with WithCertBundle/WithClientCert")
 		}
+		c.insecure = false
 	}
 
 	// Let user choose whether to put full address or to put host & port separately
@@ -145,30 +139,12 @@ func NewGRPCClient(opts ...GRPCClientOption) (*GRPCClient, error) {
 			serverNameOverride = hostParts[0]
 		}
 
-		if len(c.certBundleFile) > 0 {
-			trnCreds, err := credentials.NewClientTLSFromFile(c.certBundleFile, serverNameOverride)
-			if err != nil {
-				log.Error().Err(err).Str("url", url).Msg("Failed to connect")
-				return nil, err
-			}
-
-			dialOpts = append(dialOpts, grpc.WithTransportCredentials(trnCreds))
-		} else {
-			certPool := x509.NewCertPool()
-			tlsConfig := &tls.Config{
-				ServerName: serverNameOverride,
-				RootCAs:    certPool,
-			}
-
-			// Do we have client certs for mTLS?
-			if len(c.clientCerts) > 0 {
-				tlsConfig.Certificates = c.clientCerts
-			}
-
-			trnCreds := credentials.NewTLS(tlsConfig)
-
-			dialOpts = append(dialOpts, grpc.WithTransportCredentials(trnCreds))
+		tlsConfig, err := c.tlsConfig(serverNameOverride)
+		if err != nil {
+			log.Error().Err(err).Str("url", url).Msg("Failed to connect")
+			return nil, err
 		}
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 
 		// Do we have auth to pass?
 		if fluffycore_utils.IsNotNil(c.tokenSource) {
@@ -195,6 +171,46 @@ func NewGRPCClient(opts ...GRPCClientOption) (*GRPCClient, error) {
 	}
 
 	return c, nil
+}
+
+// tracingDialOptions returns the dial options for the enabled tracers. Both can be on. The
+// choice used to go through a map[bool]func() keyed on the two flags, so with both enabled
+// the DataDog entry overwrote the OTEL one and OTEL tracing was silently lost.
+func (c *GRPCClient) tracingDialOptions() []grpc.DialOption {
+	var opts []grpc.DialOption
+	if c.enableOTELTracing {
+		opts = append(opts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
+	}
+	if c.enableDataDogTracing {
+		opts = append(opts,
+			grpc.WithChainStreamInterceptor(datadog_grpctrace.StreamClientInterceptor()),
+			grpc.WithChainUnaryInterceptor(datadog_grpctrace.UnaryClientInterceptor()))
+	}
+	return opts
+}
+
+// tlsConfig builds the client TLS config: the CA bundle (or the system roots when none is
+// set) plus any client certificates. Without a bundle it used to trust an EMPTY pool --
+// nothing could ever verify -- and with a bundle it went through NewClientTLSFromFile, which
+// dropped WithClientCert, so mutual TLS was impossible.
+func (c *GRPCClient) tlsConfig(serverName string) (*tls.Config, error) {
+	cfg := &tls.Config{
+		MinVersion:   tls.VersionTLS12,
+		ServerName:   serverName,
+		Certificates: c.clientCerts,
+	}
+	if len(c.certBundleFile) > 0 {
+		pem, err := os.ReadFile(c.certBundleFile)
+		if err != nil {
+			return nil, fmt.Errorf("grpcclient: reading cert bundle: %w", err)
+		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("grpcclient: no certificates in cert bundle %s", c.certBundleFile)
+		}
+		cfg.RootCAs = pool
+	}
+	return cfg, nil
 }
 
 // Close tears down the Client and all underlying connections.
@@ -292,6 +308,7 @@ func WithClientCert(clientCert tls.Certificate) GrpcClientOption {
 func WithInsecure(insecure bool) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.insecure = insecure
+		c.insecureSet = true
 		return nil
 	}
 }
@@ -300,6 +317,7 @@ func WithInsecure(insecure bool) GrpcClientOption {
 func WithSidecarSecured(sidecarSecured bool) GrpcClientOption {
 	return func(c *GrpcClient) error {
 		c.insecure = sidecarSecured
+		c.insecureSet = true
 		c.sidecarSecured = sidecarSecured
 		return nil
 	}
