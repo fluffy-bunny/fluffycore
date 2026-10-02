@@ -15,7 +15,7 @@ require (
 	github.com/eko/gocache/store/go_cache/v4 v4.2.10
 	github.com/eko/gocache/store/redis/v4 v4.2.12
 	github.com/fatih/structs v1.1.0
-	github.com/fluffy-bunny/fluffy-dozm-di v0.0.10
+	github.com/fluffy-bunny/fluffy-dozm-di v0.0.11
 	github.com/fluffy-bunny/viperEx v0.0.40
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gogo/status v1.1.1
