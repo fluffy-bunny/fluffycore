@@ -8,6 +8,7 @@ import (
 	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	metautils "github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	zerolog "github.com/rs/zerolog"
+	log "github.com/rs/zerolog/log"
 	otel_trace "go.opentelemetry.io/otel/trace"
 	grpc "google.golang.org/grpc"
 	metadata "google.golang.org/grpc/metadata"
@@ -47,20 +48,15 @@ func EnsureCorrelationIDUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		newSpanID := fluffycore_utils.GenerateUniqueID()
 		md[fluffycore_wellknown.XSpanName] = []string{newSpanID}
 		loggerMap[fluffycore_wellknown.LogSpanName] = newSpanID
-		log := zerolog.Ctx(ctx)
-		log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-			for k, v := range loggerMap {
-				c = c.Str(k, v)
-			}
-			return c
-		})
 		// Return the cleansed metadata context
-		ctx = md.ToIncoming(ctx)
+		ctx = withLoggerFields(md.ToIncoming(ctx), loggerMap)
 
 		md2 := metadata.Pairs(
 			fluffycore_wellknown.XRequestID, requestID,
 			fluffycore_wellknown.XCorrelationIDName, correlationID)
-		grpc.SendHeader(ctx, md2)
+		// SetHeader, not SendHeader: SendHeader flushes the headers now, after which the
+		// handler's own grpc.SetHeader calls fail. SetHeader merges and sends with the response.
+		_ = grpc.SetHeader(ctx, md2)
 		return handler(ctx, req)
 	}
 }
@@ -94,20 +90,32 @@ func EnsureOTELCorrelationIDUnaryServerInterceptor() grpc.UnaryServerInterceptor
 		loggerMap[fluffycore_wellknown.LogCorrelationIDName] = correlationID
 		loggerMap["trace_id"] = traceID
 
-		log := zerolog.Ctx(ctx)
-		log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-			for k, v := range loggerMap {
-				c = c.Str(k, v)
-			}
-			return c
-		})
 		// Return the cleansed metadata context
-		ctx = md.ToIncoming(ctx)
+		ctx = withLoggerFields(md.ToIncoming(ctx), loggerMap)
 
 		md2 := metadata.Pairs(
 			fluffycore_wellknown.XRequestID, requestID,
 			fluffycore_wellknown.XCorrelationIDName, correlationID)
-		grpc.SendHeader(ctx, md2)
+		// SetHeader, not SendHeader: SendHeader flushes the headers now, after which the
+		// handler's own grpc.SetHeader calls fail. SetHeader merges and sends with the response.
+		_ = grpc.SetHeader(ctx, md2)
 		return handler(ctx, req)
 	}
+}
+
+// withLoggerFields returns ctx carrying a logger with fields added: a child of the logger
+// already on ctx, or of the global logger when there is none. The interceptors used to call
+// zerolog.Ctx(ctx).UpdateContext: with no logger on ctx yet (this runs before the logging
+// interceptor) that updated zerolog's disabled logger, so correlation and trace IDs never
+// reached any log line -- and with one, it would have mutated a logger shared across requests.
+func withLoggerFields(ctx context.Context, fields map[string]string) context.Context {
+	base := log.Logger
+	if l := zerolog.Ctx(ctx); l.GetLevel() != zerolog.Disabled {
+		base = *l
+	}
+	c := base.With()
+	for k, v := range fields {
+		c = c.Str(k, v)
+	}
+	return c.Logger().WithContext(ctx)
 }

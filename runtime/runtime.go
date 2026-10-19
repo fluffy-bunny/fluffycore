@@ -31,6 +31,7 @@ import (
 	services_health "github.com/fluffy-bunny/fluffycore/internal/services/health"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	fluffycore_nats_micro_service "github.com/fluffy-bunny/fluffycore/nats/nats_micro_service"
+	fluffycore_servertls "github.com/fluffy-bunny/fluffycore/runtime/servertls"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	fluffycore_services_common_AppContext "github.com/fluffy-bunny/fluffycore/services/common/AppContext"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
@@ -43,7 +44,6 @@ import (
 	pkgerrors "github.com/rs/zerolog/pkgerrors"
 	viper "github.com/spf13/viper"
 	grpc "google.golang.org/grpc"
-	insecure "google.golang.org/grpc/credentials/insecure"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
 	keepalive "google.golang.org/grpc/keepalive"
 	grpc_reflection "google.golang.org/grpc/reflection"
@@ -82,9 +82,14 @@ func NewRuntime() *Runtime {
 	}
 }
 
-// Stop ...
+// Stop signals the runtime to shut down. It never blocks: a stop that is already pending
+// is enough, so repeated calls (e.g. a second POST /stop on the control server) are no-ops
+// instead of wedging the caller on the 1-slot channel forever.
 func (s *Runtime) Stop() {
-	s.waitChannel <- os.Interrupt
+	select {
+	case s.waitChannel <- os.Interrupt:
+	default:
+	}
 }
 
 // Wait for someone to call stop
@@ -309,6 +314,16 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 	healthServer := di.Get[fluffycore_contracts_health.IHealthServer](si.RootContainer)
 	grpc_health.RegisterHealthServer(grpcServer, healthServer)
+	// A status-tracking health server (services/health) answers Check for named services
+	// only once they have a status: mark every registered service SERVING, as the old
+	// always-SERVING health service effectively did.
+	if statusSetter, ok := healthServer.(interface {
+		SetServingStatus(string, grpc_health.HealthCheckResponse_ServingStatus)
+	}); ok {
+		for name := range grpcServer.GetServiceInfo() {
+			statusSetter.SetServingStatus(name, grpc_health.HealthCheckResponse_SERVING)
+		}
+	}
 
 	log.Info().Msg("Checking for DataDog Profiler")
 	si.DataDogProfiler, err = di.TryGet[fluffycore_contracts_ddprofiler.IDataDogProfiler](si.RootContainer)
@@ -341,15 +356,25 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 
 	// Create a client connection to the gRPC server we just started
 	// This is where the gRPC-Gateway proxies the requests
+	//
+	// It used to always dial plaintext to bindAddr:PORT: that broke the gateway, healthz and
+	// the NATS bridge whenever the server ran TLS, ignored a listener passed in (e.g. on a
+	// different or ephemeral port), and dialed 0.0.0.0, which isn't connectable everywhere.
+	serverTLS := false
+	if reporter, ok := startup.(interface{ ServerTLSEnabled() bool }); ok {
+		serverTLS = reporter.ServerTLSEnabled()
+	}
+	loopbackCreds, err := fluffycore_servertls.LoopbackClientCredentials(coreConfig, serverTLS)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to build loopback client credentials")
+	}
+	if serverTLS && fluffycore_servertls.RequiresClientCert(coreConfig) {
+		log.Warn().Msg("tlsClientAuth=require: the in-process grpc-gateway, healthz and NATS bridge cannot present a client certificate and will fail to connect")
+	}
 	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(loopbackCreds),
 	}
-
-	bindAddr := getBindAddress()
-	if bindAddr == "" {
-		bindAddr = "0.0.0.0"
-	}
-	endpoint := fmt.Sprintf("%s:%d", bindAddr, coreConfig.PORT)
+	endpoint := fluffycore_servertls.LoopbackTarget(lis.Addr(), coreConfig.PORT)
 	// Create a client connection to the gRPC server we just started
 	// This is where the gRPC-Gateway proxies the requests
 	conn, err := grpc.NewClient(endpoint, opts...)
@@ -402,6 +427,11 @@ func (s *Runtime) StartWithListenter(lis net.Listener, startup fluffycore_contra
 	}
 	s.Wait()
 	log.Info().Msg("Interrupt triggered")
+	// Report NOT_SERVING before draining so load balancers stop sending new traffic; the
+	// health service used to say SERVING right up to the end.
+	if shutdowner, ok := healthServer.(interface{ Shutdown() }); ok {
+		shutdowner.Shutdown()
+	}
 	if coreConfig.NATSEnabled {
 		if si.NATSMicroServicesContainer != nil {
 			err = si.NATSMicroServicesContainer.Shutdown(ctx)

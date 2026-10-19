@@ -176,8 +176,12 @@ func (s *NATSClient) RequestWithContext(ctx context.Context,
 			return nil, err
 		}
 	}
-	// Send request and wait for response
-	natsResponse, err := s.conn.RequestMsg(natsMessage, s.timeout)
+	// Send request and wait for response, until ctx is done or the client timeout passes,
+	// whichever is first. It used to wait the full client timeout regardless of ctx, so a
+	// cancelled caller (or a shorter deadline) kept the request running.
+	reqCtx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+	natsResponse, err := s.conn.RequestMsgWithContext(reqCtx, natsMessage)
 	if err != nil {
 		return nil, err
 	}

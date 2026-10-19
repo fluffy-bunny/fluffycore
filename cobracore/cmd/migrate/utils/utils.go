@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -52,70 +51,44 @@ var Source string
 var StepN uint64
 var Verbose bool
 
-func removeDuplicateValues(slice []string) []string {
-	keys := make(map[string]bool)
-	var list []string
-
-	// If the key(values of the slice) is not equal
-	// to the already present value in new slice (list)
-	// then we append it. else we jump on another element.
-	for _, entry := range slice {
-		if _, value := keys[entry]; !value {
-			keys[entry] = true
-			list = append(list, entry)
-		}
-	}
-	return list
+// isMongoURI reports whether connectionString is a MongoDB URI (standard or SRV).
+func isMongoURI(connectionString string) bool {
+	return strings.HasPrefix(connectionString, "mongodb://") || strings.HasPrefix(connectionString, "mongodb+srv://")
 }
 
+// fixupMongoConnectionString sets the database path of a MongoDB URI to databaseName:
+//
+//	mongodb://[user:pass@]host1[:port1][,host2[:port2]...][/[defaultdb]][?options]
+//
+// It used to find hosts with regexes (`word:digits`), which put the database inside the
+// credentials when the password was numeric (user:1234@host), appended it after every host
+// of a multi-host URI without options, turned an existing /olddb into /db/olddb, and was
+// never applied to mongodb+srv:// URIs. It now splits the URI structurally: the authority
+// runs to the first '/' after the userinfo, and any existing database is replaced.
 func fixupMongoConnectionString(connectionString, databaseName string) string {
-	/*
-				The regex `\w+\:\d+\/\?` will find a "word" followed by a ":" followed by a port #
-				so if your string contains something like "mapped-dev-shard-00-02-pri.awzwl.mongodb.net:27017/?ssl=true&authSource=admin&replicaSet=atlas-uqxcpd-shard-0", it will find "net:27017/?"
-
-				net:27017 is then replaced with net:27017/{{DATABASE_NAME}}
-		                   "mapped-dev-shard-00-02-pri.awzwl.mongodb.net:27017/mydatabase/?ssl=true&authSource=admin&replicaSet=atlas-uqxcpd-shard-0"
-				very specificy to MongoDB
-
-	*/
-	re := regexp.MustCompile(`\w+\:\d+\/\?`)
-	foundStrings := re.FindAllString(connectionString, -1)
-	foundStrings = removeDuplicateValues(foundStrings)
-	if len(foundStrings) > 0 {
-		log.Info().Interface("foundStrings", foundStrings).Send()
-
-		for _, v := range foundStrings {
-			vv := strings.Split(v, "/")
-			newS := fmt.Sprintf("%s/%s?", vv[0], databaseName)
-			connectionString = strings.ReplaceAll(connectionString, v, newS)
-		}
-	} else {
-		re := regexp.MustCompile(`\w+\:\d+\?`)
-		foundStrings := re.FindAllString(connectionString, -1)
-		foundStrings = removeDuplicateValues(foundStrings)
-		if len(foundStrings) > 0 {
-			log.Info().Interface("foundStrings", foundStrings).Send()
-
-			for _, v := range foundStrings {
-				vv := strings.Split(v, "?")
-				newS := fmt.Sprintf("%s/%s?", vv[0], databaseName)
-				connectionString = strings.ReplaceAll(connectionString, v, newS)
-			}
-		} else {
-			re := regexp.MustCompile(`\w+\:\d+`)
-			foundStrings := re.FindAllString(connectionString, -1)
-			foundStrings = removeDuplicateValues(foundStrings)
-			if len(foundStrings) > 0 {
-				log.Info().Interface("foundStrings", foundStrings).Send()
-
-				for _, v := range foundStrings {
-					newS := fmt.Sprintf("%s/%s", v, databaseName)
-					connectionString = strings.ReplaceAll(connectionString, v, newS)
-				}
-			}
+	scheme := ""
+	for _, s := range []string{"mongodb+srv://", "mongodb://"} {
+		if strings.HasPrefix(connectionString, s) {
+			scheme = s
+			break
 		}
 	}
-	return connectionString
+	if scheme == "" {
+		return connectionString
+	}
+	rest := strings.TrimPrefix(connectionString, scheme)
+
+	query := ""
+	if i := strings.Index(rest, "?"); i >= 0 {
+		rest, query = rest[:i], rest[i:]
+	}
+	// userinfo ends at the last '@' (a password's '@' must be escaped, but be lenient).
+	hostsStart := strings.LastIndex(rest, "@") + 1
+	authority := rest
+	if i := strings.Index(rest[hostsStart:], "/"); i >= 0 {
+		authority = rest[:hostsStart+i]
+	}
+	return scheme + authority + "/" + databaseName + query
 }
 
 // upPersistentPreRunE validateds required flags
@@ -133,7 +106,7 @@ func UpPersistentPreRunE(cmd *cobra.Command, args []string) error {
 	if len(databaseName) == 0 {
 		log.Info().Msg("no --database-name present")
 	} else {
-		if strings.Contains(connectionString, "mongodb://") {
+		if isMongoURI(connectionString) {
 			log.Info().Msg("Found --database == mongodb")
 			connectionString = fixupMongoConnectionString(connectionString, databaseName)
 			viper.Set("database", connectionString)
@@ -235,27 +208,14 @@ func Migrate(md MigrateDirection) error {
 		log.Error().Err(err).Msg("Failed to migrate.New")
 		return err
 	}
-
-	if StepN == 0 {
-		switch md {
-		case MigrateDown:
-			err = m.Down()
-		case MigrateUp:
-			err = m.Up()
-		case MigrateForce:
-			version := viper.GetInt("version")
-			err = m.Force(version)
-		default:
-			err = fmt.Errorf("no valid migrate direction")
+	// Close releases the source and the database connection; m was never closed.
+	defer func() {
+		if srcErr, dbErr := m.Close(); srcErr != nil || dbErr != nil {
+			log.Warn().AnErr("sourceErr", srcErr).AnErr("databaseErr", dbErr).Msg("closing migrate")
 		}
+	}()
 
-	} else {
-		var ss int = int(StepN)
-		if md == MigrateDown {
-			ss = 0 - ss
-		}
-		err = m.Steps(ss)
-	}
+	err = run(m, md, StepN, viper.GetInt("version"))
 	if err != nil && err != migrate.ErrNoChange {
 		log.Error().Err(err).Msg("Failed to migrate")
 	}
@@ -277,4 +237,33 @@ func Migrate(md MigrateDirection) error {
 		*/
 	}
 	return err
+}
+
+// migrator is the part of *migrate.Migrate that run uses (an interface so it can be tested
+// without a database).
+type migrator interface {
+	Up() error
+	Down() error
+	Steps(n int) error
+	Force(version int) error
+}
+
+// run performs md. Force always forces the given version: --step used to take precedence
+// over the direction, so `force --version N --step S` ran S *up* migrations instead.
+func run(m migrator, md MigrateDirection, steps uint64, version int) error {
+	switch md {
+	case MigrateForce:
+		return m.Force(version)
+	case MigrateUp:
+		if steps > 0 {
+			return m.Steps(int(steps))
+		}
+		return m.Up()
+	case MigrateDown:
+		if steps > 0 {
+			return m.Steps(-int(steps))
+		}
+		return m.Down()
+	}
+	return fmt.Errorf("no valid migrate direction")
 }

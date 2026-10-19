@@ -88,6 +88,24 @@ func IsMutualTLSEnabled(cfg *fluffycore_contracts_config.CoreConfig) bool {
 	return resolveConfig(cfg).clientCAFile != ""
 }
 
+// LoopbackTrustFile returns the PEM file an in-process client should trust when dialing
+// this server over loopback, and false when TLS is off (dial plaintext). It is the server's
+// own certificate file: a certificate in the trust pool is a valid anchor on its own, so
+// this works whatever CA signed it -- which TLSClientCAFile (the CA *client* certificates
+// are checked against) does not guarantee. The certificate must cover the dialed host name
+// (e.g. "localhost"). Under tlsClientAuth=require a loopback client also needs a client
+// certificate; this only covers server verification.
+func LoopbackTrustFile(cfg *fluffycore_contracts_config.CoreConfig) (string, bool) {
+	if cfg == nil {
+		return "", false
+	}
+	resolved := resolveConfig(cfg)
+	if !resolved.enabled || resolved.certFile == "" {
+		return "", false
+	}
+	return resolved.certFile, true
+}
+
 // BuildServerTLSConfig builds a *tls.Config for the gRPC server from cfg, or
 // returns (nil, nil) if TLS isn't enabled -- callers should skip
 // grpc.Creds(...) entirely in that case and run the plaintext server exactly
@@ -148,11 +166,19 @@ func parseClientAuth(mode, clientCAFile string) (tls.ClientAuthType, error) {
 	case ClientAuthNone:
 		return tls.NoClientCert, nil
 	case ClientAuthRequest:
+		// Requests a cert but never verifies it, so it never yields mTLS claims; no CA needed.
 		return tls.RequestClientCert, nil
-	case ClientAuthVerifyIfGiven:
+	case ClientAuthVerifyIfGiven, ClientAuthRequire:
+		// Verifying without a client CA bundle would make Go fall back to the OS root store:
+		// any client cert issued by a public CA would verify and produce mtls_verified=true
+		// with a CommonName of the caller's choosing.
+		if clientCAFile == "" {
+			return 0, fmt.Errorf("servertls: tlsClientAuth %q requires tlsClientCAFile (or tlsCertsDir); refusing to verify client certs against the OS root store", mode)
+		}
+		if mode == ClientAuthRequire {
+			return tls.RequireAndVerifyClientCert, nil
+		}
 		return tls.VerifyClientCertIfGiven, nil
-	case ClientAuthRequire:
-		return tls.RequireAndVerifyClientCert, nil
 	default:
 		return 0, fmt.Errorf("servertls: unknown tlsClientAuth %q (expected one of: %s, %s, %s, %s)",
 			mode, ClientAuthNone, ClientAuthRequest, ClientAuthVerifyIfGiven, ClientAuthRequire)

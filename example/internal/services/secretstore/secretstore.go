@@ -1,6 +1,7 @@
 package secretstore
 
 import (
+	"fmt"
 	"sync"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
@@ -25,21 +26,21 @@ func AddSingletonSecretStore(builder di.ContainerBuilder) {
 	})
 }
 
-func (s *service) Set(orgID, key, value string) {
+func (s *service) Set(owner, orgID, key, value string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.data[compositeKey(orgID, key)] = value
+	s.data[compositeKey(owner, orgID, key)] = value
 }
 
-func (s *service) Get(orgID, key string) (string, bool) {
+func (s *service) Get(owner, orgID, key string) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	value, ok := s.data[compositeKey(orgID, key)]
+	value, ok := s.data[compositeKey(owner, orgID, key)]
 	return value, ok
 }
 
-// compositeKey namespaces by org so two orgs can't read/overwrite each
-// other's secrets under the same key.
-func compositeKey(orgID, key string) string {
-	return orgID + "\x00" + key
+// compositeKey namespaces by owner, then org. Parts are length-prefixed so no choice of
+// values can make two different (owner, org, key) triples collide.
+func compositeKey(owner, orgID, key string) string {
+	return fmt.Sprintf("%d:%s|%d:%s|%s", len(owner), owner, len(orgID), orgID, key)
 }

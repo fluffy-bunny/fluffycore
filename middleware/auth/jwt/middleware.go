@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
@@ -14,7 +15,6 @@ import (
 	fluffycore_contracts_propertybag "github.com/fluffy-bunny/fluffycore/contracts/propertybag"
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_services_common_claimsprincipal "github.com/fluffy-bunny/fluffycore/services/common/claimsprincipal"
-	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	status "github.com/gogo/status"
 	copier "github.com/jinzhu/copier"
@@ -38,7 +38,70 @@ var _cache *jwxk.Cache
 var _issuerConfigs map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig
 var _validatorsOnce sync.Once
 
+// DefaultMinJWKSRefreshInterval is the default minimum time between forced JWKS refreshes
+// for any one JWKS URL. See SetMinJWKSRefreshInterval.
+const DefaultMinJWKSRefreshInterval = 30 * time.Second
+
+var _minJWKSRefreshInterval atomic.Int64
+
+// _jwksRefreshGates holds a *jwksRefreshGate per JWKS URL.
+var _jwksRefreshGates sync.Map
+
+type jwksRefreshGate struct {
+	mu   sync.Mutex
+	last time.Time
+}
+
+// SetMinJWKSRefreshInterval sets the minimum time between forced JWKS refreshes per JWKS
+// URL. A token whose kid isn't in the cached key set triggers a refresh (to pick up a key
+// rollover), but at most once per interval: otherwise any caller who knows the public
+// issuer URL could send unsigned tokens with random kids and turn every request into an
+// outbound fetch to the IdP, before any signature is checked. d <= 0 restores the default.
+func SetMinJWKSRefreshInterval(d time.Duration) {
+	if d <= 0 {
+		d = DefaultMinJWKSRefreshInterval
+	}
+	_minJWKSRefreshInterval.Store(int64(d))
+}
+
+// keySetForKid returns a key set containing kid, refreshing the JWKS URL if needed but no
+// more than once per min interval. ok is false when kid is still unknown.
+func keySetForKid(ctx context.Context, jwksURL, kid string) (set jwxk.Set, ok bool, err error) {
+	set, err = _cache.Get(ctx, jwksURL)
+	if err != nil {
+		return nil, false, err
+	}
+	if _, found := set.LookupKeyID(kid); found {
+		return set, true, nil
+	}
+
+	v, _ := _jwksRefreshGates.LoadOrStore(jwksURL, &jwksRefreshGate{})
+	gate := v.(*jwksRefreshGate)
+	gate.mu.Lock()
+	defer gate.mu.Unlock()
+
+	// Another caller may have refreshed while we waited for the gate.
+	if set, err = _cache.Get(ctx, jwksURL); err == nil {
+		if _, found := set.LookupKeyID(kid); found {
+			return set, true, nil
+		}
+	}
+	if !gate.last.IsZero() && time.Since(gate.last) < time.Duration(_minJWKSRefreshInterval.Load()) {
+		// Refreshed recently and the kid still isn't there: don't fetch again.
+		return set, false, nil
+	}
+	// Record the attempt before fetching, so a failing IdP isn't hammered either.
+	gate.last = time.Now()
+	set, err = _cache.Refresh(ctx, jwksURL)
+	if err != nil {
+		return nil, false, err
+	}
+	_, found := set.LookupKeyID(kid)
+	return set, found, nil
+}
+
 func init() {
+	SetMinJWKSRefreshInterval(DefaultMinJWKSRefreshInterval)
 	var _ fluffycore_contracts_middleware_auth_jwt.IValidator = &service{}
 	_cache = jwxk.NewCache(context.Background())
 	_issuerConfigs = make(map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig)
@@ -89,29 +152,22 @@ func (s *service) ValidateAccessToken(ctx context.Context, rawToken *fluffycore_
 	}
 	// check if the issuer is in the list of issuers
 	issuerConfig := _issuerConfigs[issuer]
-	set, err := _cache.Get(ctx, issuerConfig.OAuth2Config.JWKSUrl)
+	// An unknown kid may be a key rollover, so the key set is refreshed -- but at most once
+	// per SetMinJWKSRefreshInterval per JWKS URL (see keySetForKid).
+	set, ok, err := keySetForKid(ctx, issuerConfig.OAuth2Config.JWKSUrl, kid)
 	if err != nil {
-		return true, status.Errorf(codes.Unauthenticated, "cache.Get error: %v", err)
+		return true, status.Errorf(codes.Unauthenticated, "jwks fetch error: %v", err)
 	}
-	_, ok := set.LookupKeyID(kid)
 	if !ok {
-		// try to refresh the cache, maybe a rollover
-		set, err = _cache.Refresh(ctx, issuerConfig.OAuth2Config.JWKSUrl)
-		if err != nil {
-			return true, status.Errorf(codes.Unauthenticated, "cache.Refresh error: %v", err)
-		}
-		_, ok = set.LookupKeyID(kid)
-		if !ok {
-			return true, status.Errorf(codes.Unauthenticated, "no keys found")
-		}
+		return true, status.Errorf(codes.Unauthenticated, "no keys found")
 	}
-	parseOptions := []jwxt.ParseOption{
-		jwxt.WithKeySet(set),
-		jwxt.WithAcceptableSkew(time.Minute * 5),
+	// Verify the signature over the exact bytes the claims were parsed from, then validate
+	// those claims -- instead of parsing the whole token a third time to do both.
+	if _, err := jws.Verify([]byte(rawToken.AccessToken), jws.WithKeySet(set)); err != nil {
+		return true, status.Errorf(codes.Unauthenticated, "token signature not valid")
 	}
-	trustedToken, err := jwxt.ParseString(rawToken.AccessToken,
-		parseOptions...)
-	if err != nil {
+	trustedToken := rawToken.Token
+	if err := jwxt.Validate(trustedToken, jwxt.WithAcceptableSkew(time.Minute*5)); err != nil {
 		return true, status.Errorf(codes.Unauthenticated, "token signature not valid")
 	}
 
@@ -216,6 +272,35 @@ func WithAnonymousOnFailure() ValidationOption {
 	}
 }
 
+// claimsToPropagate returns which claims to copy into the logging property bag: the default
+// set plus any registered RequestClaimsContextPropagateConfig. It is resolved once, from the
+// root container, when the interceptor is built -- register the config as an instance or
+// singleton. It used to be looked up (usually failing, as few apps register it) and the map
+// rebuilt on every request.
+func claimsToPropagate(rootContainer di.Container) *fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig {
+	merged := &fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig{
+		ClaimToContextMap: map[string]string{},
+		ContextOrigin:     fluffycore_wellknown.ContextOriginKey,
+	}
+	if rootContainer != nil {
+		if cfg, err := di.TryGet[*fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig](rootContainer); err == nil && cfg != nil {
+			for k, v := range cfg.ClaimToContextMap {
+				merged.ClaimToContextMap[k] = v
+			}
+			merged.ContextOrigin = cfg.ContextOrigin
+		}
+	}
+	for _, claimType := range []string{
+		fluffycore_wellknown.ClaimTypeSub,
+		fluffycore_wellknown.ClaimTypeClientID,
+		fluffycore_wellknown.ClaimTypeEmail,
+		fluffycore_wellknown.ClaimTypeAud,
+	} {
+		merged.ClaimToContextMap[claimType] = claimType
+	}
+	return merged
+}
+
 // UnaryServerInterceptor returns a gRPC unary server interceptor that validates JWTs
 // and populates the scoped IClaimsPrincipal with token claims.
 func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption) grpc.UnaryServerInterceptor {
@@ -224,38 +309,11 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 	for _, opt := range opts {
 		opt(validation)
 	}
+	requestContextClaimsToPropagate := claimsToPropagate(rootContainer)
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		scopedContainer := dicontext.GetRequestContainer(ctx)
 		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
 		propertyBag := di.Get[fluffycore_contracts_propertybag.IRequestContextLoggingPropertyBag](scopedContainer)
-
-		requestContextClaimsToPropagate, err := di.TryGet[*fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig](scopedContainer)
-		if err != nil && requestContextClaimsToPropagate == nil {
-			requestContextClaimsToPropagate = &fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig{
-				ClaimToContextMap: map[string]string{
-					fluffycore_wellknown.ClaimTypeSub:      fluffycore_wellknown.ClaimTypeSub,
-					fluffycore_wellknown.ClaimTypeClientID: fluffycore_wellknown.ClaimTypeClientID,
-					fluffycore_wellknown.ClaimTypeEmail:    fluffycore_wellknown.ClaimTypeEmail,
-					fluffycore_wellknown.ClaimTypeAud:      fluffycore_wellknown.ClaimTypeAud,
-				},
-				ContextOrigin: fluffycore_wellknown.ContextOriginKey,
-			}
-		} else {
-			// Create a new map instead of modifying the potentially shared one
-			// to avoid concurrent map writes when multiple goroutines access this
-			newMap := make(map[string]string, len(requestContextClaimsToPropagate.ClaimToContextMap)+4)
-			for k, v := range requestContextClaimsToPropagate.ClaimToContextMap {
-				newMap[k] = v
-			}
-			newMap[fluffycore_wellknown.ClaimTypeSub] = fluffycore_wellknown.ClaimTypeSub
-			newMap[fluffycore_wellknown.ClaimTypeClientID] = fluffycore_wellknown.ClaimTypeClientID
-			newMap[fluffycore_wellknown.ClaimTypeEmail] = fluffycore_wellknown.ClaimTypeEmail
-			newMap[fluffycore_wellknown.ClaimTypeAud] = fluffycore_wellknown.ClaimTypeAud
-			requestContextClaimsToPropagate = &fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig{
-				ClaimToContextMap: newMap,
-				ContextOrigin:     requestContextClaimsToPropagate.ContextOrigin,
-			}
-		}
 
 		rt, err := _validate(ctx)
 		if err != nil {
@@ -283,8 +341,9 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 		jwtToken := newJWTToken(rt.Token, rt.AccessToken)
 		claimsPrincipalScratch := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(jwtToken.GetClaims())
 		// transfer the claims over to the scoped IClaimsPrincipal
-		claimsPrincipal.AddClaim(claimsPrincipalScratch.GetClaims()...)
-		if !fluffycore_utils.IsEmptyOrNil(jwtToken.GetID()) {
+		// mtls_* claims are reserved for the mtls interceptor; a token must not assert them.
+		claimsPrincipal.AddClaim(fluffycore_services_common_claimsprincipal.WithoutReservedMTLSClaims(claimsPrincipalScratch.GetClaims())...)
+		if jwtToken.GetID() != "" {
 			claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
 				Type:  fluffycore_wellknown.ClaimTypeSub,
 				Value: jwtToken.GetID(),
@@ -293,7 +352,7 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 		for claimType, ctxType := range requestContextClaimsToPropagate.ClaimToContextMap {
 			if claimsPrincipal.HasClaimType(claimType) {
 				claimVal := claimsPrincipal.GetClaimsByType(claimType)
-				if fluffycore_utils.IsNotEmptyOrNil(claimVal) {
+				if len(claimVal) > 0 {
 					if len(claimVal) == 1 {
 						propertyBag.Set(ctxType, claimVal[0].Value)
 					} else {
@@ -312,22 +371,42 @@ func UnaryServerInterceptor(rootContainer di.Container, opts ...ValidationOption
 
 // StreamServerInterceptor returns a gRPC stream server interceptor that validates JWTs
 // and populates the scoped IClaimsPrincipal with token claims.
-func StreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterceptor {
+//
+// It follows the same rules as UnaryServerInterceptor: a request with no Authorization
+// header at all proceeds as anonymous (sub=anonymous) so the claims-principal gate --
+// not this interceptor -- decides whether the method allows that; an invalid token is
+// rejected unless WithAnonymousOnFailure is set.
+func StreamServerInterceptor(rootContainer di.Container, opts ...ValidationOption) grpc.StreamServerInterceptor {
 	_loadValidators(rootContainer)
+	validation := &Validation{}
+	for _, opt := range opts {
+		opt(validation)
+	}
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		ctx := ss.Context()
+		scopedContainer := dicontext.GetRequestContainer(ctx)
+		if scopedContainer == nil {
+			return status.Error(codes.Internal, "authentication unavailable")
+		}
+		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
 		rt, err := _validate(ctx)
 		if err != nil {
+			if e, ok := status.FromError(err); validation.AnonymousOnFailure || (ok && e.Code() == codes.NotFound) {
+				claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
+					Type:  fluffycore_wellknown.ClaimTypeSub,
+					Value: fluffycore_wellknown.AnonymousSubject,
+				})
+				return handler(srv, ss)
+			}
 			return err
 		}
-		scopedContainer := dicontext.GetRequestContainer(ctx)
-		claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
 		jwtToken := newJWTToken(rt.Token, rt.AccessToken)
 		claimsPrincipalScratch := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(jwtToken.GetClaims())
 		// transfer the claims over to the scoped IClaimsPrincipal
-		claimsPrincipal.AddClaim(claimsPrincipalScratch.GetClaims()...)
+		// mtls_* claims are reserved for the mtls interceptor; a token must not assert them.
+		claimsPrincipal.AddClaim(fluffycore_services_common_claimsprincipal.WithoutReservedMTLSClaims(claimsPrincipalScratch.GetClaims())...)
 
-		if !fluffycore_utils.IsEmptyOrNil(jwtToken.GetID()) {
+		if jwtToken.GetID() != "" {
 			claimsPrincipal.AddClaim(fluffycore_contracts_common.Claim{
 				Type:  fluffycore_wellknown.ClaimTypeSub,
 				Value: jwtToken.GetID(),
@@ -338,20 +417,20 @@ func StreamServerInterceptor(rootContainer di.Container) grpc.StreamServerInterc
 }
 
 func getRawToken(ctx context.Context, accessToken string) (*fluffycore_contracts_middleware_auth_jwt.ParsedToken, error) {
-	// Just parse JWT w/o signature check
-	notTrustedToken, err := jwxt.ParseString(accessToken,
+	// Decode the JWS once, and read the (not yet trusted) claims from its payload. This used
+	// to parse the whole token twice here (jwt.Parse, then jws.Parse) and a third time to
+	// verify; ValidateAccessToken now verifies the signature and validates these same claims.
+	notValidatedTokenMsg, err := jws.ParseString(accessToken)
+	if err != nil || len(notValidatedTokenMsg.Signatures()) == 0 {
+		msg := "Failed to parse JWT. Invalid headers"
+		zerolog.Ctx(ctx).Warn().Err(err).Msg(msg)
+		return nil, status.Error(codes.Unauthenticated, msg)
+	}
+	notTrustedToken, err := jwxt.Parse(notValidatedTokenMsg.Payload(),
 		jwxt.WithValidate(false),
 		jwxt.WithVerify(false))
 	if err != nil {
 		msg := "Failed to parse JWT. Invalid format"
-		zerolog.Ctx(ctx).Warn().Err(err).Msg(msg)
-		return nil, status.Error(codes.Unauthenticated, msg)
-	}
-
-	// Parse JWT headers
-	notValidatedTokenMsg, err := jws.ParseString(accessToken)
-	if err != nil {
-		msg := "Failed to parse JWT. Invalid headers"
 		zerolog.Ctx(ctx).Warn().Err(err).Msg(msg)
 		return nil, status.Error(codes.Unauthenticated, msg)
 	}

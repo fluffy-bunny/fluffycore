@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+
 	argon2id "github.com/alexedwards/argon2id"
-	xid "github.com/rs/xid"
 )
 
 type (
@@ -26,12 +28,21 @@ func ComparePasswordHash(password string, hash string) (bool, error) {
 	return argon2id.ComparePasswordAndHash(password, hash)
 }
 
-const special string = "!@#$%&*"
+// generatedPasswordBytes is the entropy of a GeneratePassword result: 256 bits.
+const generatedPasswordBytes = 32
 
+// GeneratePassword returns a random password: 32 bytes from crypto/rand, base64url-encoded
+// without padding (43 URL-safe characters).
+//
+// It previously returned an xid, which is a 4-byte timestamp, 3-byte machine id, 2-byte pid
+// and 3-byte counter -- given one generated password (or just the host and approximate
+// time), others are trivially guessable.
 func GeneratePassword() (string, error) {
-	guid := xid.New().String()
-	return guid, nil
-
+	b := make([]byte, generatedPasswordBytes)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 // GeneratePasswordHashSet generates a password (or uses the provided secret) and returns

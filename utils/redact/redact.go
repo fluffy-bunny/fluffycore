@@ -15,18 +15,12 @@ func PrettyPrintRedacted(source, dest interface{}) {
 	MakeRedactedCopy(source, dest)
 	fmt.Println(utils.PrettyJSON(dest))
 }
-func clone(oldObj interface{}) interface{} {
-	newObj := reflect.New(reflect.TypeOf(oldObj).Elem())
-	oldVal := reflect.ValueOf(oldObj).Elem()
-	newVal := newObj.Elem()
-	for i := 0; i < oldVal.NumField(); i++ {
-		newValField := newVal.Field(i)
-		if newValField.CanSet() {
-			newValField.Set(oldVal.Field(i))
-		}
-	}
 
-	return newObj.Interface()
+// clone returns a new zero value of oldObj's type; MakeRedactedCopy then deep-copies into
+// it. It used to shallow-copy the fields first, so dest shared src's pointers and the deep
+// copy wrote into (then Redact rewrote) the source's own nested structs.
+func clone(oldObj interface{}) interface{} {
+	return reflect.New(reflect.TypeOf(oldObj).Elem()).Interface()
 }
 
 // CloneAndRedact logs a redacted version of the object
@@ -38,7 +32,10 @@ func CloneAndRedact(source interface{}) (dest interface{}, err error) {
 
 // MakeRedactedCopy ...
 func MakeRedactedCopy(src, dst interface{}) error {
-	err := copier.Copy(dst, src)
+	// DeepCopy: a shallow copy shares pointers and slices with src, so Redact walking into
+	// them overwrote the ORIGINAL config's secrets -- e.g. after logging a redacted copy of
+	// the config, a nested *OTELConfig's API key was "[[REDACTED]]" in the live config.
+	err := copier.CopyWithOption(dst, src, copier.Option{DeepCopy: true})
 	if err != nil {
 		return err
 	}

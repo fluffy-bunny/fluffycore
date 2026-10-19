@@ -10,7 +10,11 @@ type (
 	// ICache interface
 	ICache interface {
 		ttlcache.SimpleCache
+		// GetOrInsert is GetOrInsertE without the error: nil means the adder failed.
 		GetOrInsert(k string, adder func() (interface{}, time.Duration, error)) interface{}
+		// GetOrInsertE returns the cached value for k, or runs adder, caches its result for the
+		// returned ttl and returns it. Concurrent misses on the same key run adder once.
+		GetOrInsertE(k string, adder func() (interface{}, time.Duration, error)) (interface{}, error)
 	}
 	// ISingletonMemoryCache interface
 	ISingletonMemoryCache interface {

@@ -38,20 +38,25 @@ type FutureResponse struct {
 // ExecuteAsync returns a response that contains a future and a helper method to check if the future has been completed
 func ExecuteAsync(f func() (interface{}, error)) *PromiseResponse[*FutureResponse] {
 	p := async.NewPromise[*FutureResponse]()
+	// done is CLOSED once the result is set. The Map callback below used to SEND on this
+	// unbuffered channel, so the future only completed if someone happened to be calling
+	// IsComplete at that moment: Join() on its own deadlocked and leaked the goroutine, and
+	// IsComplete consumed the single signal (a second call said false again).
 	done := make(chan struct{})
 	go func() {
+		var response *FutureResponse
 		defer func() {
 			if r := recover(); r != nil {
-				p.Success(&FutureResponse{Value: nil, Err: fmt.Errorf("panic: %v", r)})
+				response = &FutureResponse{Value: nil, Err: fmt.Errorf("panic: %v", r)}
 			}
+			p.Success(response)
+			close(done)
 		}()
 		value, err := f()
-		p.Success(&FutureResponse{Value: value, Err: err})
+		response = &FutureResponse{Value: value, Err: err}
 	}()
 	future := p.Future().Map(func(v *FutureResponse) (*FutureResponse, error) {
-		response := v
-		done <- struct{}{}
-		return response, response.Err
+		return v, v.Err
 	})
 	return &PromiseResponse[*FutureResponse]{
 		Future: future,

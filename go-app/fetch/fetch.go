@@ -62,45 +62,57 @@ var DefaultRequestInit = map[string]interface{}{
 	"url":            "",
 }
 
+// buildRequestInit returns a fresh RequestInit for input, starting from a copy of
+// DefaultRequestInit. The helpers used to write into DefaultRequestInit itself: every call
+// mutated shared global state (concurrent calls raced), and fields like callerID stuck
+// around for later calls that never set them.
+func buildRequestInit(input *CallInput) (map[string]interface{}, error) {
+	init := make(map[string]interface{}, len(DefaultRequestInit)+1)
+	for k, v := range DefaultRequestInit {
+		init[k] = v
+	}
+
+	headers := map[string]interface{}{
+		"Content-Type": "application/json",
+	}
+	for key, value := range input.CustomHeaders {
+		headers[key] = value
+	}
+	init["headers"] = headers
+
+	if input.CallerID != "" {
+		init["callerID"] = input.CallerID
+	}
+	if input.Method != "" {
+		init["method"] = input.Method
+	}
+	init["url"] = input.Url
+
+	// Convert body into a string.
+	init["body"] = nil
+	if input.Data != nil && init["method"] != "GET" && init["method"] != "HEAD" {
+		jsonData, err := json.Marshal(input.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal request body: %w", err)
+		}
+		init["body"] = string(jsonData)
+	}
+	return init, nil
+}
+
 // FetchData is a metafunction for input options conversion for the main, lighter Fetch() function.
 func FetchData(ctx context.Context, input *CallInput, output *Response) bool {
 	log := zerolog.Ctx(ctx).With().
 		Str("component", "common.FetchData").
 		Interface("input", input).
 		Logger()
-	init := DefaultRequestInit
 	log.Debug().Msg("FetchData called")
 
-	headers := map[string]interface{}{
-		"Content-Type": "application/json",
-	}
-
-	// Merge custom headers if provided
-	for key, value := range input.CustomHeaders {
-		headers[key] = value
-	}
-
-	init["headers"] = headers
-
-	if input.CallerID != "" {
-		init["callerID"] = input.CallerID
-	}
-
-	if input.Method != "" {
-		init["method"] = input.Method
-	}
-
-	init["url"] = input.Url
-
-	// Convert body into a string.
-	if input.Data != nil && init["method"] != "GET" && init["method"] != "HEAD" {
-		jsonData, err := json.Marshal(input.Data)
-		if err != nil {
-			return false
-		}
-		init["body"] = string(jsonData)
-	} else {
-		init["body"] = nil
+	init, err := buildRequestInit(input)
+	if err != nil {
+		log.Error().Err(err).Msg("FetchData: build request")
+		output.Error = err
+		return false
 	}
 
 	// Set the abort controller signal callback.
@@ -149,42 +161,14 @@ type WrappedResonseT[T any] struct {
 //	})
 func FetchDataT[T any](ctx context.Context, input *CallInput) (*T, int, error) {
 
-	init := DefaultRequestInit
 	log := zerolog.Ctx(ctx).With().
 		Str("component", "common.FetchDataT").
 		Interface("input", input).
 		Logger()
 
-	headers := map[string]interface{}{
-		"Content-Type": "application/json",
-	}
-
-	// Merge custom headers if provided
-	for key, value := range input.CustomHeaders {
-		headers[key] = value
-	}
-
-	init["headers"] = headers
-
-	if input.CallerID != "" {
-		init["callerID"] = input.CallerID
-	}
-
-	if input.Method != "" {
-		init["method"] = input.Method
-	}
-
-	init["url"] = input.Url
-
-	// Convert body into a string.
-	if input.Data != nil && init["method"] != "GET" && init["method"] != "HEAD" {
-		jsonData, err := json.Marshal(input.Data)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to marshal request body: %w", err)
-		}
-		init["body"] = string(jsonData)
-	} else {
-		init["body"] = nil
+	init, err := buildRequestInit(input)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	// Call the lighter fetch wrapper.
@@ -226,71 +210,48 @@ func Fetch(input *map[string]interface{}) (*string, int, error) {
 		return nil, 0, fmt.Errorf("url not specified for fetch")
 	}
 
-	// Start channels to catch the outputs.
-	chC := make(chan int, 1)
-	chE := make(chan error, 1)
-	chS := make(chan string, 1)
+	type result struct {
+		body string
+		code int
+		err  error
+	}
+	done := make(chan result, 1) // exactly one of the callbacks below sends
 
-	// The initial fetch call with options to get the promise.
-	promise := app.Window().Call("fetch", (*input)["url"], *input)
-	promise.Call("then", app.FuncOf(func(this app.Value, args []app.Value) interface{} {
+	// Every app.FuncOf allocates a JS function that lives until Release; they used to be
+	// created per call and never released. All four are released once the call settles.
+	var status int
+	onJSON := app.FuncOf(func(this app.Value, args []app.Value) interface{} {
+		done <- result{body: app.Window().Get("JSON").Call("stringify", args[0]).String(), code: status}
+		return nil
+	})
+	onJSONError := app.FuncOf(func(this app.Value, args []app.Value) interface{} {
+		// The body wasn't JSON (e.g. an HTML error page or an empty 204). Keep the real
+		// status; it used to be replaced with 500.
+		done <- result{code: status, err: fmt.Errorf("%s", args[0].Get("message").String())}
+		return nil
+	})
+	onResponse := app.FuncOf(func(this app.Value, args []app.Value) interface{} {
 		response := args[0]
-
-		//
-		//  JSON response handling
-		//
-		//if response.Get("ok").Bool() {
-		// Another promise getter via the JSON function call upon the response object.
+		status = response.Get("status").Int()
 		// --> fetch(url).then(response => response.json())
-		subpromise := response.Call("json")
-		subpromise.Call("then", app.FuncOf(func(this app.Value, args []app.Value) interface{} {
-			result := args[0]
-
-			// Preprocess the response to be unserializable. And send to output.
-			chC <- response.Get("status").Int()
-			chS <- app.Window().Get("JSON").Call("stringify", result).String()
-			chE <- nil
-
-			close(chC)
-			close(chE)
-			close(chS)
-
-			//app.Window().Get("fetchController").Call("abort")
-			return nil
-
-		})).Call("catch", app.FuncOf(func(this app.Value, args []app.Value) interface{} {
-			chC <- 500
-			chE <- fmt.Errorf("%s", args[0].Get("message").String())
-			chS <- ""
-
-			close(chC)
-			close(chE)
-			close(chS)
-
-			//app.Window().Get("fetchController").Call("abort")
-			return nil
-		}))
-		//}
+		response.Call("json").Call("then", onJSON).Call("catch", onJSONError)
 		return nil
-
-		// Error catching callback for the main fetch() promise.
-	})).Call("catch", app.FuncOf(func(this app.Value, args []app.Value) interface{} {
-		chE <- fmt.Errorf("%s", args[0].Get("message").String())
-		chS <- ""
-
-		close(chC)
-		close(chE)
-		close(chS)
-
+	})
+	onFetchError := app.FuncOf(func(this app.Value, args []app.Value) interface{} {
+		done <- result{err: fmt.Errorf("%s", args[0].Get("message").String())}
 		return nil
-	}))
+	})
+	defer func() {
+		onJSON.Release()
+		onJSONError.Release()
+		onResponse.Release()
+		onFetchError.Release()
+	}()
 
-	// Catch the results.
-	output := <-chS
-	code := <-chC
-	err := <-chE
+	app.Window().Call("fetch", (*input)["url"], *input).
+		Call("then", onResponse).
+		Call("catch", onFetchError)
 
-	//app.Window().Get("fetchController").Call("abort")
-
-	return &output, code, err
+	r := <-done
+	return &r.body, r.code, r.err
 }

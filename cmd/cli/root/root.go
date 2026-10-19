@@ -4,7 +4,9 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package root
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	shared "github.com/fluffy-bunny/fluffycore/cmd/cli/internal/shared"
@@ -30,6 +32,8 @@ const (
 
 	logLevelFlagName    = "log-level"
 	logLevelEnvVariable = "LOG_LEVEL"
+
+	envPathFlagName = "env_path"
 )
 
 var (
@@ -50,6 +54,19 @@ func ExecuteE(cmd *cobra.Command) error {
 	return cmd.Execute()
 }
 
+// loadEnvFile loads --env_path. The default (local.env) is optional -- every subcommand,
+// even `version`, used to fail when it was missing -- but a path given explicitly must exist.
+func loadEnvFile(cmd *cobra.Command) error {
+	err := godotenv.Load(env_path)
+	if err == nil {
+		return nil
+	}
+	if f := cmd.Flag(envPathFlagName); errors.Is(err, fs.ErrNotExist) && (f == nil || !f.Changed) {
+		return nil
+	}
+	return fmt.Errorf("loading --%s=%s: %w", envPathFlagName, env_path, err)
+}
+
 // InitRootCmd initializes the root command
 func InitRootCmd() *cobra.Command {
 	// command represents the base command when called without any subcommands
@@ -59,8 +76,7 @@ func InitRootCmd() *cobra.Command {
 		Long:  ``,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// everyone should get access to the envs
-			err := godotenv.Load(env_path)
-			if err != nil {
+			if err := loadEnvFile(cmd); err != nil {
 				return err
 			}
 			// the builder is setup here.
@@ -104,7 +120,7 @@ func InitRootCmd() *cobra.Command {
 	var sDefault string
 	flagName = logLevelFlagName
 
-	flagName = "env_path"
+	flagName = envPathFlagName
 	sDefault = "local.env"
 	command.PersistentFlags().StringVar(&env_path, flagName, sDefault, fmt.Sprintf("i.e. --%s=%s", flagName, sDefault))
 	viper.BindPFlag(flagName, command.PersistentFlags().Lookup(flagName))

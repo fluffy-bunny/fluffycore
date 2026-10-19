@@ -23,5 +23,6 @@ func main() {
 	err := root.ExecuteE(rootCommand)
 	if err != nil {
 		log.Error().Err(err).Msg("error executing command")
+		os.Exit(1)
 	}
 }

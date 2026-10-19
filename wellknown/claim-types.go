@@ -34,6 +34,13 @@ const (
 	// AnonymousSubject is the subject value used for unauthenticated requests.
 	AnonymousSubject = "anonymous"
 
+	// MTLSClaimTypePrefix prefixes every mTLS claim type below. These claim types are
+	// RESERVED: only middleware/auth/mtls may add them, from the connection's verified
+	// client certificate. Claims imported from tokens (JWTs, reference-token resolutions)
+	// with this prefix are dropped -- otherwise a token carrying "mtls_verified": true
+	// would satisfy an mTLS requirement with no client certificate at all.
+	MTLSClaimTypePrefix = "mtls_"
+
 	// mTLS claim types -- populated by middleware/auth/mtls from the gRPC
 	// connection's verified client certificate (see that package's doc comment).
 

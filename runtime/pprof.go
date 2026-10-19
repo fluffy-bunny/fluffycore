@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -52,9 +51,15 @@ func (s *PProfServer) Start() {
 		if err != nil {
 			zlog.Fatal().Err(err).Msg("Failed to convert pprof port to int")
 		}
+		addr, token, err := adminListenConfig(os.Getenv, port)
+		if err != nil {
+			zlog.Error().Err(err).Msg("Not starting PProf server")
+			return
+		}
 
 		s.e = echo.New()
 		e := s.e
+		e.Use(adminTokenMiddleware(token))
 		e.GET("/", func(c *echo.Context) error {
 			return c.String(http.StatusOK, "Hello from PProf")
 		})
@@ -130,7 +135,6 @@ func (s *PProfServer) Start() {
 		asyncAction := func() async.Future[string] {
 			promise := async.NewPromise[string]()
 			go func() {
-				addr := fmt.Sprintf("%s:%d", getBindAddress(), port)
 				sc := echo.StartConfig{Address: addr}
 				if err := sc.Start(ctx, e); err != nil {
 					zlog.Error().Err(err).Msg("pprof server error")
@@ -143,7 +147,7 @@ func (s *PProfServer) Start() {
 			return promise.Future()
 		}
 		s.future = asyncAction()
-		zlog.Info().Msg("Starting PProf Web Server")
+		zlog.Info().Str("addr", addr).Bool("tokenRequired", token != "").Msg("Starting PProf Web Server")
 
 	}
 }

@@ -1,0 +1,4 @@
+# built plugin binaries and plugin-profiling leftovers
+/protoc-gen-go-fluffycore-*.exe
+*.hex
+/profout/

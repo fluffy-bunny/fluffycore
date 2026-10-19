@@ -14,8 +14,9 @@ import (
 // Read path  (MatchAny / Match): RLock — multiple goroutines read in parallel.
 // Write path (Add):              Lock  — O(1) map insert, held for microseconds.
 //
-// Add is O(1); the previous copy-on-write design was O(N) per add because it
-// cloned the entire exactIndex map, which hangs for 100K entries.
+// Add is O(1) for a new Name (replacing an existing Name costs a Remove); the previous
+// copy-on-write design was O(N) per add because it cloned the entire exactIndex map,
+// which hangs for 100K entries.
 //
 // With 100K type-constrained filters the hot path for an unwanted event is:
 //
@@ -34,6 +35,7 @@ type IndexedFilterSet struct {
 	OnLimitExceeded func(attrs Attrs, count int)
 
 	mu              sync.RWMutex
+	names           map[string]struct{} // registered Names; Name is the identity Add replaces and Remove removes by
 	exactIndex      map[string][]*indexedEntry
 	globEntries     []*globIndexEntry
 	wildcardEntries []*indexedEntry
@@ -49,8 +51,10 @@ type globIndexEntry struct {
 	entry *indexedEntry
 }
 
-// Add compiles and dynamically registers a filter expression under the given entry.
-// O(1) — takes an exclusive lock only long enough to do a map insert.
+// Add compiles and registers a filter expression under the given entry. If a filter with
+// the same Name is already registered it is replaced (atomically, under one lock) -- an
+// updated rule must not leave its previous version matching.
+// O(1) for a new Name — takes an exclusive lock only long enough to do a map insert.
 // Safe to call concurrently with MatchAny / Match.
 func (fs *IndexedFilterSet) Add(entry contracts.FilterEntry, expr string) error {
 	pred, err := Parse(expr)
@@ -66,6 +70,13 @@ func (fs *IndexedFilterSet) Add(entry contracts.FilterEntry, expr string) error 
 	if fs.exactIndex == nil {
 		fs.exactIndex = make(map[string][]*indexedEntry)
 	}
+	if fs.names == nil {
+		fs.names = make(map[string]struct{})
+	}
+	if _, exists := fs.names[entry.Name]; exists {
+		fs.removeLocked(entry.Name)
+	}
+	fs.names[entry.Name] = struct{}{}
 	switch {
 	case tc.unconstrained:
 		fs.wildcardEntries = append(fs.wildcardEntries, ie)
@@ -232,7 +243,12 @@ func (fs *IndexedFilterSet) MatchEndpoints(a Attrs) []string {
 func (fs *IndexedFilterSet) Remove(name string) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
+	fs.removeLocked(name)
+}
 
+// removeLocked removes every entry with the given Name. Caller holds fs.mu.
+func (fs *IndexedFilterSet) removeLocked(name string) {
+	delete(fs.names, name)
 	for k, entries := range fs.exactIndex {
 		kept := entries[:0]
 		for _, e := range entries {

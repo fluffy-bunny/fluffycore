@@ -24,6 +24,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	metadata "google.golang.org/grpc/metadata"
+	grpcstatus "google.golang.org/grpc/status"
 	protojson "google.golang.org/protobuf/encoding/protojson"
 	proto "google.golang.org/protobuf/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -264,6 +265,12 @@ func ReplaceTokens(parameterizedToken string, m protoreflect.ProtoMessage) (stri
 			default:
 				stringValue = fmt.Sprintf("%v", v)
 			}
+			// The value becomes a subject token. It used to go in unchecked, so a field like
+			// orgId="a.b" or "*" changed the subject -- and so which handler (and whose data)
+			// the request reached.
+			if err := validateSubjectToken(tokenName, stringValue); err != nil {
+				return "", err
+			}
 
 			// Replace the token with its value
 			replacedString = strings.ReplaceAll(replacedString, fullToken, stringValue)
@@ -295,25 +302,16 @@ func HandleNATSClientRequest[Req proto.Message, Resp proto.Message](
 
 	natsResponse, err := client.RequestWithContext(ctx, subject, msg)
 	if err != nil {
-		return response, fmt.Errorf("nats request failed: %w", err)
+		return response, statusFromTransportError(err)
 	}
 
-	natsServiceError, ok := natsResponse.Header["Nats-Service-Error"]
-	if ok && len(natsServiceError) > 0 {
-		errString := ""
-		for _, v := range natsServiceError {
-			if fluffycore_utils.IsNotEmptyOrNil(errString) {
-				errString += "; "
-			}
-			errString += v
-		}
-		return response, status.Error(codes.Internal, errString)
-	}
-	if fluffycore_utils.IsEmptyOrNil(natsResponse.Data) {
-		return response, status.Error(codes.Internal, "NATS response data is empty")
+	// The service's gRPC status comes back intact (it used to be flattened to Internal).
+	if err := statusFromNATSResponse(natsResponse); err != nil {
+		return response, err
 	}
 
-	// Unmarshal response
+	// An empty body is a valid reply: a message whose fields are all defaults marshals to
+	// zero bytes. It used to be rejected as "NATS response data is empty" (Internal).
 	err = proto.Unmarshal(natsResponse.Data, response)
 	if err != nil {
 		return response, fmt.Errorf("failed to unmarshal response: %w", err)
@@ -332,6 +330,14 @@ func HandleRequest[Req, Resp any](
 	protoMessageToRequest func(protoreflect.ProtoMessage, *Req) error,
 	serviceMethod func(context.Context, *Req) (*Resp, error),
 ) {
+	// A panic here runs on the NATS subscription goroutine and takes the whole process down;
+	// answer the caller instead, which would otherwise wait out its timeout.
+	defer func() {
+		if r := recover(); r != nil {
+			zerolog.Ctx(context.Background()).Error().Interface("panic", r).Str("subject", req.Subject()).Msg("NATS handler panicked")
+			respondError(req, grpcstatus.Error(codes.Internal, "internal error"))
+		}
+	}()
 	ctx := context.Background()
 	// propegate all req.Headers to the grpc metadata
 	dd := ConvertToStringMap(req.Headers())
@@ -339,13 +345,15 @@ func HandleRequest[Req, Resp any](
 	ctx = metadata.NewOutgoingContext(ctx, md)
 	var innerRequest *Req = new(Req)
 	if err := unmarshaler(innerRequest); err != nil {
-		req.Error("400", err.Error(), nil)
+		respondError(req, grpcstatus.Error(codes.InvalidArgument, err.Error()))
 		return
 	}
 
 	subject := req.Subject()
 	pm, err := protoRequestMessage()
 	if err != nil {
+		// This used to return without responding, leaving the caller to time out.
+		respondError(req, grpcstatus.Error(codes.Internal, err.Error()))
 		return
 	}
 	fixedParameterizedToken := nmHandlerInfo.ParameterizedToken
@@ -357,32 +365,32 @@ func HandleRequest[Req, Resp any](
 		fixedParameterizedToken,
 		pm)
 	if err != nil {
-		req.Error("400", err.Error(), nil)
+		respondError(req, grpcstatus.Error(codes.InvalidArgument, err.Error()))
 		return
 	}
 	err = protoMessageToRequest(rr, innerRequest)
 	if err != nil {
-		req.Error("400", err.Error(), nil)
+		respondError(req, grpcstatus.Error(codes.InvalidArgument, err.Error()))
 		return
 	}
 
 	resp, err := serviceMethod(ctx, innerRequest)
 	if err != nil {
-		req.Error("500", err.Error(), nil)
+		// Keep the service's own status (NotFound, PermissionDenied, ...); it used to be "500".
+		respondError(req, err)
 		return
 	}
 
 	// Type assert resp to proto.Message
 	respProto, ok := any(resp).(proto.Message)
 	if !ok {
-		req.Error("500", "response is not a proto.Message", nil)
+		respondError(req, grpcstatus.Error(codes.Internal, "response is not a proto.Message"))
 		return
 	}
 
-	// Marshal proto message to JSON
 	respBytes, err := proto.Marshal(respProto)
 	if err != nil {
-		req.Error("500", err.Error(), nil)
+		respondError(req, grpcstatus.Error(codes.Internal, err.Error()))
 		return
 	}
 
@@ -488,16 +496,8 @@ func SendNATSRequestInterceptor(natsClient *nats_client.NATSClient,
 		if !ok {
 			return status.Error(codes.Internal, "methodToSubject failed")
 		}
-		// propagate all grpc metadata to the nats headers
-		md, ok := metadata.FromOutgoingContext(ctx)
-		if ok {
-			headers := nats.Header{}
-			for k, v := range md {
-				headers[k] = v
-			}
-			// TODO: pass headers to NATS request when supported
-			_ = headers
-		}
+		// The outgoing grpc metadata in ctx reaches the service as NATS headers:
+		// NATSClient.RequestWithContext does that (plus any token source / ctx modifiers).
 		// typecast req to a protomessage
 		reqProto, ok := req.(protoreflect.ProtoMessage)
 		if !ok {

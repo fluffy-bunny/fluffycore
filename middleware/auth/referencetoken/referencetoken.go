@@ -196,6 +196,34 @@ type resolveOutcome struct {
 	err      error
 	cacheKey string
 	ttl      time.Duration
+	// outcomeDelegateToJWT only: the request's principal and its claims before the JWT
+	// validator ran, so exactly what the JWT contributed can be cached.
+	claimsPrincipal fluffycore_contracts_common.IClaimsPrincipal
+	claimsBefore    []fluffycore_contracts_common.Claim
+}
+
+// jwtClaimsCapture records the claims principal at the moment the JWT validator hands off
+// to the rest of the chain -- after it has added the token's claims, before the handler
+// (or anything downstream) can add more. Previously the cache snapshot was taken after
+// next returned, so it also captured this connection's mtls_* claims and anything the
+// handler added, and replayed them onto later requests with the same token.
+type jwtClaimsCapture struct {
+	reached bool
+	claims  []fluffycore_contracts_common.Claim
+}
+
+func (c *jwtClaimsCapture) capture(principal fluffycore_contracts_common.IClaimsPrincipal) {
+	c.reached = true
+	c.claims = principal.GetClaims()
+}
+
+// claimsToCache is what the JWT validation added, minus reserved mtls_* claims.
+func (out resolveOutcome) claimsToCache(c *jwtClaimsCapture) []fluffycore_contracts_common.Claim {
+	if !c.reached {
+		return nil // the JWT validator never handed off: validation failed, cache nothing
+	}
+	added := fluffycore_services_common_claimsprincipal.ClaimsAddedSince(out.claimsBefore, c.claims)
+	return fluffycore_services_common_claimsprincipal.WithoutReservedMTLSClaims(added)
 }
 
 // resolve is the transport-agnostic core: given the inbound context, decide
@@ -225,7 +253,9 @@ func (e *engine) resolve(ctx context.Context) resolveOutcome {
 		if cached, cacheErr := e.config.Cache.Get(cacheKey); cacheErr == nil {
 			if claims, ok := cached.([]fluffycore_contracts_common.Claim); ok {
 				zerolog.Ctx(ctx).Debug().Msg("referencetoken: cache hit, skipping resolution and JWT validation")
-				claimsPrincipal.AddClaim(claims...)
+				// Defensive: a shared/persistent cache may hold entries written before
+				// mtls_* claims were excluded from caching. They must never come back.
+				claimsPrincipal.AddClaim(fluffycore_services_common_claimsprincipal.WithoutReservedMTLSClaims(claims)...)
 				return resolveOutcome{kind: outcomeDirect, ctx: stripAuthorization(ctx)}
 			}
 		}
@@ -247,14 +277,19 @@ func (e *engine) resolve(ctx context.Context) resolveOutcome {
 	switch resolved.Kind {
 	case fluffycore_contracts_middleware_auth_referencetoken.ResolvedKindJWT:
 		return resolveOutcome{
-			kind:     outcomeDelegateToJWT,
-			ctx:      rewriteAuthorizationToJWT(ctx, resolved.RawJWT),
-			cacheKey: cacheKey,
-			ttl:      ttl,
+			kind:            outcomeDelegateToJWT,
+			ctx:             rewriteAuthorizationToJWT(ctx, resolved.RawJWT),
+			cacheKey:        cacheKey,
+			ttl:             ttl,
+			claimsPrincipal: claimsPrincipal,
+			// Whatever is already on the principal (e.g. this connection's mtls_* claims)
+			// is NOT part of the token's resolution and must not be cached with it.
+			claimsBefore: claimsPrincipal.GetClaims(),
 		}
 	case fluffycore_contracts_middleware_auth_referencetoken.ResolvedKindClaimsPrincipal:
 		scratch := fluffycore_services_common_claimsprincipal.ClaimsPrincipalFromClaimsMap(resolved.Claims)
-		claims := scratch.GetClaims()
+		// A resolver's claims come from the token; mtls_* claims are reserved.
+		claims := fluffycore_services_common_claimsprincipal.WithoutReservedMTLSClaims(scratch.GetClaims())
 		claimsPrincipal.AddClaim(claims...)
 		if e.config.Cache != nil && len(claims) > 0 {
 			_ = e.config.Cache.SetWithTTL(cacheKey, claims, ttl)
@@ -294,20 +329,10 @@ func (e *engine) resolveViaResolvers(ctx context.Context, rawToken string) (*flu
 	return nil, nil
 }
 
-// cacheResolvedClaims snapshots the scoped IClaimsPrincipal (populated by `next`,
-// the JWT validator, in the outcomeDelegateToJWT path) into the cache. Called only
-// after next has returned successfully.
-func (e *engine) cacheResolvedClaims(ctx context.Context, cacheKey string, ttl time.Duration) {
-	if e.config.Cache == nil || cacheKey == "" {
-		return
-	}
-	scopedContainer := dicontext.GetRequestContainer(ctx)
-	if scopedContainer == nil {
-		return
-	}
-	claimsPrincipal := di.Get[fluffycore_contracts_common.IClaimsPrincipal](scopedContainer)
-	claims := claimsPrincipal.GetClaims()
-	if len(claims) == 0 {
+// cacheResolvedClaims stores the claims the JWT validator contributed for this reference
+// token (see resolveOutcome.claimsToCache) in the cache.
+func (e *engine) cacheResolvedClaims(cacheKey string, claims []fluffycore_contracts_common.Claim, ttl time.Duration) {
+	if e.config.Cache == nil || cacheKey == "" || len(claims) == 0 {
 		// Nothing to cache -- avoid caching an empty/failed resolution.
 		return
 	}
@@ -336,12 +361,15 @@ func UnaryServerInterceptor(rootContainer di.Container, next grpc.UnaryServerInt
 		case outcomeDirect:
 			return handler(out.ctx, req)
 		case outcomeDelegateToJWT:
-			resp, err := next(out.ctx, req, info, handler)
-			if err != nil {
-				return nil, err
-			}
-			e.cacheResolvedClaims(out.ctx, out.cacheKey, out.ttl)
-			return resp, nil
+			capture := &jwtClaimsCapture{}
+			resp, err := next(out.ctx, req, info, func(ctx context.Context, req interface{}) (interface{}, error) {
+				capture.capture(out.claimsPrincipal)
+				return handler(ctx, req)
+			})
+			// Cache whenever the JWT validated (the handoff happened), even if the handler
+			// then failed: the token's resolution doesn't depend on the handler's outcome.
+			e.cacheResolvedClaims(out.cacheKey, out.claimsToCache(capture), out.ttl)
+			return resp, err
 		default:
 			return nil, status.Error(codes.Internal, "referencetoken middleware: unhandled outcome")
 		}
@@ -367,11 +395,15 @@ func StreamServerInterceptor(rootContainer di.Container, next grpc.StreamServerI
 		case outcomeDelegateToJWT:
 			sw := fluffycore_middleware.NewStreamContextWrapper(ss)
 			sw.SetContext(out.ctx)
-			if err := next(srv, sw, info, handler); err != nil {
-				return err
-			}
-			e.cacheResolvedClaims(out.ctx, out.cacheKey, out.ttl)
-			return nil
+			capture := &jwtClaimsCapture{}
+			err := next(srv, sw, info, func(srv interface{}, stream grpc.ServerStream) error {
+				capture.capture(out.claimsPrincipal)
+				// Cache at handoff: a stream can run for a long time, and the claims are
+				// already known here.
+				e.cacheResolvedClaims(out.cacheKey, out.claimsToCache(capture), out.ttl)
+				return handler(srv, stream)
+			})
+			return err
 		default:
 			return status.Error(codes.Internal, "referencetoken middleware: unhandled outcome")
 		}

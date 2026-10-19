@@ -14,6 +14,10 @@ var noAuthEndpoints = []string{
 	"/grpc.health.v1.Health/Check",
 	proto_helloworld.Greeter_SayHello_FullMethodName,
 	proto_helloworld.Greeter_SayHelloDownstream_FullMethodName,
+	// Streaming demo methods. Zero-trust applies to streams too, so these must be listed
+	// to stay reachable; they're deliberately open in this example.
+	proto_helloworld.MyStreamService_RequestPoints_FullMethodName,
+	proto_helloworld.MyStreamService_StreamPoints_FullMethodName,
 }
 
 // secretEndpoints may be called with EITHER a normal JWT bearer token OR

@@ -86,9 +86,19 @@ func (s *OTELContainer) Stop(ctx context.Context) error {
 		log.Info().Msg("Shutting down OTEL TracerProvider")
 		s.TracerProvider.Shutdown(ctx)
 	}
-	if s.MetricExporter != nil {
+	switch {
+	case s.MeterProvider != nil:
+		// Shuts down the reader, which does a final collect+export, then the exporter. Only
+		// the exporter used to be shut down, so the last interval's metrics were never sent.
+		log.Info().Msg("Shutting down OTEL MeterProvider")
+		if err := s.MeterProvider.Shutdown(ctx); err != nil {
+			log.Error().Err(err).Msg("MeterProvider shutdown")
+		}
+	case s.MetricExporter != nil:
 		log.Info().Msg("Shutting down OTEL MetricExporter")
-		s.MetricExporter.Shutdown(ctx)
+		if err := s.MetricExporter.Shutdown(ctx); err != nil {
+			log.Error().Err(err).Msg("MetricExporter shutdown")
+		}
 	}
 	return nil
 }
@@ -130,7 +140,10 @@ func (s *OTELContainer) InitMeterProvider(ctx context.Context) error {
 	if s.Config == nil {
 		return nil
 	}
-	if !s.Config.MetricConfig.Enabled || !s.Config.MetricConfig.RuntimeEnabled {
+	// Needed by runtime OR host metrics. This used to require RuntimeEnabled, so a host-only
+	// config got no MeterProvider and host metrics went nowhere.
+	mc := s.Config.MetricConfig
+	if !mc.Enabled || (!mc.RuntimeEnabled && !mc.HostEnabled) {
 		return nil
 	}
 	var err error
@@ -157,6 +170,10 @@ func (s *OTELContainer) InitMeterProvider(ctx context.Context) error {
 			log.Error().Err(err).Msg("failed to create exporter")
 			return err
 		}
+	}
+	if s.MetricExporter == nil {
+		// An unrecognized endpoint type used to leave a nil exporter behind a periodic reader.
+		return status.Errorf(codes.InvalidArgument, "invalid OTEL metric endpoint type %q", s.Config.MetricConfig.EndpointType)
 	}
 	interval := time.Duration(s.Config.MetricConfig.IntervalSeconds) * time.Second
 	read := otel_sdk_metric.NewPeriodicReader(s.MetricExporter, otel_sdk_metric.WithInterval(interval))

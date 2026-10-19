@@ -31,8 +31,10 @@ var stemService = (*service)(nil)
 
 var _ fluffycore_contracts_eko_gocache.ISingletonInMemoryCache = stemService
 
-func (s *service) Ctor() (*service, error) {
-	gocacheClient := gocache.New(gocache.NoExpiration, 10*time.Minute)
+// newService builds the cache from options. The registered constructor used to ignore the
+// options entirely and hardcode NoExpiration and a 10 minute cleanup.
+func newService(options *InMemoryCacheOptions) (*service, error) {
+	gocacheClient := gocache.New(*options.DefaultExpiration, *options.CleanupInterval)
 	gocacheStore := gocache_store.NewGoCache(gocacheClient)
 
 	cacheManager := cache.New[[]byte](gocacheStore)
@@ -62,7 +64,7 @@ func AddISingletonInMemoryCacheWithOptions(cb di.ContainerBuilder, options *InMe
 		reflect.TypeOf((*fluffycore_contracts_eko_gocache.IGoCache)(nil)),
 	}
 	reflectType = append(reflectType, options.ImplementedInterfaceTypes...)
-	di.AddSingleton[*service](cb, stemService.Ctor, reflectType...)
+	di.AddSingleton[*service](cb, func() (*service, error) { return newService(options) }, reflectType...)
 }
 func AddISingletonInMemoryCache(cb di.ContainerBuilder, implementedInterfaceTypes ...reflect.Type) {
 	options := &InMemoryCacheOptions{

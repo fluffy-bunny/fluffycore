@@ -6,6 +6,7 @@ import (
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_GRPCClientFactory "github.com/fluffy-bunny/fluffycore/contracts/GRPCClientFactory"
+	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 	endpoint "github.com/fluffy-bunny/fluffycore/contracts/endpoint"
 	nats_micro_service "github.com/fluffy-bunny/fluffycore/contracts/nats_micro_service"
 	contracts_config "github.com/fluffy-bunny/fluffycore/example/internal/contracts/config"
@@ -14,7 +15,9 @@ import (
 	fluffycore_grpcclient "github.com/fluffy-bunny/fluffycore/grpcclient"
 	proto_helloworld "github.com/fluffy-bunny/fluffycore/proto/helloworld"
 	proto_hellowworld_models "github.com/fluffy-bunny/fluffycore/proto/helloworld/models"
+	fluffycore_servertls "github.com/fluffy-bunny/fluffycore/runtime/servertls"
 	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
+	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	status "github.com/gogo/status"
 	grpc_gateway_runtime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	nats "github.com/nats-io/nats.go"
@@ -35,6 +38,7 @@ type (
 		scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable
 		grpcClientFactory    fluffycore_contracts_GRPCClientFactory.IGRPCClientFactory
 		secretStore          fluffycore_contracts_secretstore.ISecretStore
+		claimsPrincipal      fluffycore_contracts_common.IClaimsPrincipal
 	}
 	registrationServer struct {
 		proto_helloworld.GreeterFluffyCoreServer
@@ -59,13 +63,15 @@ func (s *service) Ctor(
 	config *contracts_config.Config,
 	grpcClientFactory fluffycore_contracts_GRPCClientFactory.IGRPCClientFactory,
 	scopedSomeDisposable fluffycore_contracts_somedisposable.IScopedSomeDisposable,
-	secretStore fluffycore_contracts_secretstore.ISecretStore) (proto_helloworld.IFluffyCoreGreeterServer, error) {
+	secretStore fluffycore_contracts_secretstore.ISecretStore,
+	claimsPrincipal fluffycore_contracts_common.IClaimsPrincipal) (proto_helloworld.IFluffyCoreGreeterServer, error) {
 
 	return &service{
 		config:               config,
 		scopedSomeDisposable: scopedSomeDisposable,
 		grpcClientFactory:    grpcClientFactory,
 		secretStore:          secretStore,
+		claimsPrincipal:      claimsPrincipal,
 	}, nil
 }
 func AddGreeterService(builder di.ContainerBuilder) {
@@ -99,11 +105,7 @@ func (s *service) SayHello(ctx context.Context, request *proto_hellowworld_model
 	s.workHard(ctx)
 	time.Sleep(50 * time.Millisecond)
 
-	opts := []fluffycore_grpcclient.GrpcClientOption{
-		fluffycore_grpcclient.WithHost("localhost"),
-		fluffycore_grpcclient.WithPort(50051),
-		fluffycore_grpcclient.WithInsecure(true),
-	}
+	opts := s.downstreamClientOptions()
 
 	grpcClient, err := s.grpcClientFactory.NewGrpcClient(opts...)
 	if err != nil {
@@ -121,18 +123,60 @@ func (s *service) SayHello(ctx context.Context, request *proto_hellowworld_model
 // token or mutual TLS -- see example/internal/auth.BuildGrpcEntrypointPermissionsClaimsMap,
 // which requires (authenticated via JWT) OR (mtls_verified) for this method.
 func (s *service) SetSecret(ctx context.Context, request *proto_hellowworld_models.SetSecretRequest) (*proto_hellowworld_models.SetSecretResponse, error) {
-	s.secretStore.Set(request.OrgId, request.Key, request.Value)
+	owner, err := s.secretOwner()
+	if err != nil {
+		return nil, err
+	}
+	s.secretStore.Set(owner, request.OrgId, request.Key, request.Value)
 	return &proto_hellowworld_models.SetSecretResponse{Success: true}, nil
 }
 
 // GetSecret retrieves a previously-set secret value. Same auth requirement as
 // SetSecret: JWT or mTLS.
 func (s *service) GetSecret(ctx context.Context, request *proto_hellowworld_models.GetSecretRequest) (*proto_hellowworld_models.GetSecretResponse, error) {
-	value, ok := s.secretStore.Get(request.OrgId, request.Key)
+	owner, err := s.secretOwner()
+	if err != nil {
+		return nil, err
+	}
+	value, ok := s.secretStore.Get(owner, request.OrgId, request.Key)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no secret found for org_id=%q key=%q", request.OrgId, request.Key)
 	}
 	return &proto_hellowworld_models.GetSecretResponse{Value: value}, nil
+}
+
+// downstreamClientOptions dials this same server over loopback. It used to hardcode a
+// plaintext localhost:50051, which fails whenever the server runs TLS -- the example's
+// default -- and ignored the configured port.
+func (s *service) downstreamClientOptions() []fluffycore_grpcclient.GrpcClientOption {
+	opts := []fluffycore_grpcclient.GrpcClientOption{
+		fluffycore_grpcclient.WithHost("localhost"),
+		fluffycore_grpcclient.WithPort(s.config.PORT),
+	}
+	if trustFile, ok := fluffycore_servertls.LoopbackTrustFile(&s.config.CoreConfig); ok {
+		return append(opts, fluffycore_grpcclient.WithCertBundle(trustFile)) // a cert bundle implies TLS
+	}
+	return append(opts, fluffycore_grpcclient.WithInsecure(true))
+}
+
+// secretOwner identifies the caller from what the server itself authenticated -- never a
+// request field -- so SetSecret/GetSecret callers can only see their own secrets. request.OrgId
+// is just a namespace within the caller's own secrets: trusting it alone let any
+// authenticated caller read or overwrite any org's secrets.
+func (s *service) secretOwner() (string, error) {
+	for _, c := range s.claimsPrincipal.GetClaimsByType(fluffycore_wellknown.ClaimTypeSub) {
+		if c.Value != "" && c.Value != fluffycore_wellknown.AnonymousSubject {
+			return "jwt:" + c.Value, nil
+		}
+	}
+	// mTLS: the verified client certificate. The fingerprint, not the CN: any cert the CA
+	// issues could carry the same CN.
+	for _, c := range s.claimsPrincipal.GetClaimsByType(fluffycore_wellknown.ClaimTypeMTLSFingerprint) {
+		if c.Value != "" {
+			return "mtls:" + c.Value, nil
+		}
+	}
+	return "", status.Error(codes.PermissionDenied, "no authenticated caller identity")
 }
 
 func (s *service) workHard(ctx context.Context) {

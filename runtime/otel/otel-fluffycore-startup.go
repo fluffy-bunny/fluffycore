@@ -2,6 +2,7 @@ package otel
 
 import (
 	"context"
+	"runtime/debug"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
@@ -30,6 +31,8 @@ type (
 		*OTELContainer // embedded  OTEL
 		fluffycore_contracts_runtime.UnimplementedStartup
 		FluffyCoreOTELStartupConfig *FluffyCoreOTELStartupConfig
+		// serverTLS records whether ConfigureServerOpts enabled TLS; see ServerTLSEnabled.
+		serverTLS bool
 	}
 	FuncAuthGetEntryPointConfigs func() map[string]contracts_common.IEntryPointConfig
 
@@ -46,6 +49,13 @@ func NewFluffyCoreOTELStartup(fluffyCoreOTELStartupConfig *FluffyCoreOTELStartup
 
 	return obj
 }
+
+// ServerTLSEnabled reports whether ConfigureServerOpts put the gRPC server on TLS. The runtime
+// uses it to dial its own server correctly for the grpc-gateway, healthz and the NATS bridge.
+func (s *FluffyCoreOTELStartup) ServerTLSEnabled() bool {
+	return s.serverTLS
+}
+
 func (s *FluffyCoreOTELStartup) SetConfig(config *fluffycore_contracts_otel.OTELConfig) {
 	s.OTELContainer.Config = config
 }
@@ -80,8 +90,22 @@ func (s *FluffyCoreOTELStartup) ConfigureServerOpts(ctx context.Context) []grpc.
 				Bool("mutualTLS", fluffycore_servertls.IsMutualTLSEnabled(coreConfig)).
 				Msg("enabling gRPC server TLS")
 			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
+			s.serverTLS = true
 		}
 	}
+
+	// Panic recovery goes FIRST -- the outermost interceptor -- so it covers every
+	// interceptor below it as well as the handler. It used to be registered last, which
+	// only covered the handler: a panic in correlation, dicontext, logging, JWT or the auth
+	// gate (e.g. di.Get on a missing service) went unrecovered and killed the process.
+	recoveryOpts := []grpc_recovery.Option{
+		grpc_recovery.WithRecoveryHandlerContext(func(ctx context.Context, p interface{}) error {
+			zerolog.Ctx(ctx).Error().Interface("panic", p).Bytes("stack", debug.Stack()).Msg("recovered from panic in gRPC call")
+			return status.Errorf(codes.Internal, "internal error")
+		}),
+	}
+	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(grpc_recovery.UnaryServerInterceptor(recoveryOpts...)))
+	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(grpc_recovery.StreamServerInterceptor(recoveryOpts...)))
 
 	// log correlation and spans
 	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_correlation.EnsureOTELCorrelationIDUnaryServerInterceptor()))
@@ -109,22 +133,18 @@ func (s *FluffyCoreOTELStartup) ConfigureServerOpts(ctx context.Context) []grpc.
 	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_auth_jwt.UnaryServerInterceptor(s.RootContainer)))
 	log.Info().Msg("adding ChainStreamInterceptor: fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor")
 	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(fluffycore_middleware_logging.EnsureContextLoggingStreamServerInterceptor()))
+	// Streams get the same authentication as unary calls. Without this, every
+	// server/client/bidi-streaming method ran with an empty claims principal and no
+	// permission check at all.
+	log.Info().Msg("adding ChainStreamInterceptor: fluffycore_middleware_auth_jwt.StreamServerInterceptor")
+	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(fluffycore_middleware_auth_jwt.StreamServerInterceptor(s.RootContainer)))
 
-	// Here the gating happens
-	//grpcEntrypointClaimsMap := internal_auth.BuildGrpcEntrypointPermissionsClaimsMap()
+	// Here the gating happens -- for unary AND streaming methods, from the same map.
 	grpcEntrypointClaimsMap := s.FluffyCoreOTELStartupConfig.FuncAuthGetEntryPointConfigs()
-	// claims principal
-	log.Info().Msg("adding unaryServerInterceptorBuilder: fluffycore_middleware_claimsprincipal.UnaryServerInterceptor")
+	log.Info().Msg("adding ChainUnaryInterceptor: fluffycore_middleware_claimsprincipal.FinalAuthVerificationMiddlewareUsingClaimsMapWithZeroTrustV2")
 	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(fluffycore_middleware_claimsprincipal.FinalAuthVerificationMiddlewareUsingClaimsMapWithZeroTrustV2(grpcEntrypointClaimsMap)))
-
-	// last is the recovery middleware
-	customFunc := func(p interface{}) (err error) {
-		return status.Errorf(codes.Unknown, "panic triggered: %v", p)
-	}
-	opts := []grpc_recovery.Option{
-		grpc_recovery.WithRecoveryHandler(customFunc),
-	}
-	serverOpts = append(serverOpts, grpc.ChainUnaryInterceptor(grpc_recovery.UnaryServerInterceptor(opts...)))
+	log.Info().Msg("adding ChainStreamInterceptor: fluffycore_middleware_claimsprincipal.FinalAuthVerificationStreamMiddlewareUsingClaimsMapWithZeroTrustV2")
+	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(fluffycore_middleware_claimsprincipal.FinalAuthVerificationStreamMiddlewareUsingClaimsMapWithZeroTrustV2(grpcEntrypointClaimsMap)))
 
 	return serverOpts
 }
@@ -140,10 +160,18 @@ func (s *FluffyCoreOTELStartup) OnPreServerStartup(ctx context.Context) error {
 	}
 	return nil
 }
-func (s *FluffyCoreOTELStartup) OnPreServerShutdown(ctx context.Context) {
-	log := zerolog.Ctx(ctx).With().Str("method", "OnPreServerShutdown").Logger()
 
+// OnPreServerShutdown is a no-op; OTEL is stopped in OnPostServerShutdown. It used to stop
+// here -- before the gRPC server drained -- so spans and metrics from in-flight requests
+// were dropped. Kept so startups that chain to it keep compiling.
+func (s *FluffyCoreOTELStartup) OnPreServerShutdown(ctx context.Context) {}
+
+// OnPostServerShutdown flushes and stops OTEL once the server has drained in-flight requests.
+// A startup that overrides OnPostServerShutdown must call this.
+func (s *FluffyCoreOTELStartup) OnPostServerShutdown(ctx context.Context) {
+	log := zerolog.Ctx(ctx).With().Str("method", "OnPostServerShutdown").Logger()
 	log.Info().Msg("OTELContainer stopping")
-	s.OTELContainer.Stop(ctx)
-
+	if err := s.OTELContainer.Stop(ctx); err != nil {
+		log.Error().Err(err).Msg("OTELContainer stop")
+	}
 }

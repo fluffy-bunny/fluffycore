@@ -1,0 +1,22 @@
+# Local NATS for the integration tests (nats/...). Independent of docker-compose.yml.
+#
+#   docker compose -f docker/docker-compose.nats.yml up -d --wait
+#   NATS_TEST_URL=nats://localhost:4299 go test ./nats/...
+#   docker compose -f docker/docker-compose.nats.yml down
+#
+# or just: ./scripts/test-nats.sh
+name: fluffycore-nats-test
+
+services:
+  nats:
+    image: nats:2.10.25-alpine
+    container_name: fluffycore-nats-test
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "${NATS_TEST_PORT:-4299}:4222"
+      - "${NATS_TEST_MONITOR_PORT:-8299}:8222"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 20

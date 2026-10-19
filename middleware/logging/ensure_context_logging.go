@@ -3,13 +3,13 @@ package logging
 import (
 	"context"
 	"encoding/json"
+	"sync"
 
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_contracts_propertybag "github.com/fluffy-bunny/fluffycore/contracts/propertybag"
 	fluffycore_middleware "github.com/fluffy-bunny/fluffycore/middleware"
 	middleware_dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
-	fluffycore_utils "github.com/fluffy-bunny/fluffycore/utils"
 	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	status "github.com/gogo/status"
 	zerolog "github.com/rs/zerolog"
@@ -26,8 +26,12 @@ type PropertyBagHook struct {
 func (h PropertyBagHook) Run(e *zerolog.Event, l zerolog.Level, msg string) {
 
 	propertyMap := h.PropertyBag.AsMap()
-
-	e.Interface("ctx", propertyMap)
+	if len(propertyMap) == 0 {
+		return
+	}
+	// Dict+Fields writes strings, numbers and []string directly; e.Interface used to
+	// json.Marshal the whole map through reflection on every log line. Same output shape.
+	e.Dict("ctx", zerolog.Dict().Fields(propertyMap))
 }
 
 func getIncomingOriginContextJson(ctx context.Context) (map[string]interface{}, error) {
@@ -51,20 +55,33 @@ func getIncomingOriginContextJson(ctx context.Context) (map[string]interface{}, 
 	return generic, nil
 }
 
+// baseLogger is the logger already on ctx (e.g. carrying the correlation interceptor's
+// correlation_id / trace_id), or the global logger when there is none. These interceptors
+// used to always start from the global logger, dropping those fields.
+func baseLogger(ctx context.Context) zerolog.Logger {
+	if l := zerolog.Ctx(ctx); l.GetLevel() != zerolog.Disabled {
+		return *l
+	}
+	return log.Logger
+}
+
 func EnsureContextLoggingUnaryServerInterceptor() grpc.UnaryServerInterceptor {
+	var ctxOriginOnce sync.Once
+	var ctxOriginName string
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		logger := log.With().Caller().Logger()
+		logger := baseLogger(ctx).With().Caller().Logger()
 
 		scopedContainer := middleware_dicontext.GetRequestContainer(ctx)
 		propertyBag := di.Get[fluffycore_contracts_propertybag.IRequestContextLoggingPropertyBag](scopedContainer)
 
-		ctxOriginName := fluffycore_wellknown.ContextOriginKey
-		requestContextClaimsToPropagate, err := di.TryGet[*fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig](scopedContainer)
-		if err == nil {
-			if fluffycore_utils.IsNotEmptyOrNil(requestContextClaimsToPropagate.ContextOrigin) {
-				ctxOriginName = requestContextClaimsToPropagate.ContextOrigin
+		// Resolved on the first request and reused (it is configuration): it used to be looked
+		// up -- usually failing -- on every request.
+		ctxOriginOnce.Do(func() {
+			ctxOriginName = fluffycore_wellknown.ContextOriginKey
+			if cfg, err := di.TryGet[*fluffycore_contracts_middleware.RequestClaimsContextPropagateConfig](scopedContainer); err == nil && cfg != nil && cfg.ContextOrigin != "" {
+				ctxOriginName = cfg.ContextOrigin
 			}
-		}
+		})
 		ctxOrigin, err := getIncomingOriginContextJson(ctx)
 		if err != nil {
 			// log the error, but continue on.
@@ -88,8 +105,8 @@ func EnsureContextLoggingUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 }
 func EnsureContextLoggingStreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		logger := log.With().Caller().Logger()
 		ctx := ss.Context()
+		logger := baseLogger(ctx).With().Caller().Logger()
 		newCtx := logger.WithContext(ctx)
 		sw := fluffycore_middleware.NewStreamContextWrapper(ss)
 		sw.SetContext(newCtx)

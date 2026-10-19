@@ -11,7 +11,7 @@ func ParentPersistentPreRunE(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		} else {
-			ParentPersistentPreRunE(parent, args)
+			return ParentPersistentPreRunE(parent, args)
 		}
 	}
 
@@ -27,7 +27,7 @@ func ParentPreRunE(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		} else {
-			ParentPreRunE(parent, args)
+			return ParentPreRunE(parent, args)
 		}
 	}
 

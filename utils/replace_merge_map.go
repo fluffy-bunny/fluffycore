@@ -31,9 +31,8 @@ func replaceOnlyMergeMap(dst, src map[string]interface{}, depth int) error {
 					return err
 				}
 				srcVal = dstMap
-			} else {
-				continue
 			}
+			// Otherwise src replaces dst. (This used to `continue`, keeping dst's value.)
 		}
 		dst[key] = srcVal
 	}
@@ -41,7 +40,8 @@ func replaceOnlyMergeMap(dst, src map[string]interface{}, depth int) error {
 }
 func mapify(i interface{}) (map[string]interface{}, bool) {
 	value := reflect.ValueOf(i)
-	if value.Kind() == reflect.Map {
+	// Only string-keyed maps: other key kinds would be stringified to junk like "<int Value>".
+	if value.Kind() == reflect.Map && value.Type().Key().Kind() == reflect.String {
 		m := map[string]interface{}{}
 		for _, k := range value.MapKeys() {
 			m[k.String()] = value.MapIndex(k).Interface()
