@@ -60,9 +60,14 @@ jobs:
           - 4222:4222
     steps:
       - name: Echo Tags
+        # The changelog goes in through env, not inline: it has parentheses, which broke the shell
+        # ("syntax error near unexpected token `('") and failed the whole build.
+        env:
+          NEW_TAG: ${{ needs.pre_flight.outputs.new_tag }}
+          CHANGELOG: ${{ needs.pre_flight.outputs.changelog }}
         run: |
-          echo new_tag: ${{needs.pre_flight.outputs.new_tag}} 
-          echo changelog: ${{needs.pre_flight.outputs.changelog}}
+          echo "new_tag: $NEW_TAG"
+          echo "changelog: $CHANGELOG"
 
       - uses: actions/checkout@v7
 
@@ -86,9 +91,14 @@ jobs:
 
     steps:
       - name: Echo Tags
+        # The changelog goes in through env, not inline: it has parentheses, which broke the shell
+        # ("syntax error near unexpected token `('") and failed the whole build.
+        env:
+          NEW_TAG: ${{ needs.pre_flight.outputs.new_tag }}
+          CHANGELOG: ${{ needs.pre_flight.outputs.changelog }}
         run: |
-          echo new_tag: ${{needs.pre_flight.outputs.new_tag}} 
-          echo changelog: ${{needs.pre_flight.outputs.changelog}}
+          echo "new_tag: $NEW_TAG"
+          echo "changelog: $CHANGELOG"
 
       - uses: actions/checkout@v7
         with:
