@@ -47,7 +47,21 @@ func (s *service) GetWithTTL(key string) (interface{}, time.Duration, error) {
 }
 
 func (s *service) Set(key string, data interface{}) error {
+	s.dropExpired(key)
 	return s.ttlCache.Set(key, data)
+}
+
+// dropExpired clears key if it holds an expired entry that ttlcache has not cleaned up yet.
+// ttlcache treats such an entry as absent, so a Set builds a NEW item while the stale one is
+// still in its expiry queue; when the cleaner later evicts the stale one it deletes by key and
+// takes the fresh item with it, long before its TTL. Under load the cleaner runs late enough
+// for this to happen regularly: a re-resolved reference token was dropped again and resolved
+// a second time inside one TTL window.
+func (s *service) dropExpired(key string) {
+	if _, err := s.ttlCache.Get(key); err != nil {
+		// Absent or expired; Remove on an absent key is a harmless ErrNotFound.
+		_ = s.ttlCache.Remove(key)
+	}
 }
 
 func (s *service) SetTTL(ttl time.Duration) error {
@@ -55,6 +69,7 @@ func (s *service) SetTTL(ttl time.Duration) error {
 }
 
 func (s *service) SetWithTTL(key string, data interface{}, ttl time.Duration) error {
+	s.dropExpired(key)
 	return s.ttlCache.SetWithTTL(key, data, ttl)
 }
 
