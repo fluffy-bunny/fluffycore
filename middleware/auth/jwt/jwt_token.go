@@ -2,7 +2,7 @@ package jwt
 
 import (
 	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
-	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
+	jwxt "github.com/lestrrat-go/jwx/v4/jwt"
 )
 
 type jwtToken struct {
@@ -15,7 +15,7 @@ type jwtToken struct {
 func newJWTToken(innerToken jwxt.Token, bearer string) *jwtToken {
 	// Turn permissions in to a map
 	pMap := make(map[string]bool)
-	val, ok := innerToken.Get(fluffycore_wellknown.ClaimTypePermissions)
+	val, ok := innerToken.Field(fluffycore_wellknown.ClaimTypePermissions)
 	if ok {
 		perms, ok := val.([]interface{})
 		if ok {
@@ -28,10 +28,12 @@ func newJWTToken(innerToken jwxt.Token, bearer string) *jwtToken {
 		}
 	}
 
+	subject, _ := innerToken.Subject()
+
 	return &jwtToken{
 		InnerToken: innerToken,
-		ID:         innerToken.Subject(),
-		Claims:     innerToken.PrivateClaims(),
+		ID:         subject,
+		Claims:     privateClaims(innerToken),
 		Bearer:     bearer,
 	}
 }
@@ -66,4 +68,20 @@ func (t *jwtToken) CheckClaim(key string, expected interface{}) bool {
 
 func (t *jwtToken) GetInnerToken() interface{} {
 	return t.InnerToken
+}
+
+// privateClaims returns a copy of the token's non-registered claims. v4's Token interface
+// no longer has PrivateClaims(), and the concrete type's map is the live one (AddClaim
+// writes into this map), so build a fresh one from the claim iterator.
+func privateClaims(token jwxt.Token) map[string]interface{} {
+	out := make(map[string]interface{})
+	for name, value := range token.Claims() {
+		switch name {
+		case jwxt.IssuerKey, jwxt.SubjectKey, jwxt.AudienceKey, jwxt.ExpirationKey,
+			jwxt.NotBeforeKey, jwxt.IssuedAtKey, jwxt.JwtIDKey:
+			continue
+		}
+		out[name] = value
+	}
+	return out
 }

@@ -19,9 +19,9 @@ import (
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_services_common "github.com/fluffy-bunny/fluffycore/services/common"
 	status "github.com/gogo/status"
-	jwa "github.com/lestrrat-go/jwx/v2/jwa"
-	jwxk "github.com/lestrrat-go/jwx/v2/jwk"
-	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
+	jwa "github.com/lestrrat-go/jwx/v4/jwa"
+	jwxk "github.com/lestrrat-go/jwx/v4/jwk"
+	jwxt "github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/require"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -67,10 +67,10 @@ func newSigningKey(t *testing.T, kid string) jwxk.Key {
 	t.Helper()
 	raw, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
-	k, err := jwxk.FromRaw(raw)
+	k, err := jwxk.Import[jwxk.Key](raw)
 	require.NoError(t, err)
 	require.NoError(t, k.Set(jwxk.KeyIDKey, kid))
-	require.NoError(t, k.Set(jwxk.AlgorithmKey, jwa.RS256))
+	require.NoError(t, k.Set(jwxk.AlgorithmKey, jwa.RS256()))
 	return k
 }
 
@@ -79,7 +79,7 @@ func signedToken(t *testing.T, issuer string, key jwxk.Key) string {
 	tok, err := jwxt.NewBuilder().Issuer(issuer).Subject("user-1").
 		IssuedAt(time.Now()).Expiration(time.Now().Add(time.Hour)).Build()
 	require.NoError(t, err)
-	b, err := jwxt.Sign(tok, jwxt.WithKey(jwa.RS256, key))
+	b, err := jwxt.Sign(tok, jwxt.WithKey(jwa.RS256(), key))
 	require.NoError(t, err)
 	return string(b)
 }

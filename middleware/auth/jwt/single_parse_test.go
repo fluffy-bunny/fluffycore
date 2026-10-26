@@ -10,8 +10,8 @@ import (
 	fluffycore_contracts_middleware "github.com/fluffy-bunny/fluffycore/contracts/middleware"
 	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	status "github.com/gogo/status"
-	jwa "github.com/lestrrat-go/jwx/v2/jwa"
-	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
+	jwa "github.com/lestrrat-go/jwx/v4/jwa"
+	jwxt "github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/require"
 	codes "google.golang.org/grpc/codes"
 )
@@ -37,7 +37,7 @@ func TestValidate_RejectsBadTokensAfterSingleParse(t *testing.T) {
 	expiredTok, err := jwxt.NewBuilder().Issuer(idp.issuer()).Subject("u").
 		IssuedAt(time.Now().Add(-2 * time.Hour)).Expiration(time.Now().Add(-time.Hour)).Build()
 	require.NoError(t, err)
-	expired, err := jwxt.Sign(expiredTok, jwxt.WithKey(jwa.RS256, key))
+	expired, err := jwxt.Sign(expiredTok, jwxt.WithKey(jwa.RS256(), key))
 	require.NoError(t, err)
 
 	otherKey := newSigningKey(t, "k1") // same kid, different key: signature can't verify

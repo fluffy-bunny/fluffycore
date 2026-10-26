@@ -8,9 +8,9 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_jwtminter "github.com/fluffy-bunny/fluffycore/contracts/jwtminter"
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
-	jwxk "github.com/lestrrat-go/jwx/v2/jwk"
-	jws "github.com/lestrrat-go/jwx/v2/jws"
-	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
+	jwxk "github.com/lestrrat-go/jwx/v4/jwk"
+	jws "github.com/lestrrat-go/jwx/v4/jws"
+	jwxt "github.com/lestrrat-go/jwx/v4/jwt"
 )
 
 type (
@@ -130,12 +130,12 @@ func (s *service) checkSigningKeyWindow(accessToken string, token jwxt.Token) er
 	if len(msg.Signatures()) == 0 {
 		return fmt.Errorf("token has no signature")
 	}
-	kid := msg.Signatures()[0].ProtectedHeaders().KeyID()
+	kid, _ := msg.Signatures()[0].ProtectedHeaders().KeyID()
 	key, ok := s.keysByKid[kid]
 	if !ok {
 		return fmt.Errorf("token signed with unknown key %q", kid)
 	}
-	issued := token.IssuedAt()
+	issued, _ := token.IssuedAt() // zero when absent
 	if issued.IsZero() {
 		issued = time.Now()
 	}

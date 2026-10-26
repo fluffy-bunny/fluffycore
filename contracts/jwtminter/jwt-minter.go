@@ -5,7 +5,7 @@ import (
 	"time"
 
 	fluffycore_contracts_claims "github.com/fluffy-bunny/fluffycore/contracts/claims"
-	jwk "github.com/lestrrat-go/jwx/v2/jwk"
+	jwk "github.com/lestrrat-go/jwx/v4/jwk"
 )
 
 type (

@@ -16,7 +16,7 @@ import (
 	di "github.com/fluffy-bunny/fluffy-dozm-di"
 	fluffycore_contracts_jwtminter "github.com/fluffy-bunny/fluffycore/contracts/jwtminter"
 	pkcs8enc "github.com/fluffy-bunny/fluffycore/utils/pkcs8enc"
-	jwk "github.com/lestrrat-go/jwx/v2/jwk"
+	jwk "github.com/lestrrat-go/jwx/v4/jwk"
 )
 
 type (

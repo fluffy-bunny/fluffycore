@@ -3,8 +3,8 @@ package jwt
 import (
 	"context"
 
-	jws "github.com/lestrrat-go/jwx/v2/jws"
-	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
+	jws "github.com/lestrrat-go/jwx/v4/jws"
+	jwxt "github.com/lestrrat-go/jwx/v4/jwt"
 )
 
 type (

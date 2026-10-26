@@ -12,8 +12,8 @@ import (
 	testservices "github.com/fluffy-bunny/fluffycore/mocks/testservices"
 	jwt "github.com/golang-jwt/jwt/v5"
 	echo "github.com/labstack/echo/v5"
-	jwk "github.com/lestrrat-go/jwx/v2/jwk"
-	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
+	jwk "github.com/lestrrat-go/jwx/v4/jwk"
+	jwxt "github.com/lestrrat-go/jwx/v4/jwt"
 )
 
 type (
@@ -440,13 +440,8 @@ func ValidateToken(ctx context.Context, accessToken string) (IClaims, error) {
 	if err != nil {
 		return nil, err
 	}
-	claimMap, err := token.AsMap(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	claims := NewClaims()
-	for k, v := range claimMap {
+	for k, v := range token.Claims() {
 		claims.Set(k, v)
 	}
 	return claims, nil

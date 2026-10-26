@@ -11,7 +11,7 @@ import (
 	mocks_contracts_oauth2 "github.com/fluffy-bunny/fluffycore/mocks/contracts/oauth2"
 	jwt "github.com/golang-jwt/jwt/v5"
 	echo "github.com/labstack/echo/v5"
-	jwk "github.com/lestrrat-go/jwx/v2/jwk"
+	jwk "github.com/lestrrat-go/jwx/v4/jwk"
 )
 
 const jwtKey = `{

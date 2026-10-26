@@ -18,9 +18,11 @@ import (
 	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	status "github.com/gogo/status"
 	copier "github.com/jinzhu/copier"
-	jwxk "github.com/lestrrat-go/jwx/v2/jwk"
-	jws "github.com/lestrrat-go/jwx/v2/jws"
-	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
+	jwkfetch "github.com/jwx-go/jwkfetch/v4"
+	httprc "github.com/lestrrat-go/httprc/v3"
+	jwxk "github.com/lestrrat-go/jwx/v4/jwk"
+	jws "github.com/lestrrat-go/jwx/v4/jws"
+	jwxt "github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/rs/zerolog"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -34,7 +36,7 @@ type (
 	}
 )
 
-var _cache *jwxk.Cache
+var _cache *jwkfetch.Cache
 var _issuerConfigs map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig
 var _validatorsOnce sync.Once
 
@@ -67,21 +69,25 @@ func SetMinJWKSRefreshInterval(d time.Duration) {
 // keySetForKid returns a key set containing kid, refreshing the JWKS URL if needed but no
 // more than once per min interval. ok is false when kid is still unknown.
 func keySetForKid(ctx context.Context, jwksURL, kid string) (set jwxk.Set, ok bool, err error) {
-	set, err = _cache.Get(ctx, jwksURL)
+	v, _ := _jwksRefreshGates.LoadOrStore(jwksURL, &jwksRefreshGate{})
+	gate := v.(*jwksRefreshGate)
+
+	set, err = _cache.Lookup(ctx, jwksURL)
 	if err != nil {
-		return nil, false, err
+		// Not fetched yet (the URL is registered without waiting).
+		if set, err = loadKeySet(ctx, jwksURL); err != nil {
+			return nil, false, err
+		}
 	}
 	if _, found := set.LookupKeyID(kid); found {
 		return set, true, nil
 	}
 
-	v, _ := _jwksRefreshGates.LoadOrStore(jwksURL, &jwksRefreshGate{})
-	gate := v.(*jwksRefreshGate)
 	gate.mu.Lock()
 	defer gate.mu.Unlock()
 
 	// Another caller may have refreshed while we waited for the gate.
-	if set, err = _cache.Get(ctx, jwksURL); err == nil {
+	if set, err = _cache.Lookup(ctx, jwksURL); err == nil {
 		if _, found := set.LookupKeyID(kid); found {
 			return set, true, nil
 		}
@@ -103,7 +109,11 @@ func keySetForKid(ctx context.Context, jwksURL, kid string) (set jwxk.Set, ok bo
 func init() {
 	SetMinJWKSRefreshInterval(DefaultMinJWKSRefreshInterval)
 	var _ fluffycore_contracts_middleware_auth_jwt.IValidator = &service{}
-	_cache = jwxk.NewCache(context.Background())
+	cache, err := jwkfetch.NewCache(context.Background(), httprc.NewClient())
+	if err != nil {
+		panic(err)
+	}
+	_cache = cache
 	_issuerConfigs = make(map[string]*fluffycore_contracts_middleware_auth_jwt.IssuerConfig)
 }
 
@@ -117,7 +127,10 @@ func AddValidators(builder di.ContainerBuilder, config *fluffycore_contracts_mid
 		}
 
 		_issuerConfigs[issuerConfig.OAuth2Config.Issuer] = dst
-		_cache.Register(issuerConfig.OAuth2Config.JWKSUrl)
+		// Don't block startup on the first fetch (v2 fetched lazily); keySetForKid fetches on demand.
+		if err := _cache.Register(context.Background(), issuerConfig.OAuth2Config.JWKSUrl, jwkfetch.WithWaitReady(false)); err != nil {
+			panic(err)
+		}
 		// STOP: we want multiple validators even though it looks like we are adding the same one over and over.
 		// each validator targets a specific issuer.
 		di.AddSingleton[fluffycore_contracts_middleware_auth_jwt.IValidator](builder, func() *service {
@@ -144,8 +157,9 @@ func (s *service) ValidateAccessToken(ctx context.Context, rawToken *fluffycore_
 		return true, nil
 	}
 
-	kid := rawToken.JWSMessage.Signatures()[0].ProtectedHeaders().KeyID()
-	issuer := strings.ToLower(rawToken.Token.Issuer())
+	kid, _ := rawToken.JWSMessage.Signatures()[0].ProtectedHeaders().KeyID()
+	tokenIssuer, _ := rawToken.Token.Issuer()
+	issuer := strings.ToLower(tokenIssuer)
 	if issuer != s.config.OAuth2Config.Issuer {
 		// not our issuer, so we aren't handling it and are not returning an error
 		return false, nil
@@ -228,11 +242,11 @@ func _validate(ctx context.Context) (*fluffycore_contracts_middleware_auth_jwt.P
 	if err != nil {
 		return nil, err
 	}
-	kid := rt.JWSMessage.Signatures()[0].ProtectedHeaders().KeyID()
+	kid, _ := rt.JWSMessage.Signatures()[0].ProtectedHeaders().KeyID()
 	if len(kid) == 0 {
 		return nil, status.Error(codes.Unauthenticated, "no kid found in token")
 	}
-	issuer := rt.Token.Issuer()
+	issuer, _ := rt.Token.Issuer()
 	if len(issuer) == 0 {
 		return nil, status.Error(codes.Unauthenticated, "no issuer found in token")
 	}
@@ -449,11 +463,32 @@ func checkAudienceMatch(token jwxt.Token, expectedAudience string) bool {
 
 	// JWT may contain several audiences
 	// At least one of them should match
-	for _, v := range token.Audience() {
+	audiences, _ := token.Audience()
+	for _, v := range audiences {
 		if v == expectedAudience {
 			return true
 		}
 	}
 
 	return false
+}
+
+// firstLoadTimeout bounds how long a request waits for a JWKS URL's first fetch.
+const firstLoadTimeout = 10 * time.Second
+
+// loadKeySet waits for a JWKS URL's first fetch, which Register started in the background.
+// It waits instead of forcing a refresh: that would fetch a second time on top of the
+// in-flight first fetch, and httprc (3.0.6) deadlocks when more concurrent refreshes arrive
+// than it has workers, which a burst of first requests would cause.
+func loadKeySet(ctx context.Context, jwksURL string) (jwxk.Set, error) {
+	r, err := _cache.LookupResource(ctx, jwksURL)
+	if err != nil {
+		return nil, err
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, firstLoadTimeout)
+	defer cancel()
+	if err := r.Ready(waitCtx); err != nil {
+		return nil, err
+	}
+	return _cache.Lookup(ctx, jwksURL)
 }

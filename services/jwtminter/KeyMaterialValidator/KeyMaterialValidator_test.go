@@ -11,9 +11,9 @@ import (
 	fluffycore_contracts_middleware_auth_jwt "github.com/fluffy-bunny/fluffycore/contracts/middleware/auth/jwt"
 	jwtminter "github.com/fluffy-bunny/fluffycore/services/jwtminter"
 	fluffycore_services_keymaterial "github.com/fluffy-bunny/fluffycore/services/keymaterial"
-	jwa "github.com/lestrrat-go/jwx/v2/jwa"
-	jwxk "github.com/lestrrat-go/jwx/v2/jwk"
-	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
+	jwa "github.com/lestrrat-go/jwx/v4/jwa"
+	jwxk "github.com/lestrrat-go/jwx/v4/jwk"
+	jwxt "github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,7 +58,9 @@ func sign(t *testing.T, key *fluffycore_contracts_jwtminter.SigningKey, iat, exp
 	}
 	tok, err := b.Build()
 	require.NoError(t, err)
-	signed, err := jwxt.Sign(tok, jwxt.WithKey(jwa.SignatureAlgorithm(key.PrivateJwk.Alg), priv))
+	alg, ok := jwa.LookupSignatureAlgorithm(key.PrivateJwk.Alg)
+	require.True(t, ok, "unknown alg %q", key.PrivateJwk.Alg)
+	signed, err := jwxt.Sign(tok, jwxt.WithKey(alg, priv))
 	require.NoError(t, err)
 	return string(signed)
 }

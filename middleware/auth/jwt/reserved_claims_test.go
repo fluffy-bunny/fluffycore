@@ -9,9 +9,9 @@ import (
 	fluffycore_contracts_common "github.com/fluffy-bunny/fluffycore/contracts/common"
 	dicontext "github.com/fluffy-bunny/fluffycore/middleware/dicontext"
 	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
-	jwa "github.com/lestrrat-go/jwx/v2/jwa"
-	jwxk "github.com/lestrrat-go/jwx/v2/jwk"
-	jwxt "github.com/lestrrat-go/jwx/v2/jwt"
+	jwa "github.com/lestrrat-go/jwx/v4/jwa"
+	jwxk "github.com/lestrrat-go/jwx/v4/jwk"
+	jwxt "github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/require"
 	grpc "google.golang.org/grpc"
 	metadata "google.golang.org/grpc/metadata"
@@ -27,7 +27,7 @@ func tokenAssertingMTLS(t *testing.T, issuer string, key jwxk.Key) string {
 		Claim(fluffycore_wellknown.ClaimTypeMTLSCommonName, "trusted-service").
 		Build()
 	require.NoError(t, err)
-	b, err := jwxt.Sign(tok, jwxt.WithKey(jwa.RS256, key))
+	b, err := jwxt.Sign(tok, jwxt.WithKey(jwa.RS256(), key))
 	require.NoError(t, err)
 	return string(b)
 }
