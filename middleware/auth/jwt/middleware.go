@@ -99,12 +99,29 @@ func keySetForKid(ctx context.Context, jwksURL, kid string) (set jwxk.Set, ok bo
 	}
 	// Record the attempt before fetching, so a failing IdP isn't hammered either.
 	gate.last = time.Now()
-	set, err = _cache.Refresh(ctx, jwksURL)
+	set, err = refreshJWKS(ctx, jwksURL, "unknown kid")
 	if err != nil {
 		return nil, false, err
 	}
 	_, found := set.LookupKeyID(kid)
 	return set, found, nil
+}
+
+// refreshJWKS fetches a JWKS URL now and logs how long that took, and why it was needed. Fetches are rare (a
+// first load, or a key rollover) and a slow or failing IdP is what makes a request slow, so they are worth a
+// log line each.
+func refreshJWKS(ctx context.Context, jwksURL string, reason string) (jwxk.Set, error) {
+	started := time.Now()
+	set, err := _cache.Refresh(ctx, jwksURL)
+	took := time.Since(started)
+	if err != nil {
+		zerolog.Ctx(ctx).Warn().Err(err).Str("jwks_url", jwksURL).Str("reason", reason).Dur("took", took).
+			Msg("JWKS fetch failed")
+		return nil, err
+	}
+	zerolog.Ctx(ctx).Info().Str("jwks_url", jwksURL).Str("reason", reason).Int("keys", set.Len()).Dur("took", took).
+		Msg("JWKS fetched")
+	return set, nil
 }
 
 func init() {
@@ -481,23 +498,23 @@ func checkAudienceMatch(token jwxt.Token, expectedAudience string) bool {
 	return false
 }
 
-// firstLoadWait is how long a request waits for a JWKS URL's first fetch, which Register started in the
-// background, before it fetches the keys itself.
+// firstLoadWait is the longest a request waits for a first fetch that is still running before it fetches the
+// keys itself.
 const firstLoadWait = 2 * time.Second
 
 // loadKeySet returns the key set of a JWKS URL that has not been fetched yet.
 //
-// It first waits for the first fetch that Register started in the background. It waits instead of
-// forcing a refresh straight away: that would fetch a second time on top of the in-flight first fetch,
-// and httprc (3.0.6) deadlocks when more concurrent refreshes arrive than it has workers, which a burst
-// of first requests would cause.
+// If the first fetch that Register started in the background is still running, it waits for it (up to
+// firstLoadWait) instead of forcing a refresh on top of it: a second fetch would be wasted, and httprc
+// (3.0.6) deadlocks when more concurrent refreshes arrive than it has workers, which a burst of first
+// requests would cause.
 //
-// If that first fetch has not produced keys by then it failed, and the cache's own retry is minutes
-// away. The usual cause is the JWKS URL being served by this very process (the issuer is the server's
-// own token service, for example), which is not listening yet when Register runs at startup. Waiting
-// longer would never help, so the keys are fetched again here, one request at a time per URL (the gate
-// serialises them, which also keeps the refreshes below httprc's worker count) and at most once per
-// minimum refresh interval. Requests that arrive in between fail at once instead of each waiting.
+// If that fetch is not running, it already failed, and the cache's own retry is minutes away. The usual
+// cause is the JWKS URL being served by this very process (the issuer is the server's own token service,
+// for example), which is not listening yet when Register runs at startup. Waiting would never help, so the
+// keys are fetched here straight away, one request at a time per URL (the gate serialises them, which also
+// keeps the refreshes below httprc's worker count) and at most once per minimum refresh interval.
+// Requests that arrive in between fail at once instead of each waiting.
 func loadKeySet(ctx context.Context, jwksURL string, gate *jwksRefreshGate) (jwxk.Set, error) {
 	r, err := _cache.LookupResource(ctx, jwksURL)
 	if err != nil {
@@ -515,10 +532,16 @@ func loadKeySet(ctx context.Context, jwksURL string, gate *jwksRefreshGate) (jwx
 		return nil, fmt.Errorf("the keys at %s are not available (the last attempt to fetch them failed)", jwksURL)
 	}
 
-	waitCtx, cancel := context.WithTimeout(ctx, firstLoadWait)
-	defer cancel()
-	if err := r.Ready(waitCtx); err == nil {
-		return _cache.Lookup(ctx, jwksURL)
+	if r.IsBusy() {
+		waitStarted := time.Now()
+		waitCtx, cancel := context.WithTimeout(ctx, firstLoadWait)
+		err := r.Ready(waitCtx)
+		cancel()
+		zerolog.Ctx(ctx).Debug().Str("jwks_url", jwksURL).Bool("ready", err == nil).Dur("waited", time.Since(waitStarted)).
+			Msg("waited for the first JWKS fetch")
+		if err == nil {
+			return _cache.Lookup(ctx, jwksURL)
+		}
 	}
 
 	gate.mu.Lock()
@@ -528,8 +551,8 @@ func loadKeySet(ctx context.Context, jwksURL string, gate *jwksRefreshGate) (jwx
 		return set, nil
 	}
 	if !gate.last.IsZero() && time.Since(gate.last) < time.Duration(_minJWKSRefreshInterval.Load()) {
-		return nil, fmt.Errorf("the keys at %s are not available (the last attempt to fetch them failed %s ago)", jwksURL, time.Since(gate.last).Round(time.Second))
+		return nil, fmt.Errorf("the keys at %s are not available (the last attempt to fetch them failed)", jwksURL)
 	}
 	gate.last = time.Now()
-	return _cache.Refresh(ctx, jwksURL)
+	return refreshJWKS(ctx, jwksURL, "first load")
 }
