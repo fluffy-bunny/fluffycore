@@ -127,9 +127,16 @@ func AddValidators(builder di.ContainerBuilder, config *fluffycore_contracts_mid
 		}
 
 		_issuerConfigs[issuerConfig.OAuth2Config.Issuer] = dst
-		// Don't block startup on the first fetch (v2 fetched lazily); keySetForKid fetches on demand.
-		if err := _cache.Register(context.Background(), issuerConfig.OAuth2Config.JWKSUrl, jwkfetch.WithWaitReady(false)); err != nil {
-			panic(err)
+		// Several issuers can share one JWKS URL (for example the same server reached under two names, each
+		// name being its own issuer), and AddValidators can be called again for the same URL. The cache is keyed
+		// by URL and refuses a second registration, so register each URL once. Each issuer still gets its own
+		// validator below.
+		jwksURL := issuerConfig.OAuth2Config.JWKSUrl
+		if !_cache.IsRegistered(context.Background(), jwksURL) {
+			// Don't block startup on the first fetch (v2 fetched lazily); keySetForKid fetches on demand.
+			if err := _cache.Register(context.Background(), jwksURL, jwkfetch.WithWaitReady(false)); err != nil {
+				panic(err)
+			}
 		}
 		// STOP: we want multiple validators even though it looks like we are adding the same one over and over.
 		// each validator targets a specific issuer.
