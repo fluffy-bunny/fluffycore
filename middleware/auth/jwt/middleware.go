@@ -2,6 +2,7 @@ package jwt
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -75,7 +76,7 @@ func keySetForKid(ctx context.Context, jwksURL, kid string) (set jwxk.Set, ok bo
 	set, err = _cache.Lookup(ctx, jwksURL)
 	if err != nil {
 		// Not fetched yet (the URL is registered without waiting).
-		if set, err = loadKeySet(ctx, jwksURL); err != nil {
+		if set, err = loadKeySet(ctx, jwksURL, gate); err != nil {
 			return nil, false, err
 		}
 	}
@@ -480,22 +481,55 @@ func checkAudienceMatch(token jwxt.Token, expectedAudience string) bool {
 	return false
 }
 
-// firstLoadTimeout bounds how long a request waits for a JWKS URL's first fetch.
-const firstLoadTimeout = 10 * time.Second
+// firstLoadWait is how long a request waits for a JWKS URL's first fetch, which Register started in the
+// background, before it fetches the keys itself.
+const firstLoadWait = 2 * time.Second
 
-// loadKeySet waits for a JWKS URL's first fetch, which Register started in the background.
-// It waits instead of forcing a refresh: that would fetch a second time on top of the
-// in-flight first fetch, and httprc (3.0.6) deadlocks when more concurrent refreshes arrive
-// than it has workers, which a burst of first requests would cause.
-func loadKeySet(ctx context.Context, jwksURL string) (jwxk.Set, error) {
+// loadKeySet returns the key set of a JWKS URL that has not been fetched yet.
+//
+// It first waits for the first fetch that Register started in the background. It waits instead of
+// forcing a refresh straight away: that would fetch a second time on top of the in-flight first fetch,
+// and httprc (3.0.6) deadlocks when more concurrent refreshes arrive than it has workers, which a burst
+// of first requests would cause.
+//
+// If that first fetch has not produced keys by then it failed, and the cache's own retry is minutes
+// away. The usual cause is the JWKS URL being served by this very process (the issuer is the server's
+// own token service, for example), which is not listening yet when Register runs at startup. Waiting
+// longer would never help, so the keys are fetched again here, one request at a time per URL (the gate
+// serialises them, which also keeps the refreshes below httprc's worker count) and at most once per
+// minimum refresh interval. Requests that arrive in between fail at once instead of each waiting.
+func loadKeySet(ctx context.Context, jwksURL string, gate *jwksRefreshGate) (jwxk.Set, error) {
 	r, err := _cache.LookupResource(ctx, jwksURL)
 	if err != nil {
 		return nil, err
 	}
-	waitCtx, cancel := context.WithTimeout(ctx, firstLoadTimeout)
-	defer cancel()
-	if err := r.Ready(waitCtx); err != nil {
-		return nil, err
+
+	// A fetch already failed a moment ago: don't make every request wait through it again.
+	gate.mu.Lock()
+	recentlyFailed := !gate.last.IsZero() && time.Since(gate.last) < time.Duration(_minJWKSRefreshInterval.Load())
+	gate.mu.Unlock()
+	if recentlyFailed {
+		if set, err := _cache.Lookup(ctx, jwksURL); err == nil {
+			return set, nil
+		}
+		return nil, fmt.Errorf("the keys at %s are not available (the last attempt to fetch them failed)", jwksURL)
 	}
-	return _cache.Lookup(ctx, jwksURL)
+
+	waitCtx, cancel := context.WithTimeout(ctx, firstLoadWait)
+	defer cancel()
+	if err := r.Ready(waitCtx); err == nil {
+		return _cache.Lookup(ctx, jwksURL)
+	}
+
+	gate.mu.Lock()
+	defer gate.mu.Unlock()
+	// another request may have loaded it while this one waited for the gate
+	if set, err := _cache.Lookup(ctx, jwksURL); err == nil {
+		return set, nil
+	}
+	if !gate.last.IsZero() && time.Since(gate.last) < time.Duration(_minJWKSRefreshInterval.Load()) {
+		return nil, fmt.Errorf("the keys at %s are not available (the last attempt to fetch them failed %s ago)", jwksURL, time.Since(gate.last).Round(time.Second))
+	}
+	gate.last = time.Now()
+	return _cache.Refresh(ctx, jwksURL)
 }
