@@ -1,0 +1,1188 @@
+[
+  {
+    "coverage_id": "middleware%2Fauth%2Fjwt%2Fmiddleware.go%23UnaryServerInterceptor%2CStreamServerInterceptor%20%28authorization%20metadata%29::middleware%2Fauth%2Fjwt%2Fmiddleware.go%23ValidateAccessToken::profile%2Fquick%2Fall-in-scope-subsystems::WEB-PROTOCOL-AND-AUTH.md%23JWT%20verification%20and%20claim%20binding",
+    "canonical_refs": {
+      "surface": "middleware/auth/jwt/middleware.go#UnaryServerInterceptor,StreamServerInterceptor (authorization metadata)",
+      "boundary": "middleware/auth/jwt/middleware.go#ValidateAccessToken",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "WEB-PROTOCOL-AND-AUTH.md#JWT verification and claim binding"
+    },
+    "surface": "middleware/auth/jwt/middleware.go#UnaryServerInterceptor,StreamServerInterceptor (authorization metadata)",
+    "boundary": "middleware/auth/jwt/middleware.go#ValidateAccessToken",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "JWT verification and claim binding",
+    "starting_paths": [
+      "middleware/auth/jwt/middleware.go",
+      "middleware/auth/jwt/jwt_token.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#JWT verification and claim binding",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h1-jwt",
+    "reviewed_paths": [
+      "middleware/auth/jwt/middleware.go",
+      "middleware/auth/jwt/jwt_token.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h1-jwt",
+        "reviewed_paths": [
+          "middleware/auth/jwt/middleware.go"
+        ],
+        "invariant": "Claims acted on are the claims covered by a verified signature from the issuer-selected key set",
+        "method": "source",
+        "result": "getRawToken parses the unverified payload; ValidateAccessToken then runs jws.Verify over the same raw string with the issuer's JWKS and validates claims on that same parsed token, so verify and parse cannot diverge. kid/iss only select the validator and server-configured JWKS URL. alg is not pinned in this code; jwx binds verification to key type (library behaviour needs an execution check).",
+        "artifact": null
+      },
+      {
+        "agent_id": "h1-jwt",
+        "reviewed_paths": [
+          "middleware/auth/jwt/middleware.go"
+        ],
+        "invariant": "Issuer, expiry/nbf and audience are enforced per validator",
+        "method": "source",
+        "result": "Issuer matched against config; mismatch returns handled=false and no handler means Unauthenticated. jwxt.Validate enforces exp/nbf/iat with 5m skew; it does not require exp. Audience enforced only when configured and '*' disables it (deployment config).",
+        "artifact": null
+      },
+      {
+        "agent_id": "h1-jwt",
+        "reviewed_paths": [
+          "middleware/auth/jwt/jwt_token.go",
+          "middleware/auth/jwt/middleware.go"
+        ],
+        "invariant": "A token must not override trusted principal claims",
+        "method": "source",
+        "result": "privateClaims strips iss/sub/aud/exp/nbf/iat/jti; sub re-added from the verified subject; mtls_* claims stripped on unary and stream paths. No override path found.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "ValidateAccessToken takes the JWKS URL from the global _issuerConfigs[issuer] but audiences from s.config; two configs with the same issuer string would mix them. Use s.config.OAuth2Config.JWKSUrl.",
+      "Configured issuer is not lowercased while the token iss is; mixed-case config fails closed. Normalize both.",
+      "jwxt.Validate does not require exp: a signed token without exp never expires. Add WithRequiredClaim(exp) or document.",
+      "Audience check skipped when Audiences is empty or contains '*'.",
+      "Claim-validation failure message says 'token signature not valid'.",
+      "codes.NotFound is the 'no token' sentinel and could collide with a custom IValidator returning NotFound.",
+      "Unary interceptor does not nil-check the scoped container (stream does).",
+      "_issuerConfigs is an unlocked global map; safe only if all AddValidators calls finish before serving.",
+      "Signatures()[0] used for kid while jws.Verify accepts any signature; not exploitable."
+    ]
+  },
+  {
+    "coverage_id": "middleware%2Fauth%2Fjwt%2Fmiddleware.go%23UnaryServerInterceptor%2CStreamServerInterceptor%20%28authorization%20metadata%29::middleware%2Fauth%2Fjwt%2Fmiddleware.go%23_validate::profile%2Fquick%2Fall-in-scope-subsystems::PROTOCOLS-RPC-AND-MESSAGING.md%23Interceptor%20and%20method-path%20inconsistency",
+    "canonical_refs": {
+      "surface": "middleware/auth/jwt/middleware.go#UnaryServerInterceptor,StreamServerInterceptor (authorization metadata)",
+      "boundary": "middleware/auth/jwt/middleware.go#_validate",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "PROTOCOLS-RPC-AND-MESSAGING.md#Interceptor and method-path inconsistency"
+    },
+    "surface": "middleware/auth/jwt/middleware.go#UnaryServerInterceptor,StreamServerInterceptor (authorization metadata)",
+    "boundary": "middleware/auth/jwt/middleware.go#_validate",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Interceptor and method-path inconsistency",
+    "starting_paths": [
+      "middleware/auth/jwt/middleware.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Interceptor and method-path inconsistency",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Core discipline",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Universal moves",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h1-jwt",
+    "reviewed_paths": [
+      "middleware/auth/jwt/middleware.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h1-jwt",
+        "reviewed_paths": [
+          "middleware/auth/jwt/middleware.go"
+        ],
+        "invariant": "Unary and stream interceptors apply equivalent authentication; anonymous fallback only for an absent header",
+        "method": "source",
+        "result": "Both call the same _validate with the same fallbacks (anonymous on NotFound or WithAnonymousOnFailure, else reject). Claim copy is identical. In-repo IValidators never return NotFound. Only authorization[0] is read; malformed or non-Bearer gives Unauthenticated.",
+        "artifact": null
+      },
+      {
+        "agent_id": "h1-jwt",
+        "reviewed_paths": [
+          "middleware/auth/jwt/middleware.go"
+        ],
+        "invariant": "Validator ordering cannot let an unvalidated token be accepted",
+        "method": "source",
+        "result": "First handled=true validator decides; non-matching issuer falls through; no match gives Unauthenticated. The only unconditional accept is the opt-in AddNilValidator, which still requires a parseable JWS with kid and iss.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": []
+  },
+  {
+    "coverage_id": "middleware%2Fauth%2Fjwt%2Fmiddleware.go%23claims%20to%20IClaimsPrincipal%20%28claims%20gate%20input%29::services%2Fcommon%2Fclaimsprincipal%2Fclaimsprincipal.go%23AddClaim::profile%2Fquick%2Fall-in-scope-subsystems::PROTOCOLS-RPC-AND-MESSAGING.md%23Peer%20identity%20to%20application-principal%20confusion",
+    "canonical_refs": {
+      "surface": "middleware/auth/jwt/middleware.go#claims to IClaimsPrincipal (claims gate input)",
+      "boundary": "services/common/claimsprincipal/claimsprincipal.go#AddClaim",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "PROTOCOLS-RPC-AND-MESSAGING.md#Peer identity to application-principal confusion"
+    },
+    "surface": "middleware/auth/jwt/middleware.go#claims to IClaimsPrincipal (claims gate input)",
+    "boundary": "services/common/claimsprincipal/claimsprincipal.go#AddClaim",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Peer identity to application-principal confusion",
+    "starting_paths": [
+      "middleware/auth/jwt/middleware.go",
+      "middleware/auth/jwt/jwt_token.go",
+      "services/common/claimsprincipal/claimsprincipal.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Peer identity to application-principal confusion",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Core discipline",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Universal moves",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "No quota/availability boundary in this unit."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "deferred",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [
+      "Critic: no hunter read how verified/anonymous claims merge onto the principal (AddClaim merges by type+value) or which claim types the out-of-scope claims gate trusts; interceptor chain order decides prior principal state. quick_profile_final_critic"
+    ]
+  },
+  {
+    "coverage_id": "middleware%2Fauth%2Fjwt%2Fmiddleware.go%23keySetForKid%20%28JWKS%20fetch%20and%20refresh%29::middleware%2Fauth%2Fjwt%2Fmiddleware.go%23jwksRefreshGate::profile%2Fquick%2Fall-in-scope-subsystems::WEB-PROTOCOL-AND-AUTH.md%23JWT%20verification%20and%20claim%20binding",
+    "canonical_refs": {
+      "surface": "middleware/auth/jwt/middleware.go#keySetForKid (JWKS fetch and refresh)",
+      "boundary": "middleware/auth/jwt/middleware.go#jwksRefreshGate",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "WEB-PROTOCOL-AND-AUTH.md#JWT verification and claim binding"
+    },
+    "surface": "middleware/auth/jwt/middleware.go#keySetForKid (JWKS fetch and refresh)",
+    "boundary": "middleware/auth/jwt/middleware.go#jwksRefreshGate",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "JWT verification and claim binding",
+    "starting_paths": [
+      "middleware/auth/jwt/middleware.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#JWT verification and claim binding",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h2-jwks-keymat",
+    "reviewed_paths": [
+      "middleware/auth/jwt/middleware.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h2-jwks-keymat",
+        "reviewed_paths": [
+          "middleware/auth/jwt/middleware.go"
+        ],
+        "invariant": "Unauthenticated callers cannot drive JWKS fetches beyond the per-URL gate or choose the JWKS URL",
+        "method": "source",
+        "result": "JWKS URL comes only from server config after an exact issuer match; kid only selects within the fetched set; jku/x5u never read. At most one forced refresh per URL per interval; gate.last is stamped before the fetch so failures are rate-limited; loadKeySet waits for the first fetch rather than refreshing.",
+        "artifact": null
+      },
+      {
+        "agent_id": "h2-jwks-keymat",
+        "reviewed_paths": [
+          "middleware/auth/jwt/middleware.go"
+        ],
+        "invariant": "Signature verification uses the server-fetched key set and claims are bound to verified bytes",
+        "method": "source",
+        "result": "jws.Verify runs on the same raw string with WithKeySet(issuer JWKS); compact payload and verified bytes are identical. alg not pinned in code; relies on jwx v4 behaviour.",
+        "artifact": null
+      },
+      {
+        "agent_id": "h2-jwks-keymat",
+        "reviewed_paths": [
+          "middleware/auth/jwt/middleware.go"
+        ],
+        "invariant": "Failure and concurrency paths do not fall back to accepting a token",
+        "method": "source",
+        "result": "Refresh error returns handled=true with Unauthenticated; unknown kid after refresh returns 'no keys found'; gate.mu serialises callers with a correct double-check.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "JWKS refresh errors are returned verbatim to unauthenticated callers ('jwks fetch error: %v'), disclosing the internal JWKS URL and network error text.",
+      "keySetForKid holds gate.mu during a network refresh and Mutex.Lock ignores ctx; unknown-kid callers queue behind a slow IdP (availability only)."
+    ]
+  },
+  {
+    "coverage_id": "middleware%2Fauth%2Fmtls%2Fmtls.go%23UnaryServerInterceptor%2CStreamServerInterceptor%20%28peer%20certificate%29::middleware%2Fauth%2Fmtls%2Fmtls.go%23VerifiedChains::profile%2Fquick%2Fall-in-scope-subsystems::WEB-PROTOCOL-AND-AUTH.md%23mTLS%20peer%20and%20application-identity%20confusion",
+    "canonical_refs": {
+      "surface": "middleware/auth/mtls/mtls.go#UnaryServerInterceptor,StreamServerInterceptor (peer certificate)",
+      "boundary": "middleware/auth/mtls/mtls.go#VerifiedChains",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "WEB-PROTOCOL-AND-AUTH.md#mTLS peer and application-identity confusion"
+    },
+    "surface": "middleware/auth/mtls/mtls.go#UnaryServerInterceptor,StreamServerInterceptor (peer certificate)",
+    "boundary": "middleware/auth/mtls/mtls.go#VerifiedChains",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "mTLS peer and application-identity confusion",
+    "starting_paths": [
+      "middleware/auth/mtls/mtls.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#mTLS peer and application-identity confusion",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h4-mtls",
+    "reviewed_paths": [
+      "middleware/auth/mtls/mtls.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h4-mtls",
+        "reviewed_paths": [
+          "middleware/auth/mtls/mtls.go"
+        ],
+        "invariant": "mtls_* claims issued only when the TLS stack cryptographically verified the client certificate",
+        "method": "source",
+        "result": "verifiedClientCert requires non-empty VerifiedChains from TLSInfo (never PeerCertificates) and uses the leaf; claims come from connection state, not headers or metadata. servertls refuses verify modes without a client CA so the OS root store is never used. The interceptor never rejects by design; enforcement is the claims gate (out of scope).",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "Default mode with a CA is verify_if_given and the mtls interceptor never rejects; a missing per-method mtls_verified requirement leaves the method open to cert-less clients.",
+      "mtls interceptor silently no-ops when the scoped container is missing.",
+      "Authorization on CN alone is weak if the client CA issues for multiple trust domains; prefer fingerprint or SAN URI."
+    ]
+  },
+  {
+    "coverage_id": "middleware%2Fauth%2Freferencetoken%2Freferencetoken.go%23UnaryServerInterceptor%2CStreamServerInterceptor%20%28reference%20token%20resolution%29::middleware%2Fauth%2Freferencetoken%2Freferencetoken.go%23resolveViaResolvers::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "middleware/auth/referencetoken/referencetoken.go#UnaryServerInterceptor,StreamServerInterceptor (reference token resolution)",
+      "boundary": "middleware/auth/referencetoken/referencetoken.go#resolveViaResolvers",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "middleware/auth/referencetoken/referencetoken.go#UnaryServerInterceptor,StreamServerInterceptor (reference token resolution)",
+    "boundary": "middleware/auth/referencetoken/referencetoken.go#resolveViaResolvers",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "middleware/auth/referencetoken/referencetoken.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [
+      {
+        "wave": 1,
+        "status": "covered",
+        "agent_id": "h3-reftoken",
+        "reviewed_paths": [
+          "middleware/auth/referencetoken/referencetoken.go",
+          "middleware/auth/jwt/middleware.go",
+          "services/common/claimsprincipal/claimsprincipal.go"
+        ],
+        "local_checks": [
+          {
+            "agent_id": "h3-reftoken",
+            "reviewed_paths": [
+              "middleware/auth/referencetoken/referencetoken.go"
+            ],
+            "invariant": "An opaque token is accepted only if a registered resolver claims it; unary and stream behave the same",
+            "method": "source",
+            "result": "First handled=true resolver wins; an error aborts the request (fail-closed, no fall-through); no match gives Unauthenticated; unary and stream share engine.resolve. A ResolvedKindJWT result is re-validated by the JWT interceptor; outcomeDirect (cache hit or claims-principal resolver) skips JWT validation by design. Resolver error is returned raw.",
+            "artifact": null
+          },
+          {
+            "agent_id": "h3-reftoken",
+            "reviewed_paths": [
+              "middleware/auth/referencetoken/referencetoken.go",
+              "middleware/auth/jwt/middleware.go",
+              "services/common/claimsprincipal/claimsprincipal.go"
+            ],
+            "invariant": "Routing and the JWT path agree on which token is credentialed; tokens cannot assert reserved mtls_* claims",
+            "method": "source",
+            "result": "Both read only authorization[0]; detection by KnownPrefixes or two-dot heuristic; resolver claims and cached claims pass through WithoutReservedMTLSClaims.",
+            "artifact": null
+          }
+        ],
+        "result_fingerprints": [],
+        "unresolved": [],
+        "reassignment_reason": "Critic: resolver DI wiring and the direct-claims path (no sub/issuer requirement) were not reviewed."
+      }
+    ],
+    "wave": 2,
+    "status": "deferred",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [
+      "quick_profile_final_critic"
+    ],
+    "hardening_prior_wave": [
+      "Resolver errors reach the client as codes.Unknown with the error text.",
+      "Cache hit calls the handler with no JWT re-validation; a shared or writable cache backend becomes an authority to mint claims.",
+      "loadResolvers uses a package-level sync.Once so the first root container's resolvers serve all engines."
+    ]
+  },
+  {
+    "coverage_id": "middleware%2Fauth%2Freferencetoken%2Freferencetoken.go%23cacheResolvedClaims::middleware%2Fauth%2Freferencetoken%2Freferencetoken.go%23cacheKey::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Business%20logic",
+    "canonical_refs": {
+      "surface": "middleware/auth/referencetoken/referencetoken.go#cacheResolvedClaims",
+      "boundary": "middleware/auth/referencetoken/referencetoken.go#cacheKey",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Business logic"
+    },
+    "surface": "middleware/auth/referencetoken/referencetoken.go#cacheResolvedClaims",
+    "boundary": "middleware/auth/referencetoken/referencetoken.go#cacheKey",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Business logic",
+    "starting_paths": [
+      "middleware/auth/referencetoken/referencetoken.go",
+      "services/common/cache/inmemory.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Business logic",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [
+      {
+        "wave": 1,
+        "status": "covered",
+        "agent_id": "h3-reftoken",
+        "reviewed_paths": [
+          "middleware/auth/referencetoken/referencetoken.go",
+          "services/common/claimsprincipal/claimsprincipal.go",
+          "services/common/cache/inmemory.go"
+        ],
+        "local_checks": [
+          {
+            "agent_id": "h3-reftoken",
+            "reviewed_paths": [
+              "middleware/auth/referencetoken/referencetoken.go",
+              "services/common/claimsprincipal/claimsprincipal.go"
+            ],
+            "invariant": "Cache key binds to the exact token and only claims the token's validation contributed are cached and replayed",
+            "method": "source",
+            "result": "Key is prefix plus hex sha256(raw token); unary and stream snapshot claims at the JWT handoff, cache the diff, and strip mtls_*; nothing cached when handoff is not reached; cached claims copied by value.",
+            "artifact": null
+          },
+          {
+            "agent_id": "h3-reftoken",
+            "reviewed_paths": [
+              "services/common/cache/inmemory.go",
+              "middleware/auth/referencetoken/referencetoken.go"
+            ],
+            "invariant": "Cache TTL is absolute so a revoked or expired token does not keep authenticating through repeated hits",
+            "method": "source",
+            "result": "SkipTTLExtensionOnHit(true) and dropExpired give an absolute TTL; revocation latency is bounded by resolver TTL or the 5-minute default. TTL is not capped by the resolved JWT's exp.",
+            "artifact": null
+          }
+        ],
+        "result_fingerprints": [],
+        "unresolved": [],
+        "reassignment_reason": "Critic: cache capture on anonymous-fallback branches and the direct-claims path were not checked; re-pass with the composition in mind."
+      }
+    ],
+    "wave": 2,
+    "status": "deferred",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [
+      "quick_profile_final_critic"
+    ],
+    "hardening_prior_wave": [
+      "Cache TTL is never capped by the resolved JWT's exp: a JWT-kind reference token keeps authenticating from cache until the TTL ends. Cap at min(ttl, exp-now)."
+    ]
+  },
+  {
+    "coverage_id": "middleware%2Fauth%2Freferencetoken%2Freferencetoken.go%23handoff%20to%20jwt%20interceptor%20%28outcomeDelegateToJWT%2CoutcomeDirect%29::middleware%2Fauth%2Fjwt%2Fmiddleware.go%23_validate%20anonymous%20fallbacks::profile%2Fquick%2Fall-in-scope-subsystems::PROTOCOLS-RPC-AND-MESSAGING.md%23Interceptor%20and%20method-path%20inconsistency",
+    "canonical_refs": {
+      "surface": "middleware/auth/referencetoken/referencetoken.go#handoff to jwt interceptor (outcomeDelegateToJWT,outcomeDirect)",
+      "boundary": "middleware/auth/jwt/middleware.go#_validate anonymous fallbacks",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "PROTOCOLS-RPC-AND-MESSAGING.md#Interceptor and method-path inconsistency"
+    },
+    "surface": "middleware/auth/referencetoken/referencetoken.go#handoff to jwt interceptor (outcomeDelegateToJWT,outcomeDirect)",
+    "boundary": "middleware/auth/jwt/middleware.go#_validate anonymous fallbacks",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Interceptor and method-path inconsistency",
+    "starting_paths": [
+      "middleware/auth/referencetoken/referencetoken.go",
+      "middleware/auth/jwt/middleware.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Interceptor and method-path inconsistency",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Core discipline",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Universal moves",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "No quota/availability boundary in this unit."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "deferred",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [
+      "Critic: the capture hook also runs on the WithAnonymousOnFailure/NotFound branches, so a sub=anonymous principal might be cached as the token's claims; resolver DI wiring (loadResolvers sync.Once, empty []IResolver) has no unit. quick_profile_final_critic"
+    ]
+  },
+  {
+    "coverage_id": "nats%2Fclient%2Fclient.go%23createNATSRequestHeaders%20%28outbound%20gRPC%20metadata%20to%20NATS%20headers%29::nats%2Fclient%2Fclient.go%23WithTokenSource::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "canonical_refs": {
+      "surface": "nats/client/client.go#createNATSRequestHeaders (outbound gRPC metadata to NATS headers)",
+      "boundary": "nats/client/client.go#WithTokenSource",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Cryptography and secrets"
+    },
+    "surface": "nats/client/client.go#createNATSRequestHeaders (outbound gRPC metadata to NATS headers)",
+    "boundary": "nats/client/client.go#WithTokenSource",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "nats/client/client.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h6-nats-client-token-cache",
+    "reviewed_paths": [
+      "nats/client/client.go",
+      "wellknown/headers.go",
+      "nats/nats_micro_service/nats_micro_service.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h6-nats-client-token-cache",
+        "reviewed_paths": [
+          "nats/client/client.go",
+          "wellknown/headers.go",
+          "nats/nats_micro_service/nats_micro_service.go"
+        ],
+        "invariant": "Token-source bearer is attached on every request; token failure does not fall back to unauthenticated send; secrets are not logged",
+        "method": "source",
+        "result": "Token() error returns early (no fail-open); token only goes into NATS headers. Lowercase 'authorization' from metadata and canonical 'Authorization' from Set can coexist, so the override is not deterministic, but only the caller itself can plant the competing value (same principal).",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "createNATSRequestHeaders: delete case-variant 'authorization' before setting the token-source header and copy value slices."
+    ]
+  },
+  {
+    "coverage_id": "nats%2Fnats_micro_service%2Ferrors.go%23respondError%2CstatusFromNATSResponse::nats%2Fnats_micro_service%2Ferrors.go%23headerSafe::profile%2Fquick%2Fall-in-scope-subsystems::PROTOCOLS-RPC-AND-MESSAGING.md%23Dead-letter%2C%20retry%2C%20and%20diagnostic%20disclosure",
+    "canonical_refs": {
+      "surface": "nats/nats_micro_service/errors.go#respondError,statusFromNATSResponse",
+      "boundary": "nats/nats_micro_service/errors.go#headerSafe",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "PROTOCOLS-RPC-AND-MESSAGING.md#Dead-letter, retry, and diagnostic disclosure"
+    },
+    "surface": "nats/nats_micro_service/errors.go#respondError,statusFromNATSResponse",
+    "boundary": "nats/nats_micro_service/errors.go#headerSafe",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Dead-letter, retry, and diagnostic disclosure",
+    "starting_paths": [
+      "nats/nats_micro_service/errors.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "selected_companion_blocks": [
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Dead-letter, retry, and diagnostic disclosure",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Core discipline",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Universal moves",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h5-nats-in",
+    "reviewed_paths": [
+      "nats/nats_micro_service/errors.go",
+      "nats/nats_micro_service/nats_micro_service.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h5-nats-in",
+        "reviewed_paths": [
+          "nats/nats_micro_service/errors.go",
+          "nats/nats_micro_service/nats_micro_service.go"
+        ],
+        "invariant": "Failure replies must not leak more than the caller's gRPC status, must not allow header injection, and client-side parsing must fail safe",
+        "method": "source",
+        "result": "respondError strips CR/LF and puts code/message only in reply headers; the panic path returns a generic message and logs server-side; statusFromNATSResponse bounds the gRPC code to 1..16 with an HTTP-code fallback. A spoofed responder can only choose a status (NATS ACL boundary). No retry or dead-letter path in scope.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "respondError echoes service error text to NATS requesters; redact Internal/Unknown like the panic path."
+    ]
+  },
+  {
+    "coverage_id": "nats%2Fnats_micro_service%2Fnats_micro_service.go%23HandleRequest%20%28NATS%20headers%20to%20gRPC%20metadata%29::nats%2Fnats_micro_service%2Fnats_micro_service.go%23Register%20%28gRPC%20client%20connection%29::profile%2Fquick%2Fall-in-scope-subsystems::PROTOCOLS-RPC-AND-MESSAGING.md%23Peer%20identity%20to%20application-principal%20confusion",
+    "canonical_refs": {
+      "surface": "nats/nats_micro_service/nats_micro_service.go#HandleRequest (NATS headers to gRPC metadata)",
+      "boundary": "nats/nats_micro_service/nats_micro_service.go#Register (gRPC client connection)",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "PROTOCOLS-RPC-AND-MESSAGING.md#Peer identity to application-principal confusion"
+    },
+    "surface": "nats/nats_micro_service/nats_micro_service.go#HandleRequest (NATS headers to gRPC metadata)",
+    "boundary": "nats/nats_micro_service/nats_micro_service.go#Register (gRPC client connection)",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Peer identity to application-principal confusion",
+    "starting_paths": [
+      "nats/nats_micro_service/nats_micro_service.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Peer identity to application-principal confusion",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Core discipline",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Universal moves",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h5-nats-in",
+    "reviewed_paths": [
+      "nats/nats_micro_service/nats_micro_service.go",
+      "proto/helloworld/helloworld_fluffycore_nats.pb.go",
+      "runtime/nats.go",
+      "runtime/runtime.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h5-nats-in",
+        "reviewed_paths": [
+          "nats/nats_micro_service/nats_micro_service.go",
+          "proto/helloworld/helloworld_fluffycore_nats.pb.go",
+          "runtime/nats.go",
+          "runtime/runtime.go"
+        ],
+        "invariant": "A NATS publisher must not become an application principal without passing the same authentication chain as a gRPC caller",
+        "method": "source",
+        "result": "HandleRequest copies NATS headers (including Authorization) into outgoing gRPC metadata; the generated handler calls the *grpc.ClientConn that runtime/runtime.go dials to the service's own endpoint, so the call re-enters the server interceptor chain and the bearer in the NATS header is what gets validated. No NATS-only bypass; the loopback presents no client cert so mtls_* claims cannot be forged. Whether the dialed endpoint has the interceptors, and NATS ACLs, are deployment facts.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "HandleRequest copies every NATS header into gRPC metadata; allow-list instead.",
+      "HandleRequest uses context.Background() with no deadline."
+    ]
+  },
+  {
+    "coverage_id": "nats%2Fnats_micro_service%2Fnats_micro_service.go%23InjectParameterizedRoutesIntoProtoMessage%20%28subject%20to%20proto%20fields%29::nats%2Fnats_micro_service%2Fnats_micro_service.go%23ExtractRouteParams::profile%2Fquick%2Fall-in-scope-subsystems::PROTOCOLS-RPC-AND-MESSAGING.md%23Topic%2C%20routing-key%2C%20and%20subscription%20scope%20gaps",
+    "canonical_refs": {
+      "surface": "nats/nats_micro_service/nats_micro_service.go#InjectParameterizedRoutesIntoProtoMessage (subject to proto fields)",
+      "boundary": "nats/nats_micro_service/nats_micro_service.go#ExtractRouteParams",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "PROTOCOLS-RPC-AND-MESSAGING.md#Topic, routing-key, and subscription scope gaps"
+    },
+    "surface": "nats/nats_micro_service/nats_micro_service.go#InjectParameterizedRoutesIntoProtoMessage (subject to proto fields)",
+    "boundary": "nats/nats_micro_service/nats_micro_service.go#ExtractRouteParams",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Topic, routing-key, and subscription scope gaps",
+    "starting_paths": [
+      "nats/nats_micro_service/nats_micro_service.go",
+      "nats/nats_micro_service/errors.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Topic, routing-key, and subscription scope gaps",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Core discipline",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Universal moves",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h5-nats-in",
+    "reviewed_paths": [
+      "nats/nats_micro_service/nats_micro_service.go",
+      "nats/nats_micro_service/errors.go",
+      "proto/helloworld/helloworld_fluffycore_nats.pb.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h5-nats-in",
+        "reviewed_paths": [
+          "nats/nats_micro_service/nats_micro_service.go",
+          "nats/nats_micro_service/errors.go",
+          "proto/helloworld/helloworld_fluffycore_nats.pb.go"
+        ],
+        "invariant": "Subject-derived route parameters override body values and tokenization cannot misalign tokens or reach another handler/tenant",
+        "method": "source",
+        "result": "Subscription filter fixes the token count; ExtractRouteParams rejects count or static-token mismatch; the brace-depth tokenizer can only merge tokens; values go through jsonpath.Set and a full protojson re-parse so they cannot break out of the field; paths come from the generated template. Subject value overrides body for string/numeric fields; tenant authority rests on subject plus NATS ACL (not source-visible).",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "validateSubjectToken is not applied to inbound extracted params; handlers can receive '*' or '>' values.",
+      "Inject's switch silently skips a subject param when the JSON value is not string or float64 (bool/list/object), so the body value stays.",
+      "parseTokens uses \\w+ so '-' in a static token splits it (fail-closed); regex recompiled per call."
+    ]
+  },
+  {
+    "coverage_id": "nats%2Fnats_token%2Fconnect.go%23CreateNatsConnectionWithClientCredentials::nats%2Fnats_token%2Fconnect.go%23nats.Connect%20TokenHandler::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "canonical_refs": {
+      "surface": "nats/nats_token/connect.go#CreateNatsConnectionWithClientCredentials",
+      "boundary": "nats/nats_token/connect.go#nats.Connect TokenHandler",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Cryptography and secrets"
+    },
+    "surface": "nats/nats_token/connect.go#CreateNatsConnectionWithClientCredentials",
+    "boundary": "nats/nats_token/connect.go#nats.Connect TokenHandler",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "nats/nats_token/connect.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "No quota/availability boundary in this unit."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "deferred",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [
+      "Critic: only the Decode side was reviewed; the Create/Connect path puts base64 client_id/client_secret in the NATS token with no TLS requirement. quick_profile_final_critic"
+    ]
+  },
+  {
+    "coverage_id": "nats%2Fnats_token%2Fconnect.go%23DecodeNATSConnectTokenClientCredentials::nats%2Fnats_token%2FNATSConnectToken.go%23UnmarshalJSON::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "canonical_refs": {
+      "surface": "nats/nats_token/connect.go#DecodeNATSConnectTokenClientCredentials",
+      "boundary": "nats/nats_token/NATSConnectToken.go#UnmarshalJSON",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Cryptography and secrets"
+    },
+    "surface": "nats/nats_token/connect.go#DecodeNATSConnectTokenClientCredentials",
+    "boundary": "nats/nats_token/NATSConnectToken.go#UnmarshalJSON",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "nats/nats_token/connect.go",
+      "nats/nats_token/NATSConnectToken.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h6-nats-client-token-cache",
+    "reviewed_paths": [
+      "nats/nats_token/connect.go",
+      "nats/nats_token/NATSConnectToken.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h6-nats-client-token-cache",
+        "reviewed_paths": [
+          "nats/nats_token/connect.go",
+          "nats/nats_token/NATSConnectToken.go"
+        ],
+        "invariant": "Decoding yields only a well-typed ClientCredentialsTokenType; malformed input is rejected; no secret leakage in errors",
+        "method": "source",
+        "result": "Base64 then UnmarshalJSON dispatches on token_type with an unknown-type error, then a type assertion. token:null yields a typed nil pointer with nil error, so a caller that dereferences without a nil check would panic (auth callout is out of scope). Errors do not echo secrets; credentials are encoded, not encrypted (relies on NATS TLS).",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "DecodeNATSConnectTokenClientCredentials should return an error when the asserted pointer is nil."
+    ]
+  },
+  {
+    "coverage_id": "runtime%2Fruntime.go%23StartNATSHandlerGateway%20loopback%20connection::protoc-gen-go-fluffycore-di%2Fcmd%2Fprotoc-gen-go-fluffycore-nats%2Fdi.go%23NATS%20handler%20template::profile%2Fquick%2Fall-in-scope-subsystems::PROTOCOLS-RPC-AND-MESSAGING.md%23Interceptor%20and%20method-path%20inconsistency",
+    "canonical_refs": {
+      "surface": "runtime/runtime.go#StartNATSHandlerGateway loopback connection",
+      "boundary": "protoc-gen-go-fluffycore-di/cmd/protoc-gen-go-fluffycore-nats/di.go#NATS handler template",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "PROTOCOLS-RPC-AND-MESSAGING.md#Interceptor and method-path inconsistency"
+    },
+    "surface": "runtime/runtime.go#StartNATSHandlerGateway loopback connection",
+    "boundary": "protoc-gen-go-fluffycore-di/cmd/protoc-gen-go-fluffycore-nats/di.go#NATS handler template",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Interceptor and method-path inconsistency",
+    "starting_paths": [
+      "runtime/runtime.go",
+      "runtime/nats.go",
+      "protoc-gen-go-fluffycore-di/cmd/protoc-gen-go-fluffycore-nats/di.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Interceptor and method-path inconsistency",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Core discipline",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Universal moves",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "No quota/availability boundary in this unit."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "out_of_scope",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [
+      "Critic: hunter h5 relied on the generated handler always calling the loopback gRPC connection but only the checked-in helloworld output was read, not the template; Register<Svc>NATSHandlerClient accepts any client. Paths are outside the scoped run. quick_profile_final_critic"
+    ]
+  },
+  {
+    "coverage_id": "runtime%2Fservertls%2Fservertls.go%23BuildServerTLSConfig%20%28client%20certificate%20handshake%29::runtime%2Fservertls%2Fservertls.go%23reloadingCertificate::profile%2Fquick%2Fall-in-scope-subsystems::WEB-PROTOCOL-AND-AUTH.md%23Certificate%20lifecycle%20fallback",
+    "canonical_refs": {
+      "surface": "runtime/servertls/servertls.go#BuildServerTLSConfig (client certificate handshake)",
+      "boundary": "runtime/servertls/servertls.go#reloadingCertificate",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "WEB-PROTOCOL-AND-AUTH.md#Certificate lifecycle fallback"
+    },
+    "surface": "runtime/servertls/servertls.go#BuildServerTLSConfig (client certificate handshake)",
+    "boundary": "runtime/servertls/servertls.go#reloadingCertificate",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Certificate lifecycle fallback",
+    "starting_paths": [
+      "runtime/servertls/servertls.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Certificate lifecycle fallback",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h4-mtls",
+    "reviewed_paths": [
+      "runtime/servertls/servertls.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h4-mtls",
+        "reviewed_paths": [
+          "runtime/servertls/servertls.go"
+        ],
+        "invariant": "Reload failure and client-auth mode selection must not silently downgrade client authentication or trust unintended roots",
+        "method": "source",
+        "result": "parseClientAuth requires a client CA for verifying modes; reload swaps cert and CA pool under the lock only after both load; a failed reload keeps the last good ones and never installs an empty pool; GetConfigForClient preserves ClientAuth. Stale CA retention and no CRL/OCSP are fail-stale, not fail-open.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "Reload failures only log; consider a metric/alert.",
+      "No CRL/OCSP; established connections keep handshake-time VerifiedChains.",
+      "AppendCertsFromPEM accepts a CA file with any usable cert even if other blocks are malformed."
+    ]
+  },
+  {
+    "coverage_id": "runtime%2Fservertls%2Fservertls.go%23BuildServerTLSConfig%20config%20validation::runtime%2Fservertls%2Fservertls.go%23parseClientAuth::profile%2Fquick%2Fall-in-scope-subsystems::WEB-PROTOCOL-AND-AUTH.md%23Certificate%20lifecycle%20fallback",
+    "canonical_refs": {
+      "surface": "runtime/servertls/servertls.go#BuildServerTLSConfig config validation",
+      "boundary": "runtime/servertls/servertls.go#parseClientAuth",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "WEB-PROTOCOL-AND-AUTH.md#Certificate lifecycle fallback"
+    },
+    "surface": "runtime/servertls/servertls.go#BuildServerTLSConfig config validation",
+    "boundary": "runtime/servertls/servertls.go#parseClientAuth",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Certificate lifecycle fallback",
+    "starting_paths": [
+      "runtime/servertls/servertls.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Certificate lifecycle fallback",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "No quota/availability boundary in this unit."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "deferred",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [
+      "Critic: TLSClientAuth set with TLS disabled/CertsDir unset may yield a plaintext server with no error (servertls.go:118-121); IsMutualTLSEnabled may report true for none/request modes; reload does not check cert expiry. quick_profile_final_critic"
+    ]
+  },
+  {
+    "coverage_id": "services%2Fcommon%2Fcache%2Finmemory.go%23SetWithTTL%2CGetOrInsertE::services%2Fcommon%2Fcache%2Finmemory.go%23dropExpired::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "services/common/cache/inmemory.go#SetWithTTL,GetOrInsertE",
+      "boundary": "services/common/cache/inmemory.go#dropExpired",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Resource and file handling"
+    },
+    "surface": "services/common/cache/inmemory.go#SetWithTTL,GetOrInsertE",
+    "boundary": "services/common/cache/inmemory.go#dropExpired",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "services/common/cache/inmemory.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h6-nats-client-token-cache",
+    "reviewed_paths": [
+      "services/common/cache/inmemory.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h6-nats-client-token-cache",
+        "reviewed_paths": [
+          "services/common/cache/inmemory.go"
+        ],
+        "invariant": "TTL is absolute; expired entries are not served; concurrent misses are coalesced; adder errors are not cached",
+        "method": "source",
+        "result": "SkipTTLExtensionOnHit(true) gives absolute TTL; dropExpired removes stale entries before Set; GetOrInsertE re-checks inside singleflight and caches only on adder success. Keys are caller-chosen with no size bound (availability; excluded). dropExpired is not atomic with Set (spurious miss only).",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "No maximum entry count; consider SetCacheSizeLimit."
+    ]
+  },
+  {
+    "coverage_id": "services%2Fjwtminter%2FKeyMaterialValidator%2FKeyMaterialValidator.go%23ValidateAccessToken::services%2Fjwtminter%2FKeyMaterialValidator%2FKeyMaterialValidator.go%23checkSigningKeyWindow::profile%2Fquick%2Fall-in-scope-subsystems::WEB-PROTOCOL-AND-AUTH.md%23JWT%20verification%20and%20claim%20binding",
+    "canonical_refs": {
+      "surface": "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go#ValidateAccessToken",
+      "boundary": "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go#checkSigningKeyWindow",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "WEB-PROTOCOL-AND-AUTH.md#JWT verification and claim binding"
+    },
+    "surface": "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go#ValidateAccessToken",
+    "boundary": "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go#checkSigningKeyWindow",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "JWT verification and claim binding",
+    "starting_paths": [
+      "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#JWT verification and claim binding",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+        "reason": "No in-scope release, CI, signing, update, or plugin boundary; scope is runtime auth and NATS code."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "Quick profile; availability testing against shared processes is prohibited and no quota boundary is in scope."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "h2-jwks-keymat",
+    "reviewed_paths": [
+      "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go",
+      "contracts/middleware/auth/jwt/jwt.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h2-jwks-keymat",
+        "reviewed_paths": [
+          "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go"
+        ],
+        "invariant": "Signature, issuer, expiry and key window enforced by default; key window not bypassable by unknown/absent kid",
+        "method": "source",
+        "result": "Defaults verify the signature against the local key set, check issuer and run skew-aware Validate; checkSigningKeyWindow fails closed on no signature, unknown kid, or iat outside the key window. A multi-signature JSON JWS could use the wrong kid for the window but iat is signer-chosen, so no independent impact.",
+        "artifact": null
+      },
+      {
+        "agent_id": "h2-jwks-keymat",
+        "reviewed_paths": [
+          "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go",
+          "contracts/middleware/auth/jwt/jwt.go"
+        ],
+        "invariant": "Claim binding: tokens for another audience or unverified tokens are not accepted by default",
+        "method": "source",
+        "result": "No audience check exists, so any token signed by the local keys with the configured issuer is accepted by any service sharing them (jwtminter design; deployment-dependent). ValidateSignature=false and ValidateIssuer=false are explicit opt-outs. Returns handled=false on error, so the chain falls through to the next validator.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening": [
+      "checkSigningKeyWindow uses signer-chosen iat: rotation hygiene only, not defence against a compromised retired key.",
+      "ValidateAccessToken returns handled=false on validation errors, silently passing failures to the next validator.",
+      "KeyMaterialValidator has no audience option."
+    ]
+  },
+  {
+    "coverage_id": "services%2Fjwtminter%2FKeyMaterialValidator%2FKeyMaterialValidator.go%23constructor%20DI%20and%20validator%20chain::middleware%2Fauth%2Fjwt%2Fmiddleware.go%23_validate%20validator%20loop::profile%2Fquick%2Fall-in-scope-subsystems::WEB-PROTOCOL-AND-AUTH.md%23JWT%20verification%20and%20claim%20binding",
+    "canonical_refs": {
+      "surface": "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go#constructor DI and validator chain",
+      "boundary": "middleware/auth/jwt/middleware.go#_validate validator loop",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "WEB-PROTOCOL-AND-AUTH.md#JWT verification and claim binding"
+    },
+    "surface": "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go#constructor DI and validator chain",
+    "boundary": "middleware/auth/jwt/middleware.go#_validate validator loop",
+    "subsystem": "All in-scope subsystems (quick profile)",
+    "attack_class": "JWT verification and claim binding",
+    "starting_paths": [
+      "services/jwtminter/KeyMaterialValidator/KeyMaterialValidator.go",
+      "middleware/auth/jwt/middleware.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#JWT verification and claim binding",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "reason": "No quota/availability boundary in this unit."
+      }
+    ],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "deferred",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [
+      "Critic: with ValidateSignature=false it returns handled=true for any parseable token and, as one of several IValidators, can accept before the issuer-matched JWKS validator; missing JWTValidatorOptions DI is a nil dereference. quick_profile_final_critic"
+    ]
+  }
+]

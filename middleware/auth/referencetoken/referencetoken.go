@@ -57,6 +57,7 @@ import (
 	fluffycore_wellknown "github.com/fluffy-bunny/fluffycore/wellknown"
 	status "github.com/gogo/status"
 	metautils "github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
+	jwxt "github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/rs/zerolog"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -276,11 +277,16 @@ func (e *engine) resolve(ctx context.Context) resolveOutcome {
 
 	switch resolved.Kind {
 	case fluffycore_contracts_middleware_auth_referencetoken.ResolvedKindJWT:
+		// A cache hit skips JWT validation, so a cached resolution must not outlive the JWT.
+		jwtTTL, cacheable := capTTLToJWTExpiry(ttl, resolved.RawJWT)
+		if !cacheable {
+			cacheKey = "" // already expired: never cache it
+		}
 		return resolveOutcome{
 			kind:            outcomeDelegateToJWT,
 			ctx:             rewriteAuthorizationToJWT(ctx, resolved.RawJWT),
 			cacheKey:        cacheKey,
-			ttl:             ttl,
+			ttl:             jwtTTL,
 			claimsPrincipal: claimsPrincipal,
 			// Whatever is already on the principal (e.g. this connection's mtls_* claims)
 			// is NOT part of the token's resolution and must not be cached with it.
@@ -457,4 +463,29 @@ func rewriteAuthorizationToJWT(ctx context.Context, jwt string) context.Context 
 	md := metautils.ExtractIncoming(ctx)
 	md = md.Set(fluffycore_wellknown.MetadataKeyAuthorization, fluffycore_wellknown.AuthSchemeBearerPrefix+jwt)
 	return md.ToIncoming(ctx)
+}
+
+// capTTLToJWTExpiry limits a cache TTL to the JWT's remaining lifetime. A cache hit skips
+// resolution and JWT validation, so a resolution cached for longer than the JWT it resolved
+// to kept authenticating after the JWT had expired, for up to the whole TTL. The expiry is read
+// without verifying the signature: it can only shorten the TTL, and the JWT interceptor still
+// validates the token before anything is cached. A JWT that doesn't parse or has no exp keeps
+// the original TTL. cacheable is false when the JWT has already expired.
+func capTTLToJWTExpiry(ttl time.Duration, rawJWT string) (capped time.Duration, cacheable bool) {
+	tok, err := jwxt.Parse([]byte(rawJWT), jwxt.WithVerify(false), jwxt.WithValidate(false))
+	if err != nil {
+		return ttl, true
+	}
+	exp, ok := tok.Expiration()
+	if !ok || exp.IsZero() {
+		return ttl, true
+	}
+	remaining := time.Until(exp)
+	if remaining <= 0 {
+		return 0, false
+	}
+	if remaining < ttl {
+		return remaining, true
+	}
+	return ttl, true
 }

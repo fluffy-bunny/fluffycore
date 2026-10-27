@@ -117,6 +117,12 @@ func BuildServerTLSConfig(cfg *fluffycore_contracts_config.CoreConfig) (*tls.Con
 	}
 	resolved := resolveConfig(cfg)
 	if !resolved.enabled {
+		// TLS-shaped settings without enabling TLS are a mistake, not "plaintext as before": a
+		// server meant to require client certificates used to start in plaintext, silently,
+		// with every bearer token travelling in the clear.
+		if cfg.TLSClientAuth != "" || cfg.TLSClientCAFile != "" || cfg.TLSCertFile != "" || cfg.TLSKeyFile != "" {
+			return nil, fmt.Errorf("servertls: TLS is not enabled but TLS settings (tlsClientAuth/tlsClientCAFile/tlsCertFile/tlsKeyFile) are set -- set tlsEnabled or tlsCertsDir, or clear them")
+		}
 		return nil, nil
 	}
 	if resolved.certFile == "" || resolved.keyFile == "" {
