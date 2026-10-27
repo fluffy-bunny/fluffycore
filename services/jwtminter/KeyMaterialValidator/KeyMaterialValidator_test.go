@@ -52,7 +52,10 @@ func sign(t *testing.T, key *fluffycore_contracts_jwtminter.SigningKey, iat, exp
 	require.NoError(t, err)
 	priv, err := jwxk.ParseKey(raw)
 	require.NoError(t, err)
-	b := jwxt.NewBuilder().Issuer(issuer).Subject("u").Expiration(exp)
+	b := jwxt.NewBuilder().Issuer(issuer).Subject("u")
+	if !exp.IsZero() { // zero exp = leave the claim out
+		b = b.Expiration(exp)
+	}
 	if !iat.IsZero() {
 		b = b.IssuedAt(iat)
 	}
@@ -112,4 +115,15 @@ func TestValidator_RetiredKeyOnlyVouchesForTokensIssuedInItsWindow(t *testing.T)
 
 	_, err = v.ParseAccessTokenRaw(ctx, sign(t, retired, time.Now().Add(-30*time.Hour), time.Now().Add(time.Hour)))
 	require.NoError(t, err, "a token issued while the key was valid still verifies until it expires")
+}
+
+// jwxt.Validate accepts a token with no exp; a signed token that never expires must be rejected.
+func TestValidator_TokenWithoutExpRejected(t *testing.T) {
+	km, _, active := keyMaterial(t)
+	v := newValidator(t, km, opts(0))
+	_, err := v.ParseAccessTokenRaw(context.Background(), sign(t, active, time.Now(), time.Time{}))
+	require.Error(t, err)
+	var missing jwxt.MissingRequiredClaimError
+	require.ErrorAs(t, err, &missing)
+	require.Equal(t, "exp", missing.Claim)
 }

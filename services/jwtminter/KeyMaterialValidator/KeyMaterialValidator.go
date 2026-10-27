@@ -103,7 +103,9 @@ func (s *service) ParseAccessTokenRaw(ctx context.Context, accessToken string) (
 	if s.shouldValidateIssuer() {
 		validationOpts = append(validationOpts, jwxt.WithIssuer(s.JWTValidatorOptions.Issuer))
 	}
-	validationOpts = append(validationOpts, jwxt.WithAcceptableSkew(s.clockSkew()))
+	// exp is required: jwxt.Validate accepts a token with no exp, so a signed token without one
+	// would never expire.
+	validationOpts = append(validationOpts, jwxt.WithAcceptableSkew(s.clockSkew()), jwxt.WithRequiredClaim(jwxt.ExpirationKey))
 	if err := jwxt.Validate(token, validationOpts...); err != nil {
 		return nil, err
 	}
