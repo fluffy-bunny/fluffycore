@@ -244,3 +244,26 @@ func TestReloadingCertificate_ClientCAPoolReloads(t *testing.T) {
 	_, err = ca2.Cert.Verify(opts)
 	require.NoError(t, err, "the newly appended CA must be trusted after reload")
 }
+
+// TLS-shaped settings without enabling TLS used to return (nil, nil): the server started in
+// plaintext, silently, even when tlsClientAuth=require was set.
+func TestBuildServerTLSConfig_TLSSettingsWithoutEnable_Errors(t *testing.T) {
+	for name, cfg := range map[string]*fluffycore_contracts_config.CoreConfig{
+		"client auth": {TLSClientAuth: "require"},
+		"client CA":   {TLSClientCAFile: "/ca.pem"},
+		"server cert": {TLSCertFile: "/c.pem"},
+		"server key":  {TLSKeyFile: "/k.pem"},
+		"client+cert": {TLSClientAuth: "require", TLSCertFile: "/c.pem", TLSKeyFile: "/k.pem"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tlsConfig, err := BuildServerTLSConfig(cfg)
+			require.Error(t, err)
+			require.Nil(t, tlsConfig)
+			require.Contains(t, err.Error(), "TLS is not enabled")
+		})
+	}
+	// Nothing TLS-shaped set: still plaintext, no error.
+	tlsConfig, err := BuildServerTLSConfig(&fluffycore_contracts_config.CoreConfig{})
+	require.NoError(t, err)
+	require.Nil(t, tlsConfig)
+}

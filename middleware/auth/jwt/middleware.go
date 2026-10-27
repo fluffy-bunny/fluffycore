@@ -206,7 +206,9 @@ func (s *service) ValidateAccessToken(ctx context.Context, rawToken *fluffycore_
 		return true, status.Errorf(codes.Unauthenticated, "token signature not valid")
 	}
 	trustedToken := rawToken.Token
-	if err := jwxt.Validate(trustedToken, jwxt.WithAcceptableSkew(time.Minute*5)); err != nil {
+	// exp is required: jwxt.Validate accepts a token with no exp, and a signed token that
+	// never expires is a credential that can't be revoked by waiting.
+	if err := jwxt.Validate(trustedToken, jwxt.WithAcceptableSkew(time.Minute*5), jwxt.WithRequiredClaim(jwxt.ExpirationKey)); err != nil {
 		return true, status.Errorf(codes.Unauthenticated, "token signature not valid")
 	}
 

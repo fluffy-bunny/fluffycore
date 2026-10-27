@@ -1,0 +1,37 @@
+{
+  "run_id": "run-1",
+  "repo": "fluffycore",
+  "target": "C:/work/mapped/fluffycore",
+  "source_ref": "d59f530 (tracked tree clean; untracked: .claude/, protoc-gen-go-fluffycore-di/internal/, scripts/profile-plugins.sh)",
+  "profile": "quick",
+  "scope_paths": [
+    "middleware/auth/jwt",
+    "middleware/auth/mtls",
+    "middleware/auth/referencetoken",
+    "nats/nats_micro_service",
+    "nats/client",
+    "nats/nats_token",
+    "services/common/cache/inmemory.go",
+    "runtime/servertls/servertls.go",
+    "services/jwtminter/KeyMaterialValidator"
+  ],
+  "budget": 20,
+  "execution_policy": "sandboxed-source-and-local-only",
+  "execution_note": "Native Windows cannot enforce the required sandbox; no target code is executed. Source review only; anything needing execution is needs_validation.",
+  "selected_companion_files": [
+    "WEB-PROTOCOL-AND-AUTH.md",
+    "PROTOCOLS-RPC-AND-MESSAGING.md"
+  ],
+  "prior_runs": [],
+  "shared_file_owners": "parent",
+  "agents_spent": 11,
+  "run_status": "complete",
+  "agent_plan": {
+    "recon": 4,
+    "hunters": 6,
+    "final_critic": 1,
+    "verifiers_max": 8,
+    "reserve": 1
+  },
+  "partial_coverage": "quick profile + scoped; 7 units deferred and 1 out_of_scope after the final critic"
+}
