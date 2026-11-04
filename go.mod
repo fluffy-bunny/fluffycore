@@ -14,7 +14,7 @@ require (
 	github.com/cloudevents/sdk-go/v2 v2.16.2
 	github.com/eko/gocache/lib/v4 v4.4.0
 	github.com/eko/gocache/store/go_cache/v4 v4.2.10
-	github.com/eko/gocache/store/redis/v4 v4.2.12
+	github.com/eko/gocache/store/redis/v4 v4.2.13
 	github.com/fatih/structs v1.1.0
 	github.com/fluffy-bunny/fluffy-dozm-di v0.0.11
 	github.com/fluffy-bunny/viperEx v0.0.40
