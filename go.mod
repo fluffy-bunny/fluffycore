@@ -37,7 +37,7 @@ require (
 	github.com/labstack/echo/v5 v5.4.2
 	github.com/lestrrat-go/httprc/v3 v3.0.6
 	github.com/lestrrat-go/jwx/v4 v4.6.0
-	github.com/madflojo/tasks v1.3.1
+	github.com/madflojo/tasks v1.3.2
 	github.com/maxence-charriere/go-app/v10 v10.1.11
 	github.com/mdaverde/jsonpath v0.2.1
 	github.com/nats-io/nats.go v1.55.0
